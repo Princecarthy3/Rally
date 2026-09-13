@@ -37,10 +37,34 @@ function AuthForm() {
       else router.replace("/dashboard");
     } else {
       const redirectTo = `${window.location.origin}/auth/callback`;
-      const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo, data: { display_name: displayName.trim() } } });
-      if (error) setMessage({ type: "error", text: error.message });
-      else if (data.session) router.replace("/dashboard");
-      else setMessage({ type: "success", text: "Check your inbox to confirm your email, then come back to play." });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: redirectTo, data: { display_name: displayName.trim() } },
+      });
+
+      if (error) {
+        const errText = error.message.toLowerCase();
+        if (errText.includes("rate limit") || errText.includes("exceeded")) {
+          // Attempt automatic login in case the user was already created on a previous attempt
+          const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
+          if (!loginErr && loginData.session) {
+            router.replace("/dashboard");
+            setBusy(false);
+            return;
+          }
+          setMessage({
+            type: "error",
+            text: "Supabase email limit reached for this hour. Try signing in directly with your password below if you already submitted this email.",
+          });
+        } else {
+          setMessage({ type: "error", text: error.message });
+        }
+      } else if (data.session) {
+        router.replace("/dashboard");
+      } else {
+        setMessage({ type: "success", text: "Check your inbox to confirm your email, then come back to play." });
+      }
     }
     setBusy(false);
   }
