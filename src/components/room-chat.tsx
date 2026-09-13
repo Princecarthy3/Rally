@@ -61,10 +61,17 @@ export function RoomChat({
 
   useEffect(() => {
     if (isOpen) {
-      setUnread(0);
       chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [isOpen, messages]);
+
+  const toggleChat = () => {
+    setIsOpen((prev) => {
+      const next = !prev;
+      if (next) setUnread(0);
+      return next;
+    });
+  };
 
   const sendMessage = (textToSend?: string) => {
     const content = (textToSend || input).trim();
@@ -72,12 +79,15 @@ export function RoomChat({
 
     sounds.playClickSound();
 
+    const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const msgId = `${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+
     const newMsg: ChatMessage = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      id: msgId,
       senderId: userId,
       senderName: userName,
       text: content,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timestamp,
     };
 
     channelRef.current.send({
@@ -100,7 +110,7 @@ export function RoomChat({
     <>
       {/* Floating Chat Trigger Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={toggleChat}
         aria-label="Open room chat"
         className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full border-2 border-slate-950 bg-[#7357ff] px-4 py-3 text-xs font-black text-white shadow-[4px_4px_0_#171821] transition hover:-translate-y-1 md:bottom-6 md:right-6"
       >
