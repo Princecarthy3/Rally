@@ -233,151 +233,236 @@ begin
   if (board->>0=mark and board->>1=mark and board->>2=mark) or (board->>3=mark and board->>4=mark and board->>5=mark) or (board->>6=mark and board->>7=mark and board->>8=mark) or (board->>0=mark and board->>3=mark and board->>6=mark) or (board->>1=mark and board->>4=mark and board->>7=mark) or (board->>2=mark and board->>5=mark and board->>8=mark) or (board->>0=mark and board->>4=mark and board->>8=mark) or (board->>2=mark and board->>5=mark and board->>6=mark) then round_ended:=true; round_winner:=me.seat; elsif not board ? '' then round_ended:=true; round_winner:=null; end if;
 
  elsif r.game_type='number_guess' then
+   picker_s:=coalesce((state->>'pickerSeat')::int, 1);
+   guesser_s:=coalesce((state->>'guesserSeat')::int, case when picker_s = 1 then 2 else 1 end);
+
    if p_action='set_target' then
-     if (coalesce(state->>'pickerSeat','1'))::int<>me.seat then raise exception 'Only the picker can set the secret number'; end if;
+     if picker_s <> me.seat then raise exception 'Only the picker can set the secret number'; end if;
      val:=p_value::int; if val<1 or val>100 then raise exception 'Number must be between 1 and 100'; end if;
      state:=jsonb_set(state, '{targetNumber}', to_jsonb(val), true);
      state:=jsonb_set(state, '{targetPicked}', 'true'::jsonb, true);
-     state:=jsonb_set(state, '{message}', to_jsonb('Secret number set! Guesser has 5 seconds!'::text));
+     state:=jsonb_set(state, '{lastGuess}', 'null'::jsonb, true);
+     state:=jsonb_set(state, '{attemptsLeft}', to_jsonb(3), true);
+     state:=jsonb_set(state, '{guesses}', '[]'::jsonb, true);
+     state:=jsonb_set(state, '{message}', to_jsonb('Secret number set! Guesser has 3 tries in 45 seconds!'::text));
    elsif p_action='time_expired' then
-     val:=(coalesce(state->>'pickerSeat','1'))::int;
-     round_ended:=true; round_winner:=val;
-     state:=jsonb_set(state, '{message}', to_jsonb(('5-Second timer expired! Player '||val||' (Picker) wins the round!')::text));
+     round_ended:=true; round_winner:=picker_s;
+     score:=coalesce((state->'scores'->>picker_s::text)::int, 0) + 50;
+     state:=jsonb_set(state, array['scores', picker_s::text], to_jsonb(score), true);
+     state:=jsonb_set(state, '{pickerSeat}', to_jsonb(guesser_s), true);
+     state:=jsonb_set(state, '{guesserSeat}', to_jsonb(picker_s), true);
+     state:=jsonb_set(state, '{targetPicked}', 'false'::jsonb, true);
+     state:=jsonb_set(state, '{message}', to_jsonb(('45-Second timer expired! Player '||picker_s||' (Picker) wins the round! Roles swapped!')::text));
    elsif p_action='guess' then
-     if (coalesce(state->>'guesserSeat','2'))::int<>me.seat then raise exception 'Only the guesser can make a guess'; end if;
+     if guesser_s <> me.seat then raise exception 'Only the guesser can make a guess'; end if;
      val:=p_value::int; if val<1 or val>100 then raise exception 'Guess must be 1 to 100'; end if;
+     
+     score:=coalesce((state->>'attemptsLeft')::int, 3) - 1;
+     state:=jsonb_set(state, '{attemptsLeft}', to_jsonb(greatest(0, score)), true);
      state:=jsonb_set(state, '{lastGuess}', to_jsonb(val), true);
-     if val=(state->>'targetNumber')::int then
-       score:=coalesce((state->'scores'->>me.seat::text)::int,0)+100;
-       state:=jsonb_set(state, array['scores',me.seat::text], to_jsonb(score), true);
-       val:=(coalesce(state->>'pickerSeat','1'))::int;
+     state:=jsonb_set(state, '{guesses}', coalesce(state->'guesses', '[]'::jsonb) || to_jsonb(val), true);
+     target_n:=coalesce((state->>'targetNumber')::int, 50);
+
+     if val = target_n then
+       score:=coalesce((state->'scores'->>me.seat::text)::int, 0) + 100;
+       state:=jsonb_set(state, array['scores', me.seat::text], to_jsonb(score), true);
+       round_ended:=true; round_winner:=me.seat;
        state:=jsonb_set(state, '{pickerSeat}', to_jsonb(me.seat), true);
-       state:=jsonb_set(state, '{guesserSeat}', to_jsonb(val), true);
+       state:=jsonb_set(state, '{guesserSeat}', to_jsonb(picker_s), true);
        state:=jsonb_set(state, '{targetPicked}', 'false'::jsonb, true);
-       state:=jsonb_set(state, '{message}', to_jsonb(('CORRECT! Player '||me.seat||' guessed it! Roles swapped for next round! 🎉')::text));
+       state:=jsonb_set(state, '{message}', to_jsonb(('CORRECT! Player '||me.seat||' guessed secret target '||target_n||'! Roles swapped! 🎉')::text));
+     elsif score <= 0 then
+       round_ended:=true; round_winner:=picker_s;
+       score:=coalesce((state->'scores'->>picker_s::text)::int, 0) + 50;
+       state:=jsonb_set(state, array['scores', picker_s::text], to_jsonb(score), true);
+       state:=jsonb_set(state, '{pickerSeat}', to_jsonb(guesser_s), true);
+       state:=jsonb_set(state, '{guesserSeat}', to_jsonb(picker_s), true);
+       state:=jsonb_set(state, '{targetPicked}', 'false'::jsonb, true);
+       state:=jsonb_set(state, '{message}', to_jsonb(('Used all 3 tries! Player '||picker_s||' (Picker) wins the round! Target was '||target_n||'. Roles swapped!')::text));
      else
-       val:=(coalesce(state->>'pickerSeat','1'))::int;
-       round_ended:=true; round_winner:=val;
-       state:=jsonb_set(state, '{message}', to_jsonb(('Wrong guess! Player '||val||' (Picker) wins the round!')::text));
+       clue_msg:=case when target_n > val then 'TOO LOW ⬆️' else 'TOO HIGH ⬇️' end;
+       if abs(target_n - val) <= 5 then clue_msg:=clue_msg || ' (Very Close 🔥)'; elsif abs(target_n - val) > 25 then clue_msg:=clue_msg || ' (Cold 🥶)'; end if;
+       state:=jsonb_set(state, '{message}', to_jsonb(('Guess '||val||' is '||clue_msg||' — '||score||' try(ies) left!')::text));
      end if;
    end if;
 
  elsif r.game_type='rps' then
-  if p_action<>'choose' or p_value not in ('rock','paper','scissors') then raise exception 'Invalid choice'; end if;
-  insert into private.rps_choices(room_id,round,player_id,choice) values(p_room,cur_round,auth.uid(),p_value) on conflict do nothing; if not found then raise exception 'Choice already locked'; end if;
-  state:=jsonb_set(state,array['choices',me.seat::text],to_jsonb('locked'::text),true); select count(*) into val from private.rps_choices where room_id=p_room and round=cur_round;
-  if val=n then state:=jsonb_set(state,array['choices'],coalesce((select jsonb_object_agg(p.seat::text,c.choice::text) from private.rps_choices c join public.game_players p on p.room_id=c.room_id and p.player_id=c.player_id where c.room_id=p_room and c.round=cur_round),'{}'::jsonb),true); state:=jsonb_set(state,array['revealed'],to_jsonb(true),true); round_ended:=true; end if;
+   if p_action='next_round' then
+     cur_round:=coalesce((state->>'round')::int, 1) + 1;
+     state:=jsonb_set(state, '{round}', to_jsonb(cur_round), true);
+     state:=jsonb_set(state, '{choices}', '{}'::jsonb, true);
+     state:=jsonb_set(state, '{revealed}', 'false'::jsonb, true);
+     state:=jsonb_set(state, '{message}', to_jsonb(('Round '||cur_round||' of 3: Make your pick!')::text));
+   elsif p_action='choose' then
+     if p_value not in ('rock','paper','scissors') then raise exception 'Invalid choice'; end if;
+     insert into private.rps_choices(room_id,round,player_id,choice) values(p_room,cur_round,auth.uid(),p_value) on conflict do nothing; if not found then raise exception 'Choice already locked'; end if;
+     state:=jsonb_set(state,array['choices',me.seat::text],to_jsonb(p_value::text),true);
+     select count(*) into val from private.rps_choices where room_id=p_room and round=cur_round;
+     
+     if val=n then
+       state:=jsonb_set(state,array['choices'],coalesce((select jsonb_object_agg(p.seat::text,c.choice::text) from private.rps_choices c join public.game_players p on p.room_id=c.room_id and p.player_id=c.player_id where c.room_id=p_room and c.round=cur_round),'{}'::jsonb),true);
+       state:=jsonb_set(state,array['revealed'],to_jsonb(true),true);
+       
+       select choice into c_color from private.rps_choices c join public.game_players p on p.room_id=c.room_id and p.player_id=c.player_id where c.room_id=p_room and c.round=cur_round and p.seat=1;
+       select choice into c_val from private.rps_choices c join public.game_players p on p.room_id=c.room_id and p.player_id=c.player_id where c.room_id=p_room and c.round=cur_round and p.seat=2;
+       
+       if c_color = c_val then
+         clue_msg := 'Draw! Both players picked ' || c_color || '!';
+         round_winner := null;
+       elsif (c_color='rock' and c_val='scissors') or (c_color='scissors' and c_val='paper') or (c_color='paper' and c_val='rock') then
+         score := coalesce((state->'scores'->>'1')::int, 0) + 1;
+         state := jsonb_set(state, array['scores', '1'], to_jsonb(score), true);
+         round_winner := 1;
+         clue_msg := 'Player 1 wins! (' || c_color || ' beats ' || c_val || ') 🎉';
+       else
+         score := coalesce((state->'scores'->>'2')::int, 0) + 1;
+         state := jsonb_set(state, array['scores', '2'], to_jsonb(score), true);
+         round_winner := 2;
+         clue_msg := 'Player 2 wins! (' || c_val || ' beats ' || c_color || ') 🎉';
+       end if;
+
+       state := jsonb_set(state, '{message}', to_jsonb(('Round '||cur_round||' Result: '||clue_msg)::text));
+       state := jsonb_set(state, '{history}', coalesce(state->'history', '[]'::jsonb) || jsonb_build_array(jsonb_build_object('round', cur_round, 'winnerSeat', round_winner, 'message', clue_msg)), true);
+       
+       if cur_round >= 3 then
+         round_ended := true;
+       end if;
+     end if;
+   end if;
 
  elsif r.game_type='quick_quiz' then
-  if p_action<>'answer' then raise exception 'Invalid action'; end if; val:=p_value::int; if val<0 or val>3 then raise exception 'Invalid answer'; end if; if state->'answers' ? me.seat::text then raise exception 'Answer already locked'; end if; state:=jsonb_set(state,array['answers',me.seat::text],to_jsonb(val),true);
-  if val=1 then state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(1),true); else state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(0),true); end if;
-  if (select count(*) from jsonb_object_keys(state->'answers'))=n then state:=jsonb_set(state,array['revealed'],to_jsonb(true),true); round_ended:=true; end if;
+   if p_action<>'answer' then raise exception 'Invalid action'; end if; val:=p_value::int; if val<0 or val>3 then raise exception 'Invalid answer'; end if; if state->'answers' ? me.seat::text then raise exception 'Answer already locked'; end if; state:=jsonb_set(state,array['answers',me.seat::text],to_jsonb(val),true);
+   if val=1 then state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(1),true); else state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(0),true); end if;
+   if (select count(*) from jsonb_object_keys(state->'answers'))=n then state:=jsonb_set(state,array['revealed'],to_jsonb(true),true); round_ended:=true; end if;
 
  elsif r.game_type='emoji_decode' then
-  if p_action<>'answer' then raise exception 'Invalid action'; end if;
-  if state->'answers' ? me.seat::text then raise exception 'Answer already locked'; end if;
-  state:=jsonb_set(state,array['answers',me.seat::text],to_jsonb(p_value::text),true);
-  if p_value in ('correct','1','true') or right(p_value,8)='_correct' then
-    score:=coalesce((state->'scores'->>me.seat::text)::int,0)+1;
-    state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(score),true);
-  end if;
-  if (select count(*) from jsonb_object_keys(state->'answers'))=n then
-    q_idx:=coalesce((state->>'qIndex')::int,0)+1;
-    if q_idx < 5 then
-      state:=jsonb_set(state,array['qIndex'],to_jsonb(q_idx::int),true);
-      state:=jsonb_set(state,array['answers'],'{}'::jsonb,true);
-      state:=jsonb_set(state,array['message'],to_jsonb(('Question '||(q_idx+1)||' of 5: Decode the emoji clue')::text),true);
-    else
-      state:=jsonb_set(state,array['revealed'],to_jsonb(true),true);
-      round_ended:=true;
-    end if;
-  end if;
+   if p_action<>'answer' then raise exception 'Invalid action'; end if;
+   if state->'answers' ? me.seat::text then raise exception 'Answer already locked'; end if;
+   state:=jsonb_set(state,array['answers',me.seat::text],to_jsonb(p_value::text),true);
+   if p_value in ('correct','1','true') or right(p_value,8)='_correct' then
+     score:=coalesce((state->'scores'->>me.seat::text)::int,0)+1;
+     state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(score),true);
+   end if;
+   if (select count(*) from jsonb_object_keys(state->'answers'))=n then
+     q_idx:=coalesce((state->>'qIndex')::int,0)+1;
+     if q_idx < 5 then
+       state:=jsonb_set(state,array['qIndex'],to_jsonb(q_idx::int),true);
+       state:=jsonb_set(state,array['answers'],'{}'::jsonb,true);
+       state:=jsonb_set(state,array['message'],to_jsonb(('Question '||(q_idx+1)||' of 5: Decode the emoji clue')::text),true);
+     else
+       state:=jsonb_set(state,array['revealed'],to_jsonb(true),true);
+       round_ended:=true;
+     end if;
+   end if;
 
  elsif r.game_type='dots_boxes' then
-  if (state->>'turn')::int<>me.seat or p_action<>'line' then raise exception 'Wait for your turn'; end if;
-  if (state->'hLines' ? p_value) or (state->'vLines' ? p_value) then raise exception 'Line already drawn'; end if;
-  if left(p_value,2)='h_' then
-    state:=jsonb_set(state,array['hLines',substr(p_value,3)],to_jsonb(me.seat::int),true);
-  else
-    state:=jsonb_set(state,array['vLines',substr(p_value,3)],to_jsonb(me.seat),true);
-  end if;
-  grid_size:=coalesce((state->>'gridSize')::int,3); new_boxes:=0;
-  for r_idx in 0..(grid_size-1) loop
-    for c_idx in 0..(grid_size-1) loop
-      key_b:='b_'||r_idx||'_'||c_idx;
-      if not (state->'boxes' ? key_b) then
-        if (state->'hLines' ? (r_idx||'_'||c_idx)) and
-           (state->'hLines' ? ((r_idx+1)||'_'||c_idx)) and
-           (state->'vLines' ? (r_idx||'_'||c_idx)) and
-           (state->'vLines' ? (r_idx||'_'||(c_idx+1))) then
-          state:=jsonb_set(state,array['boxes',key_b],to_jsonb(me.seat),true);
-          new_boxes:=new_boxes+1;
-          score:=coalesce((state->'scores'->>me.seat::text)::int,0)+1;
-          state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(score),true);
-        end if;
-      end if;
-    end loop;
-  end loop;
-  if new_boxes > 0 then
-    state:=jsonb_set(state,array['message'],to_jsonb(('Player '||me.seat||' completed '||new_boxes||' box(es)! Extra turn.')::text),true);
-  else
-    select coalesce(min(seat),1) into next_seat from public.game_players where room_id=p_room and seat>me.seat; if next_seat=1 then select coalesce(min(seat),1) into next_seat from public.game_players where room_id=p_room; end if;
-    state:=jsonb_set(state,array['turn'],to_jsonb(next_seat::int),true);
-    state:=jsonb_set(state,array['message'],to_jsonb(('Player '||next_seat||'’s turn')::text),true);
-  end if;
-  if (select count(*) from jsonb_object_keys(state->'boxes')) >= (grid_size * grid_size) then
-    round_ended:=true;
-  end if;
+   if (state->>'turn')::int<>me.seat or p_action<>'line' then raise exception 'Wait for your turn'; end if;
+   if (state->'hLines' ? p_value) or (state->'vLines' ? p_value) then raise exception 'Line already drawn'; end if;
+   if left(p_value,2)='h_' then
+     state:=jsonb_set(state,array['hLines',substr(p_value,3)],to_jsonb(me.seat::int),true);
+   else
+     state:=jsonb_set(state,array['vLines',substr(p_value,3)],to_jsonb(me.seat),true);
+   end if;
+   grid_size:=coalesce((state->>'gridSize')::int,3); new_boxes:=0;
+   for r_idx in 0..(grid_size-1) loop
+     for c_idx in 0..(grid_size-1) loop
+       key_b:='b_'||r_idx||'_'||c_idx;
+       if not (state->'boxes' ? key_b) then
+         if (state->'hLines' ? (r_idx||'_'||c_idx)) and
+            (state->'hLines' ? ((r_idx+1)||'_'||c_idx)) and
+            (state->'vLines' ? (r_idx||'_'||c_idx)) and
+            (state->'vLines' ? (r_idx||'_'||(c_idx+1))) then
+           state:=jsonb_set(state,array['boxes',key_b],to_jsonb(me.seat),true);
+           new_boxes:=new_boxes+1;
+           score:=coalesce((state->'scores'->>me.seat::text)::int,0)+1;
+           state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(score),true);
+         end if;
+       end if;
+     end loop;
+   end loop;
+   if new_boxes > 0 then
+     state:=jsonb_set(state,array['message'],to_jsonb(('Player '||me.seat||' completed '||new_boxes||' box(es)! Extra turn.')::text),true);
+   else
+     select coalesce(min(seat),1) into next_seat from public.game_players where room_id=p_room and seat>me.seat; if next_seat=1 then select coalesce(min(seat),1) into next_seat from public.game_players where room_id=p_room; end if;
+     state:=jsonb_set(state,array['turn'],to_jsonb(next_seat::int),true);
+     state:=jsonb_set(state,array['message'],to_jsonb(('Player '||next_seat||'’s turn')::text),true);
+   end if;
+   if (select count(*) from jsonb_object_keys(state->'boxes')) >= (grid_size * grid_size) then
+     round_ended:=true;
+   end if;
 
  elsif r.game_type='skribbl' then
    if p_action='select_word' then
-    if (state->>'drawerSeat')::int<>me.seat then raise exception 'Only the drawer can pick'; end if;
-    state:=jsonb_set(state,array['wordSelected'],to_jsonb(p_value::text),true); state:=jsonb_set(state,array['message'],to_jsonb('Drawer selected a word! Start drawing & guessing.'::text));
+     if (state->>'drawerSeat')::int<>me.seat then raise exception 'Only the drawer can pick'; end if;
+     state:=jsonb_set(state,array['wordSelected'],to_jsonb(p_value::text),true);
+     state:=jsonb_set(state,array['tries'], '{}'::jsonb, true);
+     state:=jsonb_set(state,array['message'],to_jsonb('Drawer selected a word! Guesser gets 3 tries.'::text));
    elsif p_action='guess' then
-    if (state->>'drawerSeat')::int=me.seat then raise exception 'Drawer cannot guess'; end if;
-    if lower(trim(p_value))=lower(trim(state->>'wordSelected')) then
-     state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(coalesce((state->'scores'->>me.seat::text)::int,0)+100),true);
-     val:=(state->>'drawerSeat')::int; state:=jsonb_set(state,array['scores',val::text],to_jsonb(coalesce((state->'scores'->>val::text)::int,0)+50),true);
-     state:=jsonb_set(state,array['guessedSeats'],coalesce(state->'guessedSeats','[]'::jsonb)||to_jsonb(me.seat::int)); state:=jsonb_set(state,array['message'],to_jsonb(('Player '||me.seat||' guessed correctly! +100pts')::text));
-     if (select count(*) from jsonb_array_elements(coalesce(state->'guessedSeats','[]'::jsonb)))>=n-1 then round_ended:=true; end if;
-    end if;
-   end if;
- end if;
+     if (state->>'drawerSeat')::int=me.seat then raise exception 'Drawer cannot guess'; end if;
+     val:=coalesce((state->'tries'->>me.seat::text)::int, 3) - 1;
+     state:=jsonb_set(state, array['tries'], coalesce(state->'tries', '{}'::jsonb) || jsonb_build_object(me.seat::text, greatest(0, val)), true);
 
- -- 3-ROUND MATCH LOGIC
- if round_ended then
-   if round_winner is not null then
-     score:=coalesce((round_wins->>round_winner::text)::int, 0) + 1;
-     round_wins:=jsonb_set(round_wins, array[round_winner::text], to_jsonb(score), true);
-   end if;
-   state:=jsonb_set(state, '{roundWins}', round_wins, true);
-
-   if cur_round >= 3 or coalesce((round_wins->>me.seat::text)::int, 0) >= 2 then
-     state:=jsonb_set(state, '{winnerSeat}', to_jsonb(coalesce(round_winner, me.seat)), true);
-     r.status:='completed';
-   else
-     cur_round:=cur_round + 1;
-     state:=jsonb_set(state, '{round}', to_jsonb(cur_round), true);
-     state:=jsonb_set(state, '{message}', to_jsonb(('Round '||(cur_round-1)||' finished! Starting Round '||cur_round||' of 3')::text), true);
-     if r.game_type='tic_tac_toe' then
-       state:=jsonb_set(state, '{board}', jsonb_build_array('','','','','','','','',''), true);
-     elsif r.game_type='rps' then
-       state:=jsonb_set(state, '{choices}', '{}'::jsonb, true);
-     elsif r.game_type='number_guess' then
-       state:=jsonb_set(state, '{secret}', to_jsonb(1+floor(random()*100)::int), true);
-       state:=jsonb_set(state, '{guesses}', '[]'::jsonb, true);
-     elsif r.game_type='dots_boxes' then
-       state:=jsonb_set(state, '{hLines}', '{}'::jsonb, true);
-       state:=jsonb_set(state, '{vLines}', '{}'::jsonb, true);
-       state:=jsonb_set(state, '{boxes}', '{}'::jsonb, true);
-     elsif r.game_type='skribbl' then
+     if lower(trim(p_value))=lower(trim(state->>'wordSelected')) then
+       score:=coalesce((state->'scores'->>me.seat::text)::int, 0) + 100;
+       state:=jsonb_set(state, array['scores', me.seat::text], to_jsonb(score), true);
+       score:=coalesce((state->'scores'->>(state->>'drawerSeat'))::int, 0) + 50;
+       state:=jsonb_set(state, array['scores', state->>'drawerSeat'], to_jsonb(score), true);
+       
+       next_seat:=((coalesce((state->>'drawerSeat')::int, 1) % n) + 1);
+       state:=jsonb_set(state, '{drawerSeat}', to_jsonb(next_seat), true);
        state:=jsonb_set(state, '{wordSelected}', 'null'::jsonb, true);
-       state:=jsonb_set(state, '{guessedSeats}', '[]'::jsonb, true);
+       state:=jsonb_set(state, '{tries}', '{}'::jsonb, true);
+       round_ended:=true; round_winner:=me.seat;
+       state:=jsonb_set(state, array['message'], to_jsonb(('Player '||me.seat||' guessed the word correctly! 🎉 Next drawer: Player '||next_seat||'.')::text));
+     elsif val <= 0 then
+       score:=coalesce((state->'scores'->>(state->>'drawerSeat'))::int, 0) + 50;
+       state:=jsonb_set(state, array['scores', state->>'drawerSeat'], to_jsonb(score), true);
+       
+       next_seat:=((coalesce((state->>'drawerSeat')::int, 1) % n) + 1);
+       round_winner:=(state->>'drawerSeat')::int;
+       state:=jsonb_set(state, '{drawerSeat}', to_jsonb(next_seat), true);
+       state:=jsonb_set(state, '{wordSelected}', 'null'::jsonb, true);
+       state:=jsonb_set(state, '{tries}', '{}'::jsonb, true);
+       round_ended:=true;
+       state:=jsonb_set(state, array['message'], to_jsonb(('Used all 3 tries! Drawer (Player '||round_winner||') wins the round! Next drawer: Player '||next_seat||'.')::text));
+     else
+       state:=jsonb_set(state, array['message'], to_jsonb(('Wrong guess by Player '||me.seat||'! ('||val||' try(ies) left)')::text));
      end if;
    end if;
  end if;
 
- update public.game_rooms set public_state=state,status=r.status,state_version=state_version+1,updated_at=now() where id=p_room;
+ -- 3-ROUND MATCH LOGIC FOR MATCH GAMES (rps, tic_tac_toe, dots_boxes)
+  if round_ended then
+    if round_winner is not null then
+      score:=coalesce((round_wins->>round_winner::text)::int, 0) + 1;
+      round_wins:=jsonb_set(round_wins, array[round_winner::text], to_jsonb(score), true);
+    end if;
+    state:=jsonb_set(state, '{roundWins}', round_wins, true);
+
+    if r.game_type in ('rps', 'tic_tac_toe', 'dots_boxes') then
+      if cur_round >= 3 or coalesce((round_wins->>me.seat::text)::int, 0) >= 2 then
+        state:=jsonb_set(state, '{winnerSeat}', to_jsonb(coalesce(round_winner, me.seat)), true);
+        r.status:='completed';
+      else
+        if r.game_type='tic_tac_toe' then
+          cur_round:=cur_round + 1;
+          state:=jsonb_set(state, '{round}', to_jsonb(cur_round), true);
+          state:=jsonb_set(state, '{board}', jsonb_build_array('','','','','','','','',''), true);
+        elsif r.game_type='dots_boxes' then
+          cur_round:=cur_round + 1;
+          state:=jsonb_set(state, '{round}', to_jsonb(cur_round), true);
+          state:=jsonb_set(state, '{hLines}', '{}'::jsonb, true);
+          state:=jsonb_set(state, '{vLines}', '{}'::jsonb, true);
+          state:=jsonb_set(state, '{boxes}', '{}'::jsonb, true);
+        end if;
+      end if;
+    elsif r.game_type in ('skribbl', 'number_guess') then
+      cur_round:=cur_round + 1;
+      state:=jsonb_set(state, '{round}', to_jsonb(cur_round), true);
+    end if;
+  end if;
+
+  update public.game_rooms set public_state=state,status=r.status,state_version=state_version+1,updated_at=now() where id=p_room;
  if r.status='completed' then perform public.finalize_room(p_room,state,r.game_type); end if;
  return state;
 end $$;
@@ -392,6 +477,12 @@ begin
  select * into r from public.game_rooms where id=p_room for update;
  if r.id is null then raise exception 'Room not found'; end if;
  if r.status<>'waiting' then raise exception 'Game already started'; end if;
+
+ -- Ensure bot user exists in auth.users to satisfy profiles foreign key constraint
+ insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+ values (v_bot_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'bot@rally.game', '', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{"display_name":"Rally Bot 🤖"}'::jsonb, now(), now())
+ on conflict (id) do nothing;
+
  insert into public.profiles(id,display_name) values(v_bot_id,'Rally Bot 🤖') on conflict(id) do update set display_name='Rally Bot 🤖';
  if exists(select 1 from public.game_players where room_id=p_room and player_id=v_bot_id) then return; end if;
  if (select count(*) from public.game_players where room_id=p_room)>=r.max_players then raise exception 'Room is full'; end if;
