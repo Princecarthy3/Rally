@@ -150,7 +150,7 @@ begin select * into r from public.game_rooms where id=p_room for update; if r.ho
    state:=case r.game_type
    when 'basketball' then jsonb_build_object('turn',1,'round',1,'scores','{}'::jsonb,'shots','{}'::jsonb,'message','Player 1 shoots first')
    when 'rps' then jsonb_build_object('round',1,'scores','{}'::jsonb,'choices','{}'::jsonb,'message','Make a secret pick')
-   when 'number_guess' then jsonb_build_object('pickerSeat',1,'guesserSeat',2,'targetPicked',false,'targetNumber',null,'lastGuess',null,'round',1,'scores','{}'::jsonb,'message','Player 1 (Picker): Set a secret number from 1 to 100!')
+   when 'number_guess' then jsonb_build_object('pickerSeat',1,'guesserSeat',2,'targetPicked',false,'targetNumber',null,'lastGuess',null,'attemptsLeft',3,'guesses','[]'::jsonb,'round',1,'scores','{}'::jsonb,'message','Player 1 (Picker): Set a secret number from 1 to 100!')
    when 'tic_tac_toe' then jsonb_build_object('turn',1,'board',jsonb_build_array('','','','','','','','',''),'message','Player 1 places X')
    when 'dice_dash' then jsonb_build_object('turn',1,'positions','{}'::jsonb,'message','Player 1, roll the dice')
    when 'dots_boxes' then jsonb_build_object('turn',1,'gridSize',coalesce((r.public_state->>'gridSize')::int,3),'hLines','{}'::jsonb,'vLines','{}'::jsonb,'boxes','{}'::jsonb,'scores','{}'::jsonb,'message','Player 1, draw a line')

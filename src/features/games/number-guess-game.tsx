@@ -25,16 +25,17 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
   const isGuesser = meSeat === guesserSeat;
   const turn = state.turn || guesserSeat;
 
+  const attemptsLeft = state.attemptsLeft !== undefined ? state.attemptsLeft : 3;
   const [inputVal, setInputVal] = useState("");
-  const [timeLeft, setTimeLeft] = useState<number>(5);
+  const [timeLeft, setTimeLeft] = useState<number>(10);
 
-  // 5-second countdown timer for guesser phase
+  // 10-second countdown timer for guesser phase
   useEffect(() => {
     if (!targetPicked || room.status !== "playing") return;
 
     let isMounted = true;
     const timeoutId = setTimeout(() => {
-      if (isMounted) setTimeLeft(5);
+      if (isMounted) setTimeLeft(10);
     }, 0);
 
     const interval = setInterval(() => {
@@ -87,10 +88,10 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
         <div className="flex items-center gap-3">
           <span className="text-3xl">🔢</span>
           <div>
-            <h3 className="font-black text-base uppercase tracking-wider text-amber-400">5-Second Number Hunt</h3>
+            <h3 className="font-black text-base uppercase tracking-wider text-amber-400">10-Second Number Hunt</h3>
             <p className="text-xs text-slate-300">
               {pickerPlayer?.profile?.display_name || `Player ${pickerSeat}`} picks secret number (1-100),{" "}
-              {guesserPlayer?.profile?.display_name || `Player ${guesserSeat}`} gets 5 seconds to guess!
+              {guesserPlayer?.profile?.display_name || `Player ${guesserSeat}`} gets 3 tries in 10 seconds!
             </p>
           </div>
         </div>
@@ -140,21 +141,31 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
           </div>
         )}
 
-        {/* Phase 2: Guesser 5-Second Guessing Duel */}
+        {/* Phase 2: Guesser 10-Second / 3-Tries Guessing Duel */}
         {targetPicked && (
           <div className="w-full flex flex-col items-center gap-6 py-2">
-            {/* 5-Second Countdown Timer Bar */}
-            <div className="w-full flex flex-col items-center gap-2">
-              <div className="flex items-center gap-2 text-red-400 font-black text-sm uppercase tracking-wider">
-                <Timer className="w-5 h-5 animate-spin" />
-                <span>5-Sec Timer: <strong className="text-xl text-white">{timeLeft}s</strong></span>
+            {/* Countdown & Attempts Row */}
+            <div className="w-full flex flex-col items-center gap-3">
+              <div className="flex items-center justify-between w-full px-2">
+                <div className="flex items-center gap-2 text-red-400 font-black text-sm uppercase tracking-wider">
+                  <Timer className="w-5 h-5 animate-spin" />
+                  <span>Timer: <strong className="text-xl text-white">{timeLeft}s</strong></span>
+                </div>
+                <div className="flex items-center gap-1 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-amber-400 text-xs font-black">
+                  <span>Tries Left:</span>
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <span key={i} className={`text-base ${i < attemptsLeft ? "opacity-100 scale-110" : "opacity-30 grayscale"}`}>
+                      🎯
+                    </span>
+                  ))}
+                </div>
               </div>
               <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
                 <div
                   className={`h-full transition-all duration-1000 ${
-                    timeLeft <= 2 ? "bg-red-600 animate-pulse" : "bg-gradient-to-r from-amber-500 to-red-500"
+                    timeLeft <= 3 ? "bg-red-600 animate-pulse" : "bg-gradient-to-r from-amber-500 to-red-500"
                   }`}
-                  style={{ width: `${(timeLeft / 5) * 100}%` }}
+                  style={{ width: `${(timeLeft / 10) * 100}%` }}
                 />
               </div>
             </div>
