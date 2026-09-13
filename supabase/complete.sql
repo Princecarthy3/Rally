@@ -165,7 +165,7 @@ begin
   if p_action<>'choose' or p_value not in ('rock','paper','scissors') then raise exception 'Invalid choice'; end if;
   insert into private.rps_choices(room_id,round,player_id,choice) values(p_room,(state->>'round')::int,auth.uid(),p_value) on conflict do nothing; if not found then raise exception 'Choice already locked'; end if;
   state:=jsonb_set(state,array['choices',me.seat::text],to_jsonb('locked'),true); select count(*) into val from private.rps_choices where room_id=p_room and round=(state->>'round')::int;
-  if val=n then state:=jsonb_set(state,'{choices}',(select jsonb_object_agg(p.seat::text,c.choice) from private.rps_choices c join public.game_players p on p.room_id=c.room_id and p.player_id=c.player_id where c.room_id=p_room and c.round=(state->>'round')::int)); state:=jsonb_set(state,'{revealed}','true'); r.status:='completed'; end if;
+  if val=n then state:=jsonb_set(state,array['choices'],coalesce((select jsonb_object_agg(p.seat::text,c.choice) from private.rps_choices c join public.game_players p on p.room_id=c.room_id and p.player_id=c.player_id where c.room_id=p_room and c.round=(state->>'round')::int),'{}'::jsonb),true); state:=jsonb_set(state,array['revealed'],to_jsonb(true),true); r.status:='completed'; end if;
  elsif r.game_type='ping_pong' then
   if r.host_id<>auth.uid() or p_action<>'point' then raise exception 'Only the host referee can score a point'; end if; val:=p_value::int; if val not in (1,2) then raise exception 'Invalid player'; end if;
   score:=coalesce((state->'scores'->>val::text)::int,0)+1; state:=jsonb_set(state,array['scores',val::text],to_jsonb(score),true); state:=jsonb_set(state,'{message}',to_jsonb('Player '||val||' scores!'));

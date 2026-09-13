@@ -11,9 +11,12 @@ import { GameBoard } from "@/features/games/game-board";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useRoom } from "./use-room";
 
+import { RoomChat } from "@/components/room-chat";
+
 const colors=["#ff9eaa","#77dce7","#f4dc69","#8de2bd"];
 export function GameRoom(){
- const params=useParams<{code:string}>();const {user}=useAuth();const {room,players,loading,error,onlineIds,connection}=useRoom(params.code,user?.id);const [busy,setBusy]=useState(false);const [notice,setNotice]=useState("");const supabase=getSupabaseBrowserClient();
+ const params=useParams<{code:string}>();const {user,profile}=useAuth();const {room,players,loading,error,onlineIds,connection}=useRoom(params.code,user?.id);const [busy,setBusy]=useState(false);const [notice,setNotice]=useState("");const supabase=getSupabaseBrowserClient();
+ const myName=profile?.display_name||user?.user_metadata?.display_name||"Player";
  async function ready(value:boolean){if(!room)return;setBusy(true);const {error}=await supabase!.rpc("set_player_ready",{p_room:room.id,p_ready:value});if(error)setNotice(error.message);setBusy(false)}
  async function start(){if(!room)return;setBusy(true);setNotice("");const {error}=await supabase!.rpc("start_game",{p_room:room.id});if(error)setNotice(error.message);setBusy(false)}
  function flash(text:string){setNotice(text);setTimeout(()=>setNotice(""),2400)}
@@ -21,6 +24,7 @@ export function GameRoom(){
  async function share(){if(!room)return;const data={title:`Join my ${gameByKey[room.game_type].name} room`,text:`Room ${room.code} on Rally`,url:window.location.href};if(navigator.share)await navigator.share(data);else copy(window.location.href,"Invite link")}
  return <ProtectedPage><main className="min-h-[calc(100vh-72px)] bg-[#fffdf7] pb-28"><div className="mx-auto max-w-6xl px-5 py-6 lg:px-8"><div className="mb-6 flex items-center justify-between"><Link href="/dashboard" className="arcade-button bg-white"><ArrowLeft size={16}/> Arcade</Link><div className={`flex items-center gap-2 rounded-full border-2 border-slate-950 px-3 py-1.5 text-[10px] font-black ${connection==="online"?"bg-[#a7efc8]":"bg-[#f4dc69]"}`}>{connection==="online"?<Radio size={12}/>:<WifiOff size={12}/>} {connection.toUpperCase()}</div></div>
  {loading?<div className="grid min-h-[60vh] place-items-center"><div className="text-center"><LoaderCircle className="mx-auto animate-spin text-[#7357ff]"/><p className="mt-3 text-sm font-black">Opening room {params.code.toUpperCase()}…</p></div></div>:error||!room?<div className="paper-card mx-auto max-w-lg p-8 text-center"><span className="text-6xl">🚪</span><h1 className="mt-5 text-3xl font-black">Couldn’t enter the room</h1><p className="mt-3 text-slate-600">{error||"This invite is no longer available."}</p><Link href="/dashboard" className="arcade-button mt-6 bg-slate-950 text-white">Find another game</Link></div>:room.status==="waiting"?<Lobby room={room} players={players} userId={user!.id} onlineIds={onlineIds} busy={busy} notice={notice} ready={ready} start={start} copy={copy} share={share}/>:<GameBoard room={room} players={players} userId={user!.id} onlineIds={onlineIds}/>} 
+ {room&&user&&<RoomChat roomCode={room.code} userId={user.id} userName={myName} players={players}/>}
  {notice&&room&&room.status!=="waiting"&&<div className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-full border-2 border-slate-950 bg-[#f4dc69] px-5 py-3 text-sm font-black shadow-[4px_4px_0_#171821]">{notice}</div>}</div></main></ProtectedPage>
 }
 
