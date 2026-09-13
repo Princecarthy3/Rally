@@ -24,10 +24,21 @@ export const viewport: Viewport = {
   themeColor: "#6c47ff",
 };
 
+const themeScript = `
+  (function() {
+    try {
+      var t = localStorage.getItem('rally_theme') || 'vibrant';
+      document.documentElement.setAttribute('data-theme', t);
+      if (t === 'dark') document.documentElement.classList.add('dark');
+    } catch (e) {}
+  })();
+`;
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -39,3 +50,4 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     </html>
   );
 }
+
