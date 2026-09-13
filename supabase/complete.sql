@@ -266,9 +266,22 @@ end $$;
 create or replace function public.rematch_room(p_room uuid) returns void language plpgsql security definer set search_path='' as $$
 declare r public.game_rooms; begin select * into r from public.game_rooms where id=p_room for update; if r.host_id<>auth.uid() then raise exception 'Only host can rematch'; end if; delete from private.rps_choices where room_id=p_room; update public.game_players set is_ready=false,score=0 where room_id=p_room; update public.game_rooms set status='waiting',public_state='{}',match_number=match_number+1,state_version=state_version+1,updated_at=now() where id=p_room; end $$;
 
+create or replace function public.add_ai_bot_to_room(p_room uuid) returns void language plpgsql security definer set search_path='' as $$
+declare r public.game_rooms; v_bot_id uuid := '11111111-1111-1111-1111-111111111111'; v_seat int;
+begin
+ select * into r from public.game_rooms where id=p_room for update;
+ if r.id is null then raise exception 'Room not found'; end if;
+ if r.status<>'waiting' then raise exception 'Game already started'; end if;
+ insert into public.profiles(id,display_name) values(v_bot_id,'Rally Bot 🤖') on conflict(id) do update set display_name='Rally Bot 🤖';
+ if exists(select 1 from public.game_players where room_id=p_room and player_id=v_bot_id) then return; end if;
+ if (select count(*) from public.game_players where room_id=p_room)>=r.max_players then raise exception 'Room is full'; end if;
+ select s into v_seat from generate_series(1,r.max_players) s where not exists(select 1 from public.game_players where room_id=r.id and seat=s) order by s limit 1;
+ insert into public.game_players(room_id,player_id,seat,is_ready) values(p_room,v_bot_id,v_seat,true);
+end $$;
+
 revoke all on function public.finalize_room(uuid,jsonb,text) from public;
-revoke all on function public.create_game_room(text,int),public.join_game_room(text),public.set_player_ready(uuid,boolean),public.start_game(uuid),public.play_room_action(uuid,text,text),public.rematch_room(uuid) from public;
-grant execute on function public.create_game_room(text,int),public.join_game_room(text),public.set_player_ready(uuid,boolean),public.start_game(uuid),public.play_room_action(uuid,text,text),public.rematch_room(uuid) to authenticated;
+revoke all on function public.create_game_room(text,int),public.join_game_room(text),public.set_player_ready(uuid,boolean),public.start_game(uuid),public.play_room_action(uuid,text,text),public.rematch_room(uuid),public.add_ai_bot_to_room(uuid) from public;
+grant execute on function public.create_game_room(text,int),public.join_game_room(text),public.set_player_ready(uuid,boolean),public.start_game(uuid),public.play_room_action(uuid,text,text),public.rematch_room(uuid),public.add_ai_bot_to_room(uuid) to authenticated;
 
 -- Realtime publication (safe if already added).
 do $$ begin alter publication supabase_realtime add table public.game_rooms; exception when duplicate_object then null; end $$;

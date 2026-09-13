@@ -49,6 +49,19 @@ export function GameBoard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [guess, setGuess] = useState("");
+  const [aiTrivia, setAiTrivia] = useState<typeof quiz | null>(null);
+
+  useEffect(() => {
+    if (room.game_type === "quick_quiz") {
+      fetch("/api/ai/content?type=trivia")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.trivia) setAiTrivia(data.trivia);
+        })
+        .catch(() => {});
+    }
+  }, [room.game_type, room.match_number]);
+
 
   const dynamicEmojiQuestions = useMemo(() => {
     const charCodeSum = (room.id || "").split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
@@ -82,6 +95,45 @@ export function GameBoard({
 
   const scores = state.scores || {};
   const winningSeats = useMemo(() => deriveWinners(room, players), [room, players]);
+
+  useEffect(() => {
+    if (room.status !== "playing") return;
+    const botPlayer = players.find((p) => p.player_id === "11111111-1111-1111-1111-111111111111");
+    if (!botPlayer) return;
+
+    const botSeat = botPlayer.seat;
+    let isBotTurn = false;
+    const s = state as Record<string, any>;
+
+    if (["tic_tac_toe", "dots_boxes", "dice_dash", "basketball", "number_guess"].includes(room.game_type)) {
+      isBotTurn = s.turn === botSeat;
+    } else if (room.game_type === "rps") {
+      isBotTurn = !s.choices?.[botSeat];
+    } else if (["quick_quiz", "emoji_decode"].includes(room.game_type)) {
+      isBotTurn = s.answers?.[botSeat] === undefined;
+    } else if (room.game_type === "skribbl") {
+      if (s.drawerSeat === botSeat && !s.wordSelected) isBotTurn = true;
+      if (s.drawerSeat !== botSeat && s.wordSelected && !s.scores?.[botSeat]) isBotTurn = true;
+    }
+
+    if (!isBotTurn) return;
+
+    const timer = setTimeout(() => {
+      fetch("/api/ai/bot-move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomId: room.id,
+          gameType: room.game_type,
+          publicState: room.public_state,
+          botSeat,
+        }),
+      }).catch(console.error);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [room.status, room.id, room.game_type, room.public_state, players, state]);
+
 
   if (room.status === "completed") {
     return <Result room={room} players={players} me={me} winningSeats={winningSeats} />;
@@ -165,7 +217,7 @@ export function GameBoard({
             <DiceDash state={state} players={players} mySeat={me?.seat} roll={() => act("roll")} busy={busy} />
           )}
           {room.game_type === "quick_quiz" && (
-            <QuestionCard data={quiz} state={state} answer={(i) => act("answer", String(i))} mySeat={me?.seat} busy={busy} />
+            <QuestionCard data={aiTrivia || quiz} state={state} answer={(i) => act("answer", String(i))} mySeat={me?.seat} busy={busy} />
           )}
           {room.game_type === "emoji_decode" && (
             <QuestionCard

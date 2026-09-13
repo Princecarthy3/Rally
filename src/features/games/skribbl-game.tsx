@@ -59,16 +59,45 @@ export function SkribblGame({
   const prevPos = useRef<{ x: number; y: number } | null>(null);
   const channelRef = useRef<any>(null);
 
-  // Dynamic 3-word options generated deterministically for drawer selection
-  const wordChoices = useState(() => {
-    const pool = [...WORD_BANK];
-    const choices: string[] = [];
-    for (let i = 0; i < 3; i++) {
-      const idx = Math.floor(Math.random() * pool.length);
-      choices.push(pool.splice(idx, 1)[0]);
+  const [wordChoices, setWordChoices] = useState<string[]>([]);
+  const [loadingAiWords, setLoadingAiWords] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+    if (isDrawer && !wordSelected) {
+      fetch("/api/ai/content?type=skribbl")
+        .then((res) => res.json())
+        .then((data) => {
+          if (ignore) return;
+          if (data.words && Array.isArray(data.words) && data.words.length === 3) {
+            setWordChoices(data.words);
+          } else {
+            const pool = [...WORD_BANK];
+            const choices: string[] = [];
+            for (let i = 0; i < 3; i++) {
+              const idx = Math.floor(Math.random() * pool.length);
+              choices.push(pool.splice(idx, 1)[0]);
+            }
+            setWordChoices(choices);
+          }
+        })
+        .catch(() => {
+          if (ignore) return;
+          const pool = [...WORD_BANK];
+          const choices: string[] = [];
+          for (let i = 0; i < 3; i++) {
+            const idx = Math.floor(Math.random() * pool.length);
+            choices.push(pool.splice(idx, 1)[0]);
+          }
+          setWordChoices(choices);
+        });
     }
-    return choices;
-  })[0];
+    return () => {
+      ignore = true;
+    };
+  }, [isDrawer, wordSelected]);
+
+
 
   const drawStroke = (x0: number, y0: number, x1: number, y1: number, strokeColor: string, strokeSize: number) => {
     const canvas = canvasRef.current;
