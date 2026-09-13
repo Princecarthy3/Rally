@@ -1,11 +1,14 @@
 "use client";
 
-import { History, LayoutGrid, LogOut, UserRound } from "lucide-react";
+import { History, LayoutGrid, LogOut, Settings, Share2, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import { Brand } from "./brand";
 import { useAuth } from "./auth-provider";
 import { SoundToggle } from "./sound-toggle";
+import { SettingsModal } from "./settings-modal";
+import { sounds } from "@/lib/audio";
 
 const links = [
   { href: "/dashboard", label: "Home", icon: LayoutGrid },
@@ -18,10 +21,31 @@ export function SiteHeader() {
   const router = useRouter();
   const { profile, user, signOut } = useAuth();
   const name = profile?.display_name || user?.user_metadata?.display_name || "Player";
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [toast, setToast] = useState("");
 
   async function handleSignOut() {
     await signOut();
     router.replace("/");
+  }
+
+  async function handleShareApp() {
+    sounds.playClickSound();
+    const shareData = {
+      title: "Rally - Multiplayer Mini Games",
+      text: "Play fun multiplayer mini-games together on Rally!",
+      url: typeof window !== "undefined" ? window.location.origin : "https://rally.app",
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch {}
+    } else {
+      await navigator.clipboard.writeText(shareData.url);
+      setToast("App link copied!");
+      setTimeout(() => setToast(""), 2200);
+    }
   }
 
   return (
@@ -48,23 +72,58 @@ export function SiteHeader() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
+            {/* Share App Button */}
+            <button
+              onClick={handleShareApp}
+              title="Share Rally App"
+              aria-label="Share Rally App"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-100 cursor-pointer"
+            >
+              <Share2 size={15} className="text-[#7357ff]" />
+              <span className="hidden sm:inline">Share</span>
+            </button>
+
+            {/* Settings Tab Button */}
+            <button
+              onClick={() => {
+                sounds.playClickSound();
+                setIsSettingsOpen(true);
+              }}
+              title="Settings"
+              aria-label="Settings"
+              className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100 cursor-pointer"
+            >
+              <Settings size={17} />
+            </button>
+
             <SoundToggle />
+
             <Link href="/profile" className="hidden text-right sm:block">
               <span className="block text-[11px] font-medium text-slate-400">Playing as</span>
               <span className="block max-w-28 truncate text-xs font-bold text-slate-900">{name}</span>
             </Link>
+
             <button
               onClick={handleSignOut}
               aria-label="Log out"
               className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 cursor-pointer"
             >
               <LogOut size={14} />
-              <span>Log out</span>
+              <span className="hidden sm:inline">Log out</span>
             </button>
           </div>
         </div>
       </header>
+
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
+      {toast && (
+        <div className="fixed top-20 right-6 z-50 rounded-full border-2 border-slate-950 bg-[#f4dc69] px-4 py-2 text-xs font-black shadow-[3px_3px_0_#171821] animate-in fade-in">
+          {toast}
+        </div>
+      )}
+
 
       {/* Mobile navigation positioned relative to window viewport */}
       <nav className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 justify-around rounded-full border border-white/20 bg-slate-950/95 p-1.5 text-white shadow-2xl backdrop-blur-lg md:hidden">

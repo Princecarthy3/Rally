@@ -3,12 +3,18 @@
 class SoundManager {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
+  private volume: number = 0.8;
   private bgmInterval: NodeJS.Timeout | null = null;
   private bgmPlaying: boolean = false;
 
   constructor() {
     if (typeof window !== "undefined") {
       this.isMuted = localStorage.getItem("rally_muted") === "true";
+      const savedVol = localStorage.getItem("rally_volume");
+      if (savedVol !== null) {
+        const parsed = parseFloat(savedVol);
+        if (!isNaN(parsed)) this.volume = Math.max(0, Math.min(1, parsed));
+      }
     }
   }
 
@@ -43,6 +49,18 @@ class SoundManager {
     return this.isMuted;
   }
 
+  public getVolume(): number {
+    return this.volume;
+  }
+
+  public setVolume(vol: number) {
+    this.volume = Math.max(0, Math.min(1, vol));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("rally_volume", String(this.volume));
+    }
+  }
+
+
   // Play Win Victory Fanfare
   public playWinSound() {
     if (this.isMuted) return;
@@ -57,7 +75,7 @@ class SoundManager {
       osc.type = "triangle";
       osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.1);
 
-      gain.gain.setValueAtTime(0.25, ctx.currentTime + idx * 0.1);
+      gain.gain.setValueAtTime(0.25 * this.volume, ctx.currentTime + idx * 0.1);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.1 + 0.35);
 
       osc.connect(gain);
@@ -82,7 +100,7 @@ class SoundManager {
       osc.type = "sawtooth";
       osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.15);
 
-      gain.gain.setValueAtTime(0.2, ctx.currentTime + idx * 0.15);
+      gain.gain.setValueAtTime(0.2 * this.volume, ctx.currentTime + idx * 0.15);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.15 + 0.3);
 
       osc.connect(gain);
@@ -107,7 +125,7 @@ class SoundManager {
       osc.type = "sine";
       osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.12);
 
-      gain.gain.setValueAtTime(0.18, ctx.currentTime + idx * 0.12);
+      gain.gain.setValueAtTime(0.18 * this.volume, ctx.currentTime + idx * 0.12);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.12 + 0.25);
 
       osc.connect(gain);
@@ -131,7 +149,7 @@ class SoundManager {
     osc.frequency.setValueAtTime(600, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.05);
 
-    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.setValueAtTime(0.15 * this.volume, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
 
     osc.connect(gain);
@@ -168,9 +186,10 @@ class SoundManager {
         osc.type = "sine";
         osc.frequency.setValueAtTime(freq * 0.5, now);
 
-        gain.gain.setValueAtTime(0.015, now);
-        gain.gain.linearRampToValueAtTime(0.03, now + 0.2);
+        gain.gain.setValueAtTime(0.015 * this.volume, now);
+        gain.gain.linearRampToValueAtTime(0.03 * this.volume, now + 0.2);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+
 
         osc.connect(gain);
         gain.connect(this.ctx!.destination);
