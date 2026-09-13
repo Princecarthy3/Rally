@@ -16,17 +16,23 @@ export function DotsBoxes({
   act,
   busy,
   players,
+  isHost,
 }: {
   state: Record<string, any>;
   mySeat?: number;
   act: (action: string, value?: string) => Promise<void>;
   busy: boolean;
   players: RoomPlayer[];
+  isHost?: boolean;
 }) {
+  const gridSize: number = state.gridSize || 3; // 3 = 9 boxes, 4 = 16 boxes, 5 = 25 boxes
   const isMyTurn = state.turn === mySeat;
   const hLines: Record<string, number> = state.hLines || {};
   const vLines: Record<string, number> = state.vLines || {};
   const boxes: Record<string, number> = state.boxes || {};
+
+  const totalBoxes = gridSize * gridSize;
+  const step = 100 / gridSize;
 
   const playerMap = useMemo(() => {
     const map = new Map<number, RoomPlayer>();
@@ -42,37 +48,94 @@ export function DotsBoxes({
     act("line", lineKey);
   };
 
+  const handleGridSizeChange = (size: number) => {
+    if (!isHost || busy) return;
+    act("set_grid_size", String(size));
+  };
+
+  // Has game started drawing lines yet?
+  const linesDrawnCount = Object.keys(hLines).length + Object.keys(vLines).length;
+  const canChangeGridSize = isHost && linesDrawnCount === 0;
+
   return (
     <div className="mx-auto max-w-md select-none text-center">
+      {/* Grid Size Selection Bar */}
+      {canChangeGridSize && (
+        <div className="mb-4 rounded-2xl border-2 border-slate-950 bg-slate-100 p-2 shadow-[3px_3px_0_#171821]">
+          <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+            Host Option: Select Grid Size
+          </p>
+          <div className="flex justify-center gap-2">
+            {[
+              { size: 3, label: "9 Boxes (3×3)" },
+              { size: 4, label: "16 Boxes (4×4)" },
+              { size: 5, label: "25 Boxes (5×5)" },
+            ].map((opt) => (
+              <button
+                key={opt.size}
+                disabled={busy}
+                onClick={() => handleGridSizeChange(opt.size)}
+                className={`rounded-xl border-2 border-slate-950 px-3 py-1.5 text-xs font-black transition ${
+                  gridSize === opt.size
+                    ? "bg-amber-300 shadow-[2px_2px_0_#171821] scale-105"
+                    : "bg-white opacity-70 hover:opacity-100"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Turn Indicator */}
       <div className="mb-4 inline-flex items-center gap-2 rounded-full border-2 border-slate-950 bg-amber-100 px-4 py-1.5 text-xs font-black shadow-[2px_2px_0_#171821]">
-        <span>{isMyTurn ? "👉 YOUR TURN TO DRAW A LINE" : `WAITING FOR PLAYER ${state.turn}`}</span>
+        <span>
+          {isMyTurn
+            ? "👉 YOUR TURN TO DRAW A LINE"
+            : `WAITING FOR PLAYER ${state.turn}`}
+        </span>
+        <span className="ml-2 rounded-full bg-amber-300 px-2 py-0.5 text-[10px]">
+          {totalBoxes} Boxes ({gridSize}×{gridSize})
+        </span>
       </div>
 
-      <div className="relative mx-auto aspect-square w-full max-w-[340px] rounded-3xl border-4 border-slate-950 bg-slate-900 p-6 shadow-[6px_6px_0_#171821]">
-        {/* Grid Container */}
+      {/* Main Board */}
+      <div className="relative mx-auto aspect-square w-full max-w-[360px] rounded-3xl border-4 border-slate-950 bg-slate-900 p-6 shadow-[6px_6px_0_#171821]">
         <div className="relative h-full w-full">
-          {/* 3x3 Boxes */}
-          {Array.from({ length: 3 }).map((_, r) =>
-            Array.from({ length: 3 }).map((_, c) => {
+          {/* Boxes */}
+          {Array.from({ length: gridSize }).map((_, r) =>
+            Array.from({ length: gridSize }).map((_, c) => {
               const boxOwner = boxes[`b_${r}_${c}`];
               const p = boxOwner ? playerMap.get(boxOwner) : null;
               const style = boxOwner ? PLAYER_COLORS[(boxOwner - 1) % 4] : null;
 
+              const boxPadding = gridSize >= 5 ? 2.5 : 4;
+              const boxSize = step - boxPadding * 2;
+
               return (
                 <div
                   key={`box_${r}_${c}`}
-                  className={`absolute flex items-center justify-center rounded-xl transition-all duration-300 ${
+                  className={`absolute flex items-center justify-center rounded-lg sm:rounded-xl transition-all duration-300 ${
                     style ? `${style.bg} ${style.border} border-2 scale-95 shadow-inner` : ""
                   }`}
                   style={{
-                    left: `${c * 33.33 + 4}%`,
-                    top: `${r * 33.33 + 4}%`,
-                    width: "25.33%",
-                    height: "25.33%",
+                    left: `${c * step + boxPadding}%`,
+                    top: `${r * step + boxPadding}%`,
+                    width: `${boxSize}%`,
+                    height: `${boxSize}%`,
                   }}
                 >
                   {p && (
-                    <span className={`text-sm sm:text-base font-black ${style?.text}`}>
+                    <span
+                      className={`font-black ${
+                        gridSize >= 5
+                          ? "text-[10px] sm:text-xs"
+                          : gridSize === 4
+                          ? "text-xs sm:text-sm"
+                          : "text-sm sm:text-base"
+                      } ${style?.text}`}
+                    >
                       {p.profile?.display_name ? p.profile.display_name.slice(0, 2).toUpperCase() : `P${boxOwner}`}
                     </span>
                   )}
@@ -81,12 +144,15 @@ export function DotsBoxes({
             })
           )}
 
-          {/* Horizontal Lines (4 rows of 3 lines) */}
-          {Array.from({ length: 4 }).map((_, r) =>
-            Array.from({ length: 3 }).map((_, c) => {
+          {/* Horizontal Lines */}
+          {Array.from({ length: gridSize + 1 }).map((_, r) =>
+            Array.from({ length: gridSize }).map((_, c) => {
               const owner = hLines[`${r}_${c}`];
               const drawn = Boolean(owner);
               const ownerStyle = owner ? PLAYER_COLORS[(owner - 1) % 4] : null;
+
+              const lineOffset = gridSize >= 5 ? 4 : 8;
+              const lineLength = step - lineOffset * 2;
 
               return (
                 <button
@@ -102,9 +168,9 @@ export function DotsBoxes({
                       : "bg-slate-800 opacity-40 cursor-not-allowed"
                   }`}
                   style={{
-                    left: `${c * 33.33 + 8}%`,
-                    top: `${r * 33.33 - 1.5}%`,
-                    width: "17.33%",
+                    left: `${c * step + lineOffset}%`,
+                    top: `${r * step - 1.5}%`,
+                    width: `${lineLength}%`,
                     height: "3%",
                     backgroundColor: ownerStyle ? ownerStyle.fill : undefined,
                   }}
@@ -113,12 +179,15 @@ export function DotsBoxes({
             })
           )}
 
-          {/* Vertical Lines (3 rows of 4 lines) */}
-          {Array.from({ length: 3 }).map((_, r) =>
-            Array.from({ length: 4 }).map((_, c) => {
+          {/* Vertical Lines */}
+          {Array.from({ length: gridSize }).map((_, r) =>
+            Array.from({ length: gridSize + 1 }).map((_, c) => {
               const owner = vLines[`${r}_${c}`];
               const drawn = Boolean(owner);
               const ownerStyle = owner ? PLAYER_COLORS[(owner - 1) % 4] : null;
+
+              const lineOffset = gridSize >= 5 ? 4 : 8;
+              const lineLength = step - lineOffset * 2;
 
               return (
                 <button
@@ -134,10 +203,10 @@ export function DotsBoxes({
                       : "bg-slate-800 opacity-40 cursor-not-allowed"
                   }`}
                   style={{
-                    left: `${c * 33.33 - 1.5}%`,
-                    top: `${r * 33.33 + 8}%`,
+                    left: `${c * step - 1.5}%`,
+                    top: `${r * step + lineOffset}%`,
                     width: "3%",
-                    height: "17.33%",
+                    height: `${lineLength}%`,
                     backgroundColor: ownerStyle ? ownerStyle.fill : undefined,
                   }}
                 />
@@ -145,17 +214,17 @@ export function DotsBoxes({
             })
           )}
 
-          {/* 4x4 Grid Dots */}
-          {Array.from({ length: 4 }).map((_, r) =>
-            Array.from({ length: 4 }).map((_, c) => (
+          {/* Grid Dots */}
+          {Array.from({ length: gridSize + 1 }).map((_, r) =>
+            Array.from({ length: gridSize + 1 }).map((_, c) => (
               <div
                 key={`dot_${r}_${c}`}
                 className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-slate-950 bg-white shadow-md"
                 style={{
-                  left: `${c * 33.33}%`,
-                  top: `${r * 33.33}%`,
-                  width: "14px",
-                  height: "14px",
+                  left: `${c * step}%`,
+                  top: `${r * step}%`,
+                  width: gridSize >= 5 ? "10px" : "13px",
+                  height: gridSize >= 5 ? "10px" : "13px",
                 }}
               />
             ))

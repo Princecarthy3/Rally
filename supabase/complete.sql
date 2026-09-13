@@ -108,8 +108,8 @@ begin select * into r from public.game_rooms where id=p_room for update; if r.ho
  when 'tic_tac_toe' then jsonb_build_object('turn',1,'board',jsonb_build_array('','','','','','','','',''),'message','Player 1 places X')
  when 'dice_dash' then jsonb_build_object('turn',1,'positions','{}'::jsonb,'message','Player 1, roll the dice')
  when 'quick_quiz' then jsonb_build_object('question',0,'answers','{}'::jsonb,'scores','{}'::jsonb,'message','Question 1')
- when 'emoji_decode' then jsonb_build_object('question',0,'answers','{}'::jsonb,'scores','{}'::jsonb,'message','Decode the emoji clue')
- when 'dots_boxes' then jsonb_build_object('turn',1,'hLines','{}'::jsonb,'vLines','{}'::jsonb,'boxes','{}'::jsonb,'scores','{}'::jsonb,'message','Player 1, draw a line')
+ when 'emoji_decode' then jsonb_build_object('qIndex',0,'totalQ',5,'answers','{}'::jsonb,'scores','{}'::jsonb,'message','Question 1 of 5: Decode the emoji clue')
+ when 'dots_boxes' then jsonb_build_object('turn',1,'gridSize',coalesce((r.public_state->>'gridSize')::int,3),'hLines','{}'::jsonb,'vLines','{}'::jsonb,'boxes','{}'::jsonb,'scores','{}'::jsonb,'message','Player 1, draw a line')
  when 'skribbl' then jsonb_build_object('drawerSeat',1,'round',1,'scores','{}'::jsonb,'wordSelected',null,'guessedSeats','[]'::jsonb,'message','Drawer is picking a word...')
  else jsonb_build_object('scores','{}'::jsonb,'message','First to five wins') end;
  update public.game_rooms set status='playing',public_state=state,state_version=state_version+1,updated_at=now() where id=p_room;
@@ -145,10 +145,17 @@ end $$;
 
 -- Validates and applies casual turn-based actions. Client never supplies score or random outcome.
 create or replace function public.play_room_action(p_room uuid,p_action text,p_value text default null) returns jsonb language plpgsql security definer set search_path='' as $$
-declare r public.game_rooms; me public.game_players; n int; next_seat int; state jsonb; score int; val int; roll int; board jsonb; mark text; winner int:=null; new_boxes int:=0; r_idx int; c_idx int; key_b text;
+declare r public.game_rooms; me public.game_players; n int; next_seat int; state jsonb; score int; val int; roll int; board jsonb; mark text; winner int:=null; new_boxes int:=0; r_idx int; c_idx int; key_b text; grid_size int:=3; q_idx int:=0;
 begin
  select * into r from public.game_rooms where id=p_room for update; if r.status<>'playing' then raise exception 'Game is not active'; end if;
  select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); if me.id is null then raise exception 'Not a player'; end if; state:=r.public_state; select count(*) into n from public.game_players where room_id=p_room;
+  if p_action='set_grid_size' then
+   if r.host_id<>auth.uid() then raise exception 'Only host can set grid size'; end if;
+   val:=p_value::int; if val not in (3,4,5) then raise exception 'Grid size must be 3, 4, or 5'; end if;
+   state:=jsonb_set(state,'{gridSize}',to_jsonb(val),true);
+   update public.game_rooms set public_state=state,state_version=state_version+1,updated_at=now() where id=p_room;
+   return state;
+  end if;
  if r.game_type='basketball' then
   if (state->>'turn')::int<>me.seat or p_action<>'shoot' then raise exception 'Wait for your turn'; end if; roll:=floor(random()*100)::int; score:=case when roll<18 then 3 when roll<62 then 2 else 0 end;
   state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(coalesce((state->'scores'->>me.seat::text)::int,0)+score),true);
@@ -174,10 +181,32 @@ begin
   if r.host_id<>auth.uid() or p_action<>'point' then raise exception 'Only the host referee can score a point'; end if; val:=p_value::int; if val not in (1,2) then raise exception 'Invalid player'; end if;
   score:=coalesce((state->'scores'->>val::text)::int,0)+1; state:=jsonb_set(state,array['scores',val::text],to_jsonb(score),true); state:=jsonb_set(state,'{message}',to_jsonb('Player '||val||' scores!'));
   if score>=5 then state:=jsonb_set(state,'{winnerSeat}',to_jsonb(val)); r.status:='completed'; end if;
- elsif r.game_type in ('quick_quiz','emoji_decode') then
+ elsif r.game_type='quick_quiz' then
   if p_action<>'answer' then raise exception 'Invalid action'; end if; val:=p_value::int; if val<0 or val>3 then raise exception 'Invalid answer'; end if; if state->'answers' ? me.seat::text then raise exception 'Answer already locked'; end if; state:=jsonb_set(state,array['answers',me.seat::text],to_jsonb(val),true);
-  if (r.game_type='quick_quiz' and val=1) or (r.game_type='emoji_decode' and val=2) then state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(1),true); else state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(0),true); end if;
+  if val=1 then state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(1),true); else state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(0),true); end if;
   if (select count(*) from jsonb_object_keys(state->'answers'))=n then state:=jsonb_set(state,array['revealed'],to_jsonb(true),true); r.status:='completed'; end if;
+ elsif r.game_type='emoji_decode' then
+  if p_action<>'answer' then raise exception 'Invalid action'; end if;
+  if state->'answers' ? me.seat::text then raise exception 'Answer already locked'; end if;
+  state:=jsonb_set(state,array['answers',me.seat::text],to_jsonb(p_value),true);
+  if p_value in ('correct','1','true') or right(p_value,8)='_correct' then
+    score:=coalesce((state->'scores'->>me.seat::text)::int,0)+1;
+    state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(score),true);
+  else
+    score:=coalesce((state->'scores'->>me.seat::text)::int,0);
+    state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(score),true);
+  end if;
+  if (select count(*) from jsonb_object_keys(state->'answers'))=n then
+    q_idx:=coalesce((state->>'qIndex')::int,0)+1;
+    if q_idx < 5 then
+      state:=jsonb_set(state,array['qIndex'],to_jsonb(q_idx),true);
+      state:=jsonb_set(state,array['answers'],'{}'::jsonb,true);
+      state:=jsonb_set(state,array['message'],to_jsonb('Question '||(q_idx+1)||' of 5: Decode the emoji clue'),true);
+    else
+      state:=jsonb_set(state,array['revealed'],to_jsonb(true),true);
+      r.status:='completed';
+    end if;
+  end if;
  elsif r.game_type='dots_boxes' then
   if (state->>'turn')::int<>me.seat or p_action<>'line' then raise exception 'Wait for your turn'; end if;
   if (state->'hLines' ? p_value) or (state->'vLines' ? p_value) then raise exception 'Line already drawn'; end if;
@@ -187,8 +216,10 @@ begin
     state:=jsonb_set(state,array['vLines',substr(p_value,3)],to_jsonb(me.seat),true);
   end if;
   new_boxes:=0;
-  for r_idx in 0..2 loop
-    for c_idx in 0..2 loop
+  grid_size:=coalesce((state->>'gridSize')::int,3);
+  new_boxes:=0;
+  for r_idx in 0..(grid_size-1) loop
+    for c_idx in 0..(grid_size-1) loop
       key_b:='b_'||r_idx||'_'||c_idx;
       if not (state->'boxes' ? key_b) then
         if (state->'hLines' ? (r_idx||'_'||c_idx)) and
@@ -210,7 +241,7 @@ begin
     state:=jsonb_set(state,array['turn'],to_jsonb(next_seat),true);
     state:=jsonb_set(state,array['message'],to_jsonb('Player '||next_seat||'’s turn'),true);
   end if;
-  if (select count(*) from jsonb_object_keys(state->'boxes')) >= 9 then
+  if (select count(*) from jsonb_object_keys(state->'boxes')) >= (grid_size * grid_size) then
     r.status:='completed';
   end if;
  elsif r.game_type='skribbl' then

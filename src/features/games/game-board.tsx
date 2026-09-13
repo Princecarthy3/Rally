@@ -50,12 +50,19 @@ export function GameBoard({
   const [error, setError] = useState("");
   const [guess, setGuess] = useState("");
 
-  const dynamicEmoji = useMemo(() => {
-    // Pick deterministic emoji puzzle based on room id / match_number
+  const dynamicEmojiQuestions = useMemo(() => {
     const charCodeSum = (room.id || "").split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    const index = (charCodeSum + (room.match_number || 1)) % EMOJI_PUZZLES.length;
-    return EMOJI_PUZZLES[index];
+    const matchNum = room.match_number || 1;
+    const list: typeof EMOJI_PUZZLES = [];
+    for (let i = 0; i < 5; i++) {
+      const idx = (charCodeSum + matchNum * 7 + i) % EMOJI_PUZZLES.length;
+      list.push(EMOJI_PUZZLES[idx]);
+    }
+    return list;
   }, [room.id, room.match_number]);
+
+  const qIndex = (state as Record<string, any>).qIndex || 0;
+  const currentEmojiPuzzle = dynamicEmojiQuestions[Math.min(qIndex, 4)] || EMOJI_PUZZLES[0];
 
   async function act(action: string, value?: string) {
     if (busy) return;
@@ -162,16 +169,17 @@ export function GameBoard({
           )}
           {room.game_type === "emoji_decode" && (
             <QuestionCard
-              data={dynamicEmoji}
+              data={currentEmojiPuzzle}
               state={state}
-              answer={(i) => act("answer", String(i))}
+              answer={(i) => act("answer", i === currentEmojiPuzzle.answer ? "correct" : "wrong")}
               mySeat={me?.seat}
               busy={busy}
               emoji
+              qIndex={qIndex}
             />
           )}
           {room.game_type === "dots_boxes" && (
-            <DotsBoxes state={state} mySeat={me?.seat} act={act} busy={busy} players={players} />
+            <DotsBoxes state={state} mySeat={me?.seat} act={act} busy={busy} players={players} isHost={room.host_id === me?.player_id} />
           )}
           {room.game_type === "skribbl" && (
             <SkribblGame room={room} players={players} userId={userId} act={act} busy={busy} />
@@ -323,6 +331,7 @@ function QuestionCard({
   mySeat,
   busy,
   emoji = false,
+  qIndex,
 }: {
   data: { question: string; options: string[]; answer: number };
   state: Room["public_state"];
@@ -330,10 +339,16 @@ function QuestionCard({
   mySeat?: number;
   busy: boolean;
   emoji?: boolean;
+  qIndex?: number;
 }) {
   const locked = Boolean(mySeat !== undefined && state.answers?.[mySeat] !== undefined);
   return (
     <div className="mx-auto max-w-2xl text-center">
+      {typeof qIndex === "number" && (
+        <div className="mb-4 inline-block rounded-full border-2 border-slate-950 bg-amber-100 px-4 py-1 text-xs font-black shadow-[2px_2px_0_#171821]">
+          Question {qIndex + 1} of 5
+        </div>
+      )}
       <p className={emoji ? "text-6xl sm:text-8xl" : "text-2xl font-black sm:text-4xl"}>{data.question}</p>
       <p className="mt-3 text-xs font-black uppercase tracking-widest text-slate-400">Pick once. No take-backs.</p>
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -349,7 +364,7 @@ function QuestionCard({
           </button>
         ))}
       </div>
-      {locked && <p className="mt-6 font-black text-[#7357ff]">ANSWER LOCKED ✓</p>}
+      {locked && <p className="mt-6 font-black text-[#7357ff]">ANSWER LOCKED ✓ WAITING FOR OTHER PLAYERS...</p>}
     </div>
   );
 }
