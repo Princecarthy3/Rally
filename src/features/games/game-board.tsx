@@ -5,7 +5,6 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
 import { gameByKey } from "./registry";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { UnoGame } from "./uno-game";
 import { NumberGuessGame } from "./number-guess-game";
 import { DotsBoxes } from "./dots-boxes";
 import { SkribblGame } from "./skribbl-game";
@@ -62,7 +61,7 @@ export function GameBoard({
     let isBotTurn = false;
     const s = state as Record<string, any>;
 
-    if (["tic_tac_toe", "dots_boxes", "uno"].includes(room.game_type)) {
+    if (["tic_tac_toe", "dots_boxes"].includes(room.game_type)) {
       isBotTurn = s.turn === botSeat;
     } else if (room.game_type === "number_guess") {
       if (s.pickerSeat === botSeat && !s.targetPicked) isBotTurn = true;
@@ -121,11 +120,7 @@ export function GameBoard({
               </strong>
             </div>
             <p className="mt-2 text-xl font-black">
-              {room.game_type === "uno"
-                ? `${(((state as Record<string, any>).hands || {})[player.seat.toString()] || []).length} cards`
-                : state.scores
-                ? `${scores[player.seat] || 0} pts`
-                : `P${player.seat}`}
+              {state.scores ? `${scores[player.seat] || 0} pts` : `P${player.seat}`}
             </p>
 
           </div>
@@ -151,7 +146,7 @@ export function GameBoard({
 
         <div className="min-h-[430px] p-5 sm:p-8">
           {room.game_type === "rps" && (
-            <RPS state={state} mySeat={me?.seat} choose={(v) => act("choose", v)} busy={busy} />
+            <RPS state={state} mySeat={me?.seat} choose={(v) => act("choose", v)} busy={busy} act={act} />
           )}
           {room.game_type === "number_guess" && (
             <NumberGuessGame
@@ -164,15 +159,6 @@ export function GameBoard({
           )}
           {room.game_type === "tic_tac_toe" && (
             <TicTacToe state={state} mySeat={me?.seat} place={(i) => act("place", String(i))} busy={busy} />
-          )}
-          {room.game_type === "uno" && (
-            <UnoGame
-              room={room}
-              players={players}
-              meSeat={me?.seat || 1}
-              isMyTurn={state.turn === me?.seat}
-              onAct={act}
-            />
           )}
           {room.game_type === "dots_boxes" && (
             <DotsBoxes state={state} mySeat={me?.seat} act={act} busy={busy} players={players} isHost={room.host_id === me?.player_id} />
@@ -212,26 +198,126 @@ function Basketball({ state, mySeat, busy, shoot }: { state: Room["public_state"
   );
 }
 
-function RPS({ state, mySeat, choose, busy }: { state: Room["public_state"]; mySeat?: number; choose: (v: string) => void; busy: boolean }) {
+function RPS({
+  state,
+  mySeat,
+  choose,
+  busy,
+  act,
+}: {
+  state: Room["public_state"];
+  mySeat?: number;
+  choose: (v: string) => void;
+  busy: boolean;
+  act: (action: string, value?: string) => Promise<void>;
+}) {
+  const curRound = (state.round as number) || 1;
   const locked = Boolean(mySeat && state.choices?.[mySeat]);
+  const revealed = Boolean(state.revealed);
+  const choices = (state.choices || {}) as Record<string, string>;
+  const history = (state.history || []) as Array<{
+    round: number;
+    winnerSeat: number | null;
+    message: string;
+  }>;
+
+  const icons: Record<string, string> = {
+    rock: "✊",
+    paper: "📄",
+    scissors: "✂️",
+  };
+
   return (
-    <div className="text-center">
-      <div className="mx-auto grid max-w-2xl grid-cols-3 gap-3">
-        {[["rock", "✊", "ROCK"], ["paper", "📄", "PAPER"], ["scissors", "✂️", "SCISSORS"]].map(([value, icon, label]) => (
-          <button
-            key={value}
-            disabled={locked || busy}
-            onClick={() => choose(value)}
-            className="group cursor-pointer rounded-[24px] border-2 border-slate-950 bg-[#f0edff] p-4 shadow-[3px_3px_0_#171821] transition hover:-translate-y-2 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <span className="block text-5xl sm:text-7xl group-hover:scale-110">{icon}</span>
-            <strong className="mt-3 block text-xs">{label}</strong>
-          </button>
-        ))}
+    <div className="mx-auto max-w-xl text-center space-y-6">
+      {/* Round Header */}
+      <div className="flex items-center justify-between rounded-2xl border-2 border-slate-950 bg-slate-900 px-5 py-3 text-white shadow-[4px_4px_0_#171821]">
+        <div className="text-left">
+          <span className="text-[10px] font-black uppercase tracking-widest text-purple-400">
+            ROCK PAPER SCISSORS
+          </span>
+          <h3 className="text-lg font-black uppercase">Round {curRound} of 3</h3>
+        </div>
+        <div className="text-right">
+          <span className="text-[10px] font-bold opacity-60">STATUS</span>
+          <p className="text-xs font-black text-amber-300">
+            {revealed ? "ROUND ENDED" : locked ? "CHOICE SEALED" : "YOUR TURN"}
+          </p>
+        </div>
       </div>
-      {locked && (
-        <div className="mx-auto mt-7 inline-flex items-center gap-2 rounded-full border-2 border-slate-950 bg-[#f4dc69] px-5 py-2 text-sm font-black">
-          <Lock size={15} /> Choice sealed. Waiting…
+
+      {/* Choice Buttons */}
+      {!revealed && (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            ["rock", "✊", "ROCK"],
+            ["paper", "📄", "PAPER"],
+            ["scissors", "✂️", "SCISSORS"],
+          ].map(([value, icon, label]) => (
+            <button
+              key={value}
+              disabled={locked || busy}
+              onClick={() => choose(value)}
+              className={`group cursor-pointer rounded-[24px] border-2 border-slate-950 p-4 shadow-[3px_3px_0_#171821] transition hover:-translate-y-2 disabled:cursor-not-allowed ${
+                choices[mySeat?.toString() || ""] === value
+                  ? "bg-amber-300 ring-4 ring-amber-500 scale-105"
+                  : "bg-[#f0edff] disabled:opacity-40"
+              }`}
+            >
+              <span className="block text-5xl sm:text-7xl group-hover:scale-110">{icon}</span>
+              <strong className="mt-3 block text-xs">{label}</strong>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Waiting Indicator */}
+      {locked && !revealed && (
+        <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border-2 border-slate-950 bg-[#f4dc69] px-6 py-2.5 text-sm font-black animate-pulse">
+          <Lock size={16} /> Choice sealed! Waiting for opponent...
+        </div>
+      )}
+
+      {/* Revealed Round Cards */}
+      {revealed && (
+        <div className="rounded-3xl border-4 border-slate-950 bg-amber-50 p-6 shadow-[6px_6px_0_#171821] space-y-4">
+          <h4 className="text-sm font-black uppercase text-slate-700">Round {curRound} Revealed!</h4>
+          <div className="flex justify-center items-center gap-6">
+            <div className="rounded-2xl border-2 border-slate-950 bg-white p-4 shadow-[3px_3px_0_#171821] text-center min-w-28">
+              <span className="text-4xl">{icons[choices["1"] || ""] || "❓"}</span>
+              <span className="block text-xs font-black mt-2">Player 1</span>
+              <span className="text-[10px] font-bold uppercase text-slate-500">{choices["1"]}</span>
+            </div>
+            <span className="text-2xl font-black">VS</span>
+            <div className="rounded-2xl border-2 border-slate-950 bg-white p-4 shadow-[3px_3px_0_#171821] text-center min-w-28">
+              <span className="text-4xl">{icons[choices["2"] || ""] || "❓"}</span>
+              <span className="block text-xs font-black mt-2">Player 2</span>
+              <span className="text-[10px] font-bold uppercase text-slate-500">{choices["2"]}</span>
+            </div>
+          </div>
+
+          {curRound < 3 && (
+            <button
+              disabled={busy}
+              onClick={() => act("next_round")}
+              className="arcade-button bg-purple-600 text-white px-8 py-3 text-sm font-black shadow-[4px_4px_0_#171821] hover:bg-purple-700"
+            >
+              NEXT ROUND ({curRound + 1}/3) ➡️
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* History Log */}
+      {history.length > 0 && (
+        <div className="rounded-2xl border-2 border-slate-950 bg-slate-100 p-4 text-left">
+          <h5 className="text-xs font-black uppercase tracking-wider text-slate-700 mb-2">Round History</h5>
+          <div className="space-y-1.5 text-xs font-bold">
+            {history.map((h, i) => (
+              <div key={i} className="flex justify-between items-center bg-white px-3 py-2 rounded-xl border border-slate-300">
+                <span>Round {h.round}: {h.message}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

@@ -27,15 +27,15 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
 
   const attemptsLeft = state.attemptsLeft !== undefined ? state.attemptsLeft : 3;
   const [inputVal, setInputVal] = useState("");
-  const [timeLeft, setTimeLeft] = useState<number>(10);
+  const [timeLeft, setTimeLeft] = useState<number>(45);
 
-  // 10-second countdown timer for guesser phase
+  // 45-second countdown timer for guesser phase
   useEffect(() => {
     if (!targetPicked || room.status !== "playing") return;
 
     let isMounted = true;
     const timeoutId = setTimeout(() => {
-      if (isMounted) setTimeLeft(10);
+      if (isMounted) setTimeLeft(45);
     }, 0);
 
     const interval = setInterval(() => {
@@ -88,10 +88,10 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
         <div className="flex items-center gap-3">
           <span className="text-3xl">🔢</span>
           <div>
-            <h3 className="font-black text-base uppercase tracking-wider text-amber-400">10-Second Number Hunt</h3>
+            <h3 className="font-black text-base uppercase tracking-wider text-amber-400">45-Second Number Hunt</h3>
             <p className="text-xs text-slate-300">
               {pickerPlayer?.profile?.display_name || `Player ${pickerSeat}`} picks secret number (1-100),{" "}
-              {guesserPlayer?.profile?.display_name || `Player ${guesserSeat}`} gets 3 tries in 10 seconds!
+              {guesserPlayer?.profile?.display_name || `Player ${guesserSeat}`} gets 3 tries in 45 seconds!
             </p>
           </div>
         </div>
@@ -141,7 +141,7 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
           </div>
         )}
 
-        {/* Phase 2: Guesser 10-Second / 3-Tries Guessing Duel */}
+        {/* Phase 2: Guesser 45-Second / 3-Tries Guessing Duel */}
         {targetPicked && (
           <div className="w-full flex flex-col items-center gap-6 py-2">
             {/* Countdown & Attempts Row */}
@@ -163,9 +163,9 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
               <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
                 <div
                   className={`h-full transition-all duration-1000 ${
-                    timeLeft <= 3 ? "bg-red-600 animate-pulse" : "bg-gradient-to-r from-amber-500 to-red-500"
+                    timeLeft <= 5 ? "bg-red-600 animate-pulse" : "bg-gradient-to-r from-amber-500 to-red-500"
                   }`}
-                  style={{ width: `${(timeLeft / 10) * 100}%` }}
+                  style={{ width: `${(timeLeft / 45) * 100}%` }}
                 />
               </div>
             </div>
