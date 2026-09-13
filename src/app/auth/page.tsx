@@ -36,34 +36,57 @@ function AuthForm() {
       if (error) setMessage({ type: "error", text: error.message });
       else router.replace("/dashboard");
     } else {
-      const redirectTo = `${window.location.origin}/auth/callback`;
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: redirectTo, data: { display_name: displayName.trim() } },
-      });
+      try {
+        const res = await fetch("/api/auth/send-verification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            password,
+            displayName: displayName.trim(),
+          }),
+        });
 
-      if (error) {
-        const errText = error.message.toLowerCase();
-        if (errText.includes("rate limit") || errText.includes("exceeded")) {
-          // Attempt automatic login in case the user was already created on a previous attempt
-          const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
-          if (!loginErr && loginData.session) {
-            router.replace("/dashboard");
-            setBusy(false);
-            return;
-          }
+        const data = await res.json();
+
+        if (res.ok && data.success) {
           setMessage({
-            type: "error",
-            text: "Supabase email limit reached for this hour. Try signing in directly with your password below if you already submitted this email.",
+            type: "success",
+            text: data.message || "Verification email sent via Resend! Check your inbox to confirm your email.",
           });
         } else {
-          setMessage({ type: "error", text: error.message });
+          // Fallback to standard Supabase sign up if custom route returned an error
+          const redirectTo = `${window.location.origin}/auth/callback`;
+          const { data: supaData, error: supaErr } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: redirectTo, data: { display_name: displayName.trim() } },
+          });
+
+          if (supaErr) {
+            const errText = supaErr.message.toLowerCase();
+            if (errText.includes("rate limit") || errText.includes("exceeded")) {
+              const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
+              if (!loginErr && loginData.session) {
+                router.replace("/dashboard");
+                setBusy(false);
+                return;
+              }
+              setMessage({
+                type: "error",
+                text: data.error || "Supabase email limit reached. Please check your inbox or log in directly.",
+              });
+            } else {
+              setMessage({ type: "error", text: data.error || supaErr.message });
+            }
+          } else if (supaData.session) {
+            router.replace("/dashboard");
+          } else {
+            setMessage({ type: "success", text: "Check your inbox to confirm your email, then come back to play." });
+          }
         }
-      } else if (data.session) {
-        router.replace("/dashboard");
-      } else {
-        setMessage({ type: "success", text: "Check your inbox to confirm your email, then come back to play." });
+      } catch {
+        setMessage({ type: "error", text: "Failed to process registration. Please try again." });
       }
     }
     setBusy(false);
