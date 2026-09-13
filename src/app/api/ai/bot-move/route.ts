@@ -28,10 +28,14 @@ export async function POST(request: Request) {
       const choices = ["rock", "paper", "scissors"];
       value = choices[Math.floor(Math.random() * choices.length)];
     } else if (gameType === "dice_dash") {
-      action = "roll";
-    } else if (gameType === "basketball") {
-      action = "shoot";
+      if (state.lastRoll) {
+        action = "move_token";
+        value = String(Math.floor(Math.random() * 4));
+      } else {
+        action = "roll";
+      }
     } else if (gameType === "tic_tac_toe") {
+
       action = "place";
       const board: string[] = state.board || Array(9).fill("");
       const emptyIndices = board.map((cell, i) => (cell === "" ? i : -1)).filter((i) => i !== -1);

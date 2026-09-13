@@ -5,11 +5,12 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
 import { gameByKey } from "./registry";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { PongBoard } from "./pong-board";
+import { LudoBoard } from "./ludo-board";
 import { DotsBoxes } from "./dots-boxes";
 import { SkribblGame } from "./skribbl-game";
 
 import { sounds } from "@/lib/audio";
+
 
 const quiz = {
   question: "Which planet has the shortest day?",
@@ -177,13 +178,12 @@ export function GameBoard({
             </div>
             <p className="mt-2 text-xl font-black">
               {room.game_type === "dice_dash"
-                ? `${state.positions?.[player.seat] || 0}/20`
-                : room.game_type === "basketball"
-                ? `${scores[player.seat] || 0} pts`
+                ? `P${player.seat}`
                 : state.scores
                 ? `${scores[player.seat] || 0} pts`
                 : `P${player.seat}`}
             </p>
+
           </div>
         ))}
       </div>
@@ -206,9 +206,6 @@ export function GameBoard({
         </header>
 
         <div className="min-h-[430px] p-5 sm:p-8">
-          {room.game_type === "basketball" && (
-            <Basketball state={state} mySeat={me?.seat} busy={busy} shoot={() => act("shoot")} />
-          )}
           {room.game_type === "rps" && (
             <RPS state={state} mySeat={me?.seat} choose={(v) => act("choose", v)} busy={busy} />
           )}
@@ -228,7 +225,7 @@ export function GameBoard({
             <TicTacToe state={state} mySeat={me?.seat} place={(i) => act("place", String(i))} busy={busy} />
           )}
           {room.game_type === "dice_dash" && (
-            <DiceDash state={state} players={players} mySeat={me?.seat} roll={() => act("roll")} busy={busy} />
+            <LudoBoard state={state} players={players} mySeat={me?.seat} act={act} busy={busy} />
           )}
           {room.game_type === "quick_quiz" && (
             <QuestionCard data={aiTrivia || quiz} state={state} answer={(i) => act("answer", String(i))} mySeat={me?.seat} busy={busy} />
@@ -249,9 +246,6 @@ export function GameBoard({
           )}
           {room.game_type === "skribbl" && (
             <SkribblGame room={room} players={players} userId={userId} act={act} busy={busy} />
-          )}
-          {room.game_type === "ping_pong" && me && (
-            <PongBoard room={room} players={players} me={me} />
           )}
         </div>
 
@@ -438,7 +432,7 @@ function QuestionCard({
 function deriveWinners(room: Room, players: RoomPlayer[]) {
   const state = room.public_state;
   if (typeof state.winnerSeat === "number") return [state.winnerSeat];
-  if (["basketball", "quick_quiz", "emoji_decode", "dots_boxes", "skribbl"].includes(room.game_type)) {
+  if (["quick_quiz", "emoji_decode", "dots_boxes", "skribbl"].includes(room.game_type)) {
     const values = players.map((p) => Number(state.scores?.[p.seat] || 0));
     const top = Math.max(...values);
     const seats = players.filter((_, i) => values[i] === top).map((p) => p.seat);
