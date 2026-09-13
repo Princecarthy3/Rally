@@ -86,7 +86,7 @@ create or replace function public.random_room_code() returns text language plpgs
 declare chars text:='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; output text:=''; i int;
 begin for i in 1..5 loop output:=output||substr(chars,1+floor(random()*length(chars))::int,1); end loop; return output; end $$;
 
-create or replace function public.create_game_room(p_game_type text,p_max_players int default 2) returns text language plpgsql security definer set search_path='' as $
+create or replace function public.create_game_room(p_game_type text,p_max_players int default 2) returns text language plpgsql security definer set search_path='' as $$
 declare v_code text; v_room uuid; v_max int;
 begin
  if auth.uid() is null then raise exception 'Sign in first'; end if;
@@ -95,7 +95,7 @@ begin
  loop v_code:=public.random_room_code(); exit when not exists(select 1 from public.game_rooms where code=v_code); end loop;
  insert into public.game_rooms(code,game_type,host_id,max_players) values(v_code,p_game_type,auth.uid(),v_max) returning id into v_room;
  insert into public.game_players(room_id,player_id,seat) values(v_room,auth.uid(),1); return v_code;
-end $;
+end $$;
 
 create or replace function public.join_game_room(p_code text) returns text language plpgsql security definer set search_path='' as $$
 declare r public.game_rooms; v_seat int;
