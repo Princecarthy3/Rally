@@ -5,7 +5,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
 import { gameByKey } from "./registry";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { LudoBoard } from "./ludo-board";
+import { UnoGame } from "./uno-game";
+import { NumberGuessGame } from "./number-guess-game";
 import { DotsBoxes } from "./dots-boxes";
 import { SkribblGame } from "./skribbl-game";
 
@@ -119,8 +120,11 @@ export function GameBoard({
     let isBotTurn = false;
     const s = state as Record<string, any>;
 
-    if (["tic_tac_toe", "dots_boxes", "dice_dash", "basketball", "number_guess"].includes(room.game_type)) {
+    if (["tic_tac_toe", "dots_boxes", "uno"].includes(room.game_type)) {
       isBotTurn = s.turn === botSeat;
+    } else if (room.game_type === "number_guess") {
+      if (s.pickerSeat === botSeat && !s.targetPicked) isBotTurn = true;
+      if (s.guesserSeat === botSeat && s.targetPicked) isBotTurn = true;
     } else if (room.game_type === "rps") {
       isBotTurn = !s.choices?.[botSeat];
     } else if (["quick_quiz", "emoji_decode"].includes(room.game_type)) {
@@ -177,8 +181,8 @@ export function GameBoard({
               </strong>
             </div>
             <p className="mt-2 text-xl font-black">
-              {room.game_type === "dice_dash"
-                ? `P${player.seat}`
+              {room.game_type === "uno"
+                ? `${(((state as Record<string, any>).hands || {})[player.seat.toString()] || []).length} cards`
                 : state.scores
                 ? `${scores[player.seat] || 0} pts`
                 : `P${player.seat}`}
@@ -210,22 +214,25 @@ export function GameBoard({
             <RPS state={state} mySeat={me?.seat} choose={(v) => act("choose", v)} busy={busy} />
           )}
           {room.game_type === "number_guess" && (
-            <NumberGuess
-              state={state}
-              guess={guess}
-              setGuess={setGuess}
-              submit={(e) => {
-                e.preventDefault();
-                act("guess", guess).then(() => setGuess(""));
-              }}
-              busy={busy}
+            <NumberGuessGame
+              room={room}
+              players={players}
+              meSeat={me?.seat || 1}
+              isMyTurn={state.turn === me?.seat}
+              onAct={act}
             />
           )}
           {room.game_type === "tic_tac_toe" && (
             <TicTacToe state={state} mySeat={me?.seat} place={(i) => act("place", String(i))} busy={busy} />
           )}
-          {room.game_type === "dice_dash" && (
-            <LudoBoard state={state} players={players} mySeat={me?.seat} act={act} busy={busy} />
+          {room.game_type === "uno" && (
+            <UnoGame
+              room={room}
+              players={players}
+              meSeat={me?.seat || 1}
+              isMyTurn={state.turn === me?.seat}
+              onAct={act}
+            />
           )}
           {room.game_type === "quick_quiz" && (
             <QuestionCard data={aiTrivia || quiz} state={state} answer={(i) => act("answer", String(i))} mySeat={me?.seat} busy={busy} />

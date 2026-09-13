@@ -27,12 +27,35 @@ export async function POST(request: Request) {
       action = "choose";
       const choices = ["rock", "paper", "scissors"];
       value = choices[Math.floor(Math.random() * choices.length)];
-    } else if (gameType === "dice_dash") {
-      if (state.lastRoll) {
-        action = "move_token";
-        value = String(Math.floor(Math.random() * 4));
+    } else if (gameType === "uno") {
+      const hands = state.hands || {};
+      const botHand: any[] = hands[String(botSeat)] || [];
+      const topCard = state.topCard || { color: "red", value: "7" };
+      const activeColor = state.activeColor || (topCard.color !== "wild" ? topCard.color : "red");
+      const unoCalled = state.unoCalled || {};
+
+      if (botHand.length <= 2 && !unoCalled[botSeat]) {
+        action = "call_uno";
       } else {
-        action = "roll";
+        const playableCard = botHand.find(
+          (c: any) => c.color === "wild" || c.color === activeColor || c.value === topCard.value
+        );
+
+        if (playableCard) {
+          action = "play_card";
+          if (playableCard.color === "wild") {
+            const colorCounts: Record<string, number> = { red: 0, blue: 0, green: 0, yellow: 0 };
+            botHand.forEach((c: any) => {
+              if (colorCounts[c.color] !== undefined) colorCounts[c.color]++;
+            });
+            const bestColor = Object.entries(colorCounts).sort((a, b) => b[1] - a[1])[0][0];
+            value = `${playableCard.id}:${bestColor}`;
+          } else {
+            value = playableCard.id;
+          }
+        } else {
+          action = "draw_card";
+        }
       }
     } else if (gameType === "tic_tac_toe") {
 
@@ -43,8 +66,28 @@ export async function POST(request: Request) {
         value = String(emptyIndices[Math.floor(Math.random() * emptyIndices.length)]);
       }
     } else if (gameType === "number_guess") {
-      action = "guess";
-      value = String(1 + Math.floor(Math.random() * 100));
+      const pickerSeat = state.pickerSeat || 1;
+      const guesserSeat = state.guesserSeat || 2;
+      if (pickerSeat === botSeat && !state.targetPicked) {
+        action = "set_target";
+        value = String(1 + Math.floor(Math.random() * 100));
+      } else if (guesserSeat === botSeat && state.targetPicked) {
+        action = "guess";
+        const lastGuess = state.lastGuess;
+        const msg: string = state.message || "";
+        if (lastGuess !== null && lastGuess !== undefined) {
+          let delta = Math.floor(Math.random() * 8) + 1;
+          if (msg.includes("TOO LOW")) {
+            value = String(Math.min(100, lastGuess + delta));
+          } else if (msg.includes("TOO HIGH")) {
+            value = String(Math.max(1, lastGuess - delta));
+          } else {
+            value = String(Math.min(100, Math.max(1, lastGuess + (Math.random() > 0.5 ? delta : -delta))));
+          }
+        } else {
+          value = String(40 + Math.floor(Math.random() * 20));
+        }
+      }
     } else if (gameType === "quick_quiz" || gameType === "emoji_decode") {
       action = "answer";
       value = gameType === "emoji_decode" ? (Math.random() < 0.8 ? "correct" : "wrong") : String(Math.floor(Math.random() * 4));
