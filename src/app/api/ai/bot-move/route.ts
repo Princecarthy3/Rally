@@ -129,6 +129,7 @@ export async function POST(request: Request) {
       p_room: roomId,
       p_action: action,
       p_value: value,
+      p_actor_seat: botSeat,
     });
 
     if (error) {

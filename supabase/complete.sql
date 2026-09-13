@@ -189,11 +189,17 @@ begin
 end $$;
 
 -- Validates and applies casual turn-based actions. Client never supplies score or random outcome.
-create or replace function public.play_room_action(p_room uuid,p_action text,p_value text default null) returns jsonb language plpgsql security definer set search_path='' as $$
+create or replace function public.play_room_action(p_room uuid,p_action text,p_value text default null,p_actor_seat int default null) returns jsonb language plpgsql security definer set search_path='' as $$
 declare r public.game_rooms; me public.game_players; n int; next_seat int; state jsonb; score int; val int; roll int; board jsonb; mark text; winner int:=null; new_boxes int:=0; r_idx int; c_idx int; key_b text; grid_size int:=3; q_idx int:=0; round_ended boolean:=false; round_winner int:=null; cur_round int:=1; round_wins jsonb; p_toks jsonb; tok_idx int; cur_pos int; new_pos int; card_id text; chosen_color text; elem jsonb; card_elem jsonb; new_hand jsonb; dir int:=1; skip_step int:=1; active_col text; card_val text; card_col text; penalty_cards jsonb; picker_s int; guesser_s int; target_n int; clue_msg text; c_color text; c_val text; i int;
 begin
  select * into r from public.game_rooms where id=p_room for update; if r.status<>'playing' then raise exception 'Game is not active'; end if;
- select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); if me.id is null then raise exception 'Not a player'; end if; state:=r.public_state; select count(*) into n from public.game_players where room_id=p_room;
+ if p_actor_seat is not null then
+  select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id='11111111-1111-1111-1111-111111111111';
+ end if;
+ if me.id is null then
+  select * into me from public.game_players where room_id=p_room and player_id=auth.uid();
+ end if;
+ if me.id is null then raise exception 'Not a player'; end if; state:=r.public_state; select count(*) into n from public.game_players where room_id=p_room;
   if p_action='set_grid_size' then
    if r.host_id<>auth.uid() then raise exception 'Only host can set grid size'; end if;
    val:=p_value::int; if val not in (3,4,5) then raise exception 'Grid size must be 3, 4, or 5'; end if;
@@ -491,8 +497,8 @@ begin
 end $$;
 
 revoke all on function public.finalize_room(uuid,jsonb,text) from public;
-revoke all on function public.create_game_room(text,int),public.join_game_room(text),public.set_player_ready(uuid,boolean),public.start_game(uuid),public.play_room_action(uuid,text,text),public.rematch_room(uuid),public.add_ai_bot_to_room(uuid) from public;
-grant execute on function public.create_game_room(text,int),public.join_game_room(text),public.set_player_ready(uuid,boolean),public.start_game(uuid),public.play_room_action(uuid,text,text),public.rematch_room(uuid),public.add_ai_bot_to_room(uuid) to authenticated;
+revoke all on function public.create_game_room(text,int),public.join_game_room(text),public.set_player_ready(uuid,boolean),public.start_game(uuid),public.play_room_action(uuid,text,text,int),public.rematch_room(uuid),public.add_ai_bot_to_room(uuid) from public;
+grant execute on function public.create_game_room(text,int),public.join_game_room(text),public.set_player_ready(uuid,boolean),public.start_game(uuid),public.play_room_action(uuid,text,text,int),public.rematch_room(uuid),public.add_ai_bot_to_room(uuid) to authenticated;
 
 -- Realtime publication (safe if already added).
 do $$ begin alter publication supabase_realtime add table public.game_rooms; exception when duplicate_object then null; end $$;
