@@ -16,33 +16,30 @@ export const THEMES = [
   { id: "emerald", name: "Cyber Emerald", icon: Palette, color: "#10b981", bg: "#064e3b", preview: "from-emerald-600 to-teal-400" },
 ];
 
+function applyTheme(themeId: string) {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  root.setAttribute("data-theme", themeId);
+  if (themeId === "dark") {
+    root.classList.add("dark");
+  } else {
+    root.classList.remove("dark");
+  }
+}
+
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const [muted, setMuted] = useState(false);
-  const [volume, setVolumeState] = useState(80);
-  const [currentTheme, setCurrentTheme] = useState("vibrant");
+  const [muted, setMuted] = useState(() => (typeof window !== "undefined" ? sounds.getMuted() : false));
+  const [volume, setVolumeState] = useState(() => (typeof window !== "undefined" ? Math.round(sounds.getVolume() * 100) : 80));
+  const [currentTheme, setCurrentTheme] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("rally_theme") || "vibrant" : "vibrant"));
   const [toast, setToast] = useState("");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setMuted(sounds.getMuted());
-      setVolumeState(Math.round(sounds.getVolume() * 100));
-
       const savedTheme = localStorage.getItem("rally_theme") || "vibrant";
-      setCurrentTheme(savedTheme);
       applyTheme(savedTheme);
     }
   }, []);
 
-  function applyTheme(themeId: string) {
-    if (typeof document === "undefined") return;
-    const root = document.documentElement;
-    root.setAttribute("data-theme", themeId);
-    if (themeId === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-  }
 
   function handleThemeChange(themeId: string) {
     setCurrentTheme(themeId);

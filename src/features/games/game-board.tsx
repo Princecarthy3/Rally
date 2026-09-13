@@ -145,7 +145,8 @@ export function GameBoard({
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [room.status, room.id, room.game_type, room.public_state, players, state]);
+  }, [room.status, room.id, room.game_type, room.public_state, players]);
+
 
 
   if (room.status === "completed") {
