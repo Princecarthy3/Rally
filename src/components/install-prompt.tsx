@@ -11,26 +11,23 @@ interface BeforeInstallPromptEvent extends Event {
 export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
+
+  const [isStandalone] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as unknown as { standalone?: boolean }).standalone === true
+    );
+  });
+
+  const [isIOS] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+  });
 
   useEffect(() => {
-    // Check if already in standalone mode
-    const inStandalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (navigator as unknown as { standalone?: boolean }).standalone === true;
+    if (isStandalone) return;
 
-    if (inStandalone) {
-      setIsStandalone(true);
-      return;
-    }
-
-    // Detect iOS
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    const iosDevice = /iphone|ipad|ipod/.test(userAgent);
-    setIsIOS(iosDevice);
-
-    // Listen for Chrome/Android beforeinstallprompt event
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -39,20 +36,19 @@ export function InstallPrompt() {
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstall);
 
-    // Show prompt automatically for iOS or desktop if not dismissed in this session
     const dismissed = sessionStorage.getItem("rally_install_dismissed");
-    if (!dismissed && (iosDevice || deferredPrompt)) {
-      setShowPrompt(true);
-    } else if (!dismissed && !iosDevice) {
-      // Show default banner fallback after sign-in so user knows it can be installed
+    if (!dismissed) {
       const timer = setTimeout(() => setShowPrompt(true), 1200);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+      };
     }
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
     };
-  }, []);
+  }, [isStandalone]);
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
