@@ -80,6 +80,7 @@ export function RoomChat({
     sounds.playClickSound();
 
     const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    // eslint-disable-next-line react-hooks/purity
     const msgId = `${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
 
     const newMsg: ChatMessage = {
