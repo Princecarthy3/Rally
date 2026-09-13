@@ -143,7 +143,7 @@ end $$;
 
 -- Validates and applies casual turn-based actions. Client never supplies score or random outcome.
 create or replace function public.play_room_action(p_room uuid,p_action text,p_value text default null) returns jsonb language plpgsql security definer set search_path='' as $$
-declare r public.game_rooms; me public.game_players; n int; next_seat int; state jsonb; score int; val int; roll int; board jsonb; mark text; winner int:=null;
+declare r public.game_rooms; me public.game_players; n int; next_seat int; state jsonb; score int; val int; roll int; board jsonb; mark text; winner int:=null; new_boxes int:=0; r_idx int; c_idx int; key_b text;
 begin
  select * into r from public.game_rooms where id=p_room for update; if r.status<>'playing' then raise exception 'Game is not active'; end if;
  select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); if me.id is null then raise exception 'Not a player'; end if; state:=r.public_state; select count(*) into n from public.game_players where room_id=p_room;
