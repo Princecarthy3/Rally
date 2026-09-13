@@ -192,7 +192,7 @@ begin
       key_b:='b_'||r_idx||'_'||c_idx;
       if not (state->'boxes' ? key_b) then
         if (state->'hLines' ? (r_idx||'_'||c_idx)) and
-           (state->'hLines' ? ((r_idx+1)||"_"||c_idx)) and
+           (state->'hLines' ? ((r_idx+1)||'_'||c_idx)) and
            (state->'vLines' ? (r_idx||'_'||c_idx)) and
            (state->'vLines' ? (r_idx||'_'||(c_idx+1))) then
           state:=jsonb_set(state,array['boxes',key_b],to_jsonb(me.seat),true);
