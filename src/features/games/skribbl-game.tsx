@@ -7,11 +7,13 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { sounds } from "@/lib/audio";
 
 const WORD_BANK = [
-  "Submarine", "Pikachu", "Telescope", "Pineapple", "Skateboard",
-  "Helicopter", "Rainbow", "Watermelon", "Guitar", "Astronaut",
-  "Hamburger", "Dinosaur", "Campfire", "Microscope", "Lighthouse",
-  "Rollercoaster", "Butterfly", "Volcano", "Spaghetti", "Pyramid",
-  "Basketball", "Octopus", "Sandcastle", "Saxophone", "Cupcake"
+  "Apple", "Banana", "House", "Cat", "Dog", "Sun", "Moon", "Tree", "Car", "Fish",
+  "Pizza", "Chair", "Book", "Phone", "Ball", "Shoe", "Hat", "Cloud", "Star", "Cake",
+  "Toilet", "Vampire", "Ghost", "Robot", "Dinosaur", "Astronaut", "Pirate", "Mermaid",
+  "Zombie", "Monkey", "Chicken", "Skateboard", "Sunglasses", "Toothbrush", "Backpack",
+  "Wi-Fi", "Exam", "Procrastination", "Alien", "Time machine", "Broken heart", "Traffic jam", "Superhero",
+  "Submarine", "Pikachu", "Telescope", "Pineapple", "Helicopter", "Rainbow", "Watermelon", "Guitar",
+  "Hamburger", "Campfire", "Microscope", "Lighthouse", "Rollercoaster", "Butterfly", "Volcano", "Spaghetti", "Pyramid"
 ];
 
 const COLORS = [
@@ -277,6 +279,8 @@ export function SkribblGame({
     ? wordSelected
     : wordSelected.replace(/[a-zA-Z]/g, "_ ");
 
+  const attemptsLeft = state.tries && me?.seat ? (state.tries[me.seat.toString()] ?? 3) : 3;
+
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       {/* Top Banner */}
@@ -294,6 +298,16 @@ export function SkribblGame({
           <p className="text-xs font-black text-amber-300">
             Player {drawerSeat} {isDrawer ? "(YOU)" : ""}
           </p>
+          {!isDrawer && (
+            <div className="mt-1 flex items-center justify-end gap-1 text-xs font-black text-amber-400">
+              <span>Tries:</span>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <span key={i} className={i < attemptsLeft ? "opacity-100 scale-110" : "opacity-30 grayscale"}>
+                  🎨
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -372,18 +386,19 @@ export function SkribblGame({
       {!isDrawer && (
         <form onSubmit={handleGuessSubmit} className="flex gap-2">
           <input
+            disabled={busy || attemptsLeft <= 0}
             value={guess}
             onChange={(e) => setGuess(e.target.value)}
-            placeholder="Type your guess here..."
-            className="flex-1 rounded-2xl border-2 border-slate-950 px-4 py-3 text-sm font-bold outline-none shadow-[3px_3px_0_#171821]"
+            placeholder={attemptsLeft <= 0 ? "No tries remaining for this word" : "Type your guess here..."}
+            className="flex-1 rounded-2xl border-2 border-slate-950 px-4 py-3 text-sm font-bold outline-none shadow-[3px_3px_0_#171821] disabled:bg-slate-100 disabled:opacity-60"
           />
           <button
-            disabled={busy}
+            disabled={busy || attemptsLeft <= 0}
             type="submit"
-            className="arcade-button bg-amber-400 px-6 text-sm font-black shadow-[3px_3px_0_#171821]"
+            className="arcade-button bg-amber-400 px-6 text-sm font-black shadow-[3px_3px_0_#171821] disabled:opacity-50"
           >
             <Send size={16} />
-            <span>GUESS</span>
+            <span>GUESS ({attemptsLeft}/3)</span>
           </button>
         </form>
       )}

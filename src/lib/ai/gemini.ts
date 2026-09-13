@@ -11,11 +11,23 @@ export interface EmojiPuzzle {
 }
 
 const FALLBACK_SKRIBBL_WORDS = [
-  ["Submarine", "Pikachu", "Telescope"],
-  ["Watermelon", "Astronaut", "Skateboard"],
-  ["Campfire", "Helicopter", "Rollercoaster"],
+  ["Apple", "Banana", "House"],
+  ["Cat", "Dog", "Sun"],
+  ["Moon", "Tree", "Car"],
+  ["Fish", "Pizza", "Chair"],
+  ["Book", "Phone", "Ball"],
+  ["Shoe", "Hat", "Cloud"],
+  ["Star", "Cake", "Toilet"],
+  ["Vampire", "Ghost", "Robot"],
+  ["Dinosaur", "Astronaut", "Pirate"],
+  ["Mermaid", "Zombie", "Monkey"],
+  ["Chicken", "Skateboard", "Sunglasses"],
+  ["Toothbrush", "Backpack", "Wi-Fi"],
+  ["Exam", "Procrastination", "Alien"],
+  ["Time machine", "Broken heart", "Traffic jam"],
+  ["Superhero", "Submarine", "Pikachu"],
+  ["Telescope", "Watermelon", "Helicopter"],
   ["Hamburger", "Pyramid", "Spaghetti"],
-  ["Sandcastle", "Microscope", "Lighthouse"],
 ];
 
 const FALLBACK_TRIVIA: TriviaQuestion[] = [
