@@ -17,8 +17,9 @@ create table if not exists public.game_rooms (
  max_players smallint not null check(max_players between 2 and 4), public_state jsonb not null default '{}'::jsonb,
  state_version bigint not null default 0, match_number integer not null default 1, created_at timestamptz not null default now(), updated_at timestamptz not null default now(), expires_at timestamptz not null default(now()+interval '24 hours')
 );
--- Clean up any existing legacy room records that do not match valid game types
-delete from public.game_rooms where game_type not in ('rps','number_guess','tic_tac_toe','dice_dash','quick_quiz','emoji_decode','dots_boxes','skribbl');
+-- Safely remap any existing legacy room & result records to 'dice_dash' before applying check constraint
+update public.game_rooms set game_type = 'dice_dash' where game_type not in ('rps','number_guess','tic_tac_toe','dice_dash','quick_quiz','emoji_decode','dots_boxes','skribbl');
+update public.game_results set game_type = 'dice_dash' where game_type not in ('rps','number_guess','tic_tac_toe','dice_dash','quick_quiz','emoji_decode','dots_boxes','skribbl');
 
 alter table public.game_rooms drop constraint if exists game_rooms_game_type_check;
 alter table public.game_rooms add constraint game_rooms_game_type_check check (game_type in ('rps','number_guess','tic_tac_toe','dice_dash','quick_quiz','emoji_decode','dots_boxes','skribbl'));
