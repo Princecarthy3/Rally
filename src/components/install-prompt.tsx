@@ -105,7 +105,7 @@ export function InstallPrompt() {
             </p>
             <ol className="mt-2 space-y-1 text-[11px] text-slate-300">
               <li>1. Tap the <strong>Share button</strong> in Safari menu bar.</li>
-              <li>2. Scroll down & select <strong>"Add to Home Screen"</strong>.</li>
+              <li>2. Scroll down &amp; select <strong>&quot;Add to Home Screen&quot;</strong>.</li>
             </ol>
           </div>
         ) : (
