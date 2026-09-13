@@ -150,7 +150,7 @@ export function GameBoard({
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [room.status, room.id, room.game_type, room.public_state, players]);
+  }, [room.status, room.id, room.game_type, room.public_state, players, state]);
 
 
 

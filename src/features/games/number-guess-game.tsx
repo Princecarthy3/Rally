@@ -32,7 +32,11 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
   useEffect(() => {
     if (!targetPicked || room.status !== "playing") return;
 
-    setTimeLeft(5);
+    let isMounted = true;
+    const timeoutId = setTimeout(() => {
+      if (isMounted) setTimeLeft(5);
+    }, 0);
+
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -46,8 +50,12 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
       });
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, [targetPicked, lastGuess, state.turn, room.status, isGuesser]);
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+      clearInterval(interval);
+    };
+  }, [targetPicked, lastGuess, state.turn, room.status, isGuesser, onAct]);
 
   const handlePickSubmit = (e: React.FormEvent) => {
     e.preventDefault();
