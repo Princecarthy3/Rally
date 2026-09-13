@@ -50,18 +50,31 @@ export function GameBoard({
   const [error, setError] = useState("");
   const [guess, setGuess] = useState("");
   const [aiTrivia, setAiTrivia] = useState<typeof quiz | null>(null);
+  const [aiEmojiPuzzle, setAiEmojiPuzzle] = useState<typeof EMOJI_PUZZLES[0] | null>(null);
+
+  const qIndex = (state as Record<string, any>).qIndex || 0;
 
   useEffect(() => {
+    let active = true;
     if (room.game_type === "quick_quiz") {
       fetch("/api/ai/content?type=trivia")
         .then((res) => res.json())
         .then((data) => {
-          if (data.trivia) setAiTrivia(data.trivia);
+          if (active && data.trivia) setAiTrivia(data.trivia);
+        })
+        .catch(() => {});
+    } else if (room.game_type === "emoji_decode") {
+      fetch("/api/ai/content?type=emoji")
+        .then((res) => res.json())
+        .then((data) => {
+          if (active && data.emoji) setAiEmojiPuzzle(data.emoji);
         })
         .catch(() => {});
     }
-  }, [room.game_type, room.match_number]);
-
+    return () => {
+      active = false;
+    };
+  }, [room.game_type, room.match_number, qIndex]);
 
   const dynamicEmojiQuestions = useMemo(() => {
     const charCodeSum = (room.id || "").split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
@@ -74,8 +87,8 @@ export function GameBoard({
     return list;
   }, [room.id, room.match_number]);
 
-  const qIndex = (state as Record<string, any>).qIndex || 0;
-  const currentEmojiPuzzle = dynamicEmojiQuestions[Math.min(qIndex, 4)] || EMOJI_PUZZLES[0];
+  const currentEmojiPuzzle = aiEmojiPuzzle || dynamicEmojiQuestions[Math.min(qIndex, 4)] || EMOJI_PUZZLES[0];
+
 
   async function act(action: string, value?: string) {
     if (busy) return;
