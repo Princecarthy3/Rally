@@ -76,7 +76,7 @@ export async function POST(request: Request) {
         const lastGuess = state.lastGuess;
         const msg: string = state.message || "";
         if (lastGuess !== null && lastGuess !== undefined) {
-          let delta = Math.floor(Math.random() * 8) + 1;
+          const delta = Math.floor(Math.random() * 8) + 1;
           if (msg.includes("TOO LOW")) {
             value = String(Math.min(100, lastGuess + delta));
           } else if (msg.includes("TOO HIGH")) {
@@ -88,9 +88,6 @@ export async function POST(request: Request) {
           value = String(40 + Math.floor(Math.random() * 20));
         }
       }
-    } else if (gameType === "quick_quiz" || gameType === "emoji_decode") {
-      action = "answer";
-      value = gameType === "emoji_decode" ? (Math.random() < 0.8 ? "correct" : "wrong") : String(Math.floor(Math.random() * 4));
     } else if (gameType === "dots_boxes") {
       action = "line";
       const gridSize = state.gridSize || 3;

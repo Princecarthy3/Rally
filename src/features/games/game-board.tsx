@@ -13,25 +13,6 @@ import { SkribblGame } from "./skribbl-game";
 import { sounds } from "@/lib/audio";
 
 
-const quiz = {
-  question: "Which planet has the shortest day?",
-  options: ["Mercury", "Jupiter", "Mars", "Neptune"],
-  answer: 1,
-};
-
-const EMOJI_PUZZLES = [
-  { question: "🦁 👑", options: ["Jungle Book", "Madagascar", "The Lion King", "Tarzan"], answer: 2 },
-  { question: "🕷️ 👨", options: ["Spider-Man", "Ant-Man", "Batman", "Venom"], answer: 0 },
-  { question: "👻 🚫", options: ["Casper", "Ghostbusters", "Poltergeist", "Beetlejuice"], answer: 1 },
-  { question: "🚀 🌌 ⏳", options: ["Star Wars", "Interstellar", "Gravity", "Apollo 13"], answer: 1 },
-  { question: "🦇 👨 🏙️", options: ["Daredevil", "Batman", "Iron Man", "Superman"], answer: 1 },
-  { question: "🚢 🧊 🌊", options: ["Poseidon", "The Perfect Storm", "Titanic", "Life of Pi"], answer: 2 },
-  { question: "🧙‍♂️ ⚡ 🧹", options: ["Lord of the Rings", "Percy Jackson", "Harry Potter", "Merlin"], answer: 2 },
-  { question: "🦖 🌴 🔬", options: ["King Kong", "Jurassic Park", "Godzilla", "Land of the Lost"], answer: 1 },
-  { question: "🎮 🍄 🐢", options: ["Sonic", "Super Mario", "Zelda", "Pac-Man"], answer: 1 },
-  { question: "🎤 🕶️ 🎩 🕺", options: ["Michael Jackson", "Elvis Presley", "Bruno Mars", "Prince"], answer: 0 },
-];
-
 const colors = ["#ff9eaa", "#77dce7", "#f4dc69", "#8de2bd"];
 
 export function GameBoard({
@@ -51,45 +32,6 @@ export function GameBoard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [guess, setGuess] = useState("");
-  const [aiTrivia, setAiTrivia] = useState<typeof quiz | null>(null);
-  const [aiEmojiPuzzle, setAiEmojiPuzzle] = useState<typeof EMOJI_PUZZLES[0] | null>(null);
-
-  const qIndex = (state as Record<string, any>).qIndex || 0;
-
-  useEffect(() => {
-    let active = true;
-    if (room.game_type === "quick_quiz") {
-      fetch("/api/ai/content?type=trivia")
-        .then((res) => res.json())
-        .then((data) => {
-          if (active && data.trivia) setAiTrivia(data.trivia);
-        })
-        .catch(() => {});
-    } else if (room.game_type === "emoji_decode") {
-      fetch("/api/ai/content?type=emoji")
-        .then((res) => res.json())
-        .then((data) => {
-          if (active && data.emoji) setAiEmojiPuzzle(data.emoji);
-        })
-        .catch(() => {});
-    }
-    return () => {
-      active = false;
-    };
-  }, [room.game_type, room.match_number, qIndex]);
-
-  const dynamicEmojiQuestions = useMemo(() => {
-    const charCodeSum = (room.id || "").split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    const matchNum = room.match_number || 1;
-    const list: typeof EMOJI_PUZZLES = [];
-    for (let i = 0; i < 5; i++) {
-      const idx = (charCodeSum + matchNum * 7 + i) % EMOJI_PUZZLES.length;
-      list.push(EMOJI_PUZZLES[idx]);
-    }
-    return list;
-  }, [room.id, room.match_number]);
-
-  const currentEmojiPuzzle = aiEmojiPuzzle || dynamicEmojiQuestions[Math.min(qIndex, 4)] || EMOJI_PUZZLES[0];
 
 
   async function act(action: string, value?: string) {
@@ -127,8 +69,6 @@ export function GameBoard({
       if (s.guesserSeat === botSeat && s.targetPicked) isBotTurn = true;
     } else if (room.game_type === "rps") {
       isBotTurn = !s.choices?.[botSeat];
-    } else if (["quick_quiz", "emoji_decode"].includes(room.game_type)) {
-      isBotTurn = s.answers?.[botSeat] === undefined;
     } else if (room.game_type === "skribbl") {
       if (s.drawerSeat === botSeat && !s.wordSelected) isBotTurn = true;
       if (s.drawerSeat !== botSeat && s.wordSelected && !s.scores?.[botSeat]) isBotTurn = true;
@@ -232,20 +172,6 @@ export function GameBoard({
               meSeat={me?.seat || 1}
               isMyTurn={state.turn === me?.seat}
               onAct={act}
-            />
-          )}
-          {room.game_type === "quick_quiz" && (
-            <QuestionCard data={aiTrivia || quiz} state={state} answer={(i) => act("answer", String(i))} mySeat={me?.seat} busy={busy} />
-          )}
-          {room.game_type === "emoji_decode" && (
-            <QuestionCard
-              data={currentEmojiPuzzle}
-              state={state}
-              answer={(i) => act("answer", i === currentEmojiPuzzle.answer ? "correct" : "wrong")}
-              mySeat={me?.seat}
-              busy={busy}
-              emoji
-              qIndex={qIndex}
             />
           )}
           {room.game_type === "dots_boxes" && (
@@ -391,55 +317,10 @@ function DiceDash({ state, players, mySeat, roll, busy }: { state: Room["public_
   );
 }
 
-function QuestionCard({
-  data,
-  state,
-  answer,
-  mySeat,
-  busy,
-  emoji = false,
-  qIndex,
-}: {
-  data: { question: string; options: string[]; answer: number };
-  state: Room["public_state"];
-  answer: (i: number) => void;
-  mySeat?: number;
-  busy: boolean;
-  emoji?: boolean;
-  qIndex?: number;
-}) {
-  const locked = Boolean(mySeat !== undefined && state.answers?.[mySeat] !== undefined);
-  return (
-    <div className="mx-auto max-w-2xl text-center">
-      {typeof qIndex === "number" && (
-        <div className="mb-4 inline-block rounded-full border-2 border-slate-950 bg-amber-100 px-4 py-1 text-xs font-black shadow-[2px_2px_0_#171821]">
-          Question {qIndex + 1} of 5
-        </div>
-      )}
-      <p className={emoji ? "text-6xl sm:text-8xl" : "text-2xl font-black sm:text-4xl"}>{data.question}</p>
-      <p className="mt-3 text-xs font-black uppercase tracking-widest text-slate-400">Pick once. No take-backs.</p>
-      <div className="mt-8 grid gap-3 sm:grid-cols-2">
-        {data.options.map((option, i) => (
-          <button
-            key={option}
-            onClick={() => answer(i)}
-            disabled={locked || busy}
-            className="cursor-pointer rounded-2xl border-2 border-slate-950 bg-white p-4 text-left font-black shadow-[3px_3px_0_#171821] transition hover:-translate-y-1 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <span className="mr-3 opacity-35">{String.fromCharCode(65 + i)}</span>
-            {option}
-          </button>
-        ))}
-      </div>
-      {locked && <p className="mt-6 font-black text-[#7357ff]">ANSWER LOCKED ✓ WAITING FOR OTHER PLAYERS...</p>}
-    </div>
-  );
-}
-
 function deriveWinners(room: Room, players: RoomPlayer[]) {
   const state = room.public_state;
   if (typeof state.winnerSeat === "number") return [state.winnerSeat];
-  if (["quick_quiz", "emoji_decode", "dots_boxes", "skribbl"].includes(room.game_type)) {
+  if (["dots_boxes", "skribbl"].includes(room.game_type)) {
     const values = players.map((p) => Number(state.scores?.[p.seat] || 0));
     const top = Math.max(...values);
     const seats = players.filter((_, i) => values[i] === top).map((p) => p.seat);

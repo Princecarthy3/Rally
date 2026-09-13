@@ -12,15 +12,15 @@ create table if not exists public.profiles (
 
 create table if not exists public.game_rooms (
  id uuid primary key default gen_random_uuid(), code text not null unique check(code=upper(code) and char_length(code)=5),
- game_type text not null check(game_type in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','quick_quiz','emoji_decode','dots_boxes','skribbl','uno')),
+ game_type text not null check(game_type in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','dots_boxes','skribbl','uno')),
  host_id uuid not null references public.profiles(id), status text not null default 'waiting' check(status in ('waiting','playing','completed','cancelled')),
  max_players smallint not null check(max_players between 2 and 4), public_state jsonb not null default '{}'::jsonb,
  state_version bigint not null default 0, match_number integer not null default 1, created_at timestamptz not null default now(), updated_at timestamptz not null default now(), expires_at timestamptz not null default(now()+interval '24 hours')
 );
 
 -- Safely remap any unrecognized legacy records before applying constraint
-update public.game_rooms set game_type = 'uno' where game_type not in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','quick_quiz','emoji_decode','dots_boxes','skribbl','uno');
-update public.game_results set game_type = 'uno' where game_type not in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','quick_quiz','emoji_decode','dots_boxes','skribbl','uno');
+update public.game_rooms set game_type = 'uno' where game_type not in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','dots_boxes','skribbl','uno');
+update public.game_results set game_type = 'uno' where game_type not in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','dots_boxes','skribbl','uno');
 
 -- Drop ALL existing constraints on column game_type dynamically regardless of constraint name
 do $$
@@ -31,7 +31,7 @@ begin
   end loop;
 end $$;
 
-alter table public.game_rooms add constraint game_rooms_game_type_check check (game_type in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','quick_quiz','emoji_decode','dots_boxes','skribbl','uno'));
+alter table public.game_rooms add constraint game_rooms_game_type_check check (game_type in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','dots_boxes','skribbl','uno'));
 
 create table if not exists public.game_players (
  id uuid primary key default gen_random_uuid(), room_id uuid not null references public.game_rooms(id) on delete cascade,
@@ -90,7 +90,7 @@ create or replace function public.create_game_room(p_game_type text,p_max_player
 declare v_code text; v_room uuid; v_max int;
 begin
  if auth.uid() is null then raise exception 'Sign in first'; end if;
- if p_game_type not in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','quick_quiz','emoji_decode','dots_boxes','skribbl','uno') then raise exception 'Unknown game'; end if;
+ if p_game_type not in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','dots_boxes','skribbl','uno') then raise exception 'Unknown game'; end if;
  v_max:=case when p_game_type in ('ping_pong','tic_tac_toe') then 2 else greatest(2,least(4,p_max_players)) end;
  loop v_code:=public.random_room_code(); exit when not exists(select 1 from public.game_rooms where code=v_code); end loop;
  insert into public.game_rooms(code,game_type,host_id,max_players) values(v_code,p_game_type,auth.uid(),v_max) returning id into v_room;
@@ -153,8 +153,6 @@ begin select * into r from public.game_rooms where id=p_room for update; if r.ho
    when 'number_guess' then jsonb_build_object('pickerSeat',1,'guesserSeat',2,'targetPicked',false,'targetNumber',null,'lastGuess',null,'round',1,'scores','{}'::jsonb,'message','Player 1 (Picker): Set a secret number from 1 to 100!')
    when 'tic_tac_toe' then jsonb_build_object('turn',1,'board',jsonb_build_array('','','','','','','','',''),'message','Player 1 places X')
    when 'dice_dash' then jsonb_build_object('turn',1,'positions','{}'::jsonb,'message','Player 1, roll the dice')
-   when 'quick_quiz' then jsonb_build_object('question',0,'answers','{}'::jsonb,'scores','{}'::jsonb,'message','Question 1')
-   when 'emoji_decode' then jsonb_build_object('qIndex',0,'totalQ',5,'answers','{}'::jsonb,'scores','{}'::jsonb,'message','Question 1 of 5: Decode the emoji clue')
    when 'dots_boxes' then jsonb_build_object('turn',1,'gridSize',coalesce((r.public_state->>'gridSize')::int,3),'hLines','{}'::jsonb,'vLines','{}'::jsonb,'boxes','{}'::jsonb,'scores','{}'::jsonb,'message','Player 1, draw a line')
    when 'skribbl' then jsonb_build_object('drawerSeat',1,'round',1,'scores','{}'::jsonb,'wordSelected',null,'guessedSeats','[]'::jsonb,'message','Drawer is picking a word...')
    else jsonb_build_object('scores','{}'::jsonb,'message','First to five wins') end;
@@ -168,7 +166,7 @@ begin
  select match_number into current_match from public.game_rooms where id=p_room;
  if exists(select 1 from public.game_results where room_id=p_room and match_number=current_match) then return; end if;
  if p_state ? 'winnerSeat' and p_state->>'winnerSeat' is not null then winning_seats:=array[(p_state->>'winnerSeat')::int];
- elsif p_type in ('basketball','quick_quiz','emoji_decode','dots_boxes','skribbl') then
+ elsif p_type in ('basketball','dots_boxes','skribbl') then
   select coalesce(max(coalesce((p_state->'scores'->>seat::text)::int,0)),0) into top_score from public.game_players where room_id=p_room;
   select coalesce(array_agg(seat),'{}'::int[]) into winning_seats from public.game_players where room_id=p_room and coalesce((p_state->'scores'->>seat::text)::int,0)=top_score;
  elsif p_type='rps' then
