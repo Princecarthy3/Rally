@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Brand } from "./brand";
 import { useAuth } from "./auth-provider";
+import { SoundToggle } from "./sound-toggle";
 
 const links = [
   { href: "/dashboard", label: "Home", icon: LayoutGrid },
@@ -48,6 +49,7 @@ export function SiteHeader() {
           </nav>
 
           <div className="flex items-center gap-2.5">
+            <SoundToggle />
             <Link href="/profile" className="hidden text-right sm:block">
               <span className="block text-[11px] font-medium text-slate-400">Playing as</span>
               <span className="block max-w-28 truncate text-xs font-bold text-slate-900">{name}</span>
