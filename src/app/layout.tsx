@@ -4,8 +4,39 @@ import { AuthProvider } from "@/components/auth-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Rally — Play together, anywhere", template: "%s · Rally" },
-  description: "Quick, friendly 1-vs-1 games made for two. Invite a friend and turn any moment into game time.",
+  metadataBase: new URL("https://rally-theta-five.vercel.app"),
+  title: { default: "Rally | Free Online Multiplayer Mini Games", template: "%s | Rally" },
+  description: "Play free online multiplayer mini games with friends. Create a private room, share the link, and compete in quick live games for 2–4 players.",
+  keywords: [
+    "online multiplayer games",
+    "games to play with friends online",
+    "free online games",
+    "multiplayer mini games",
+    "private game rooms",
+    "Rally games",
+  ],
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "Rally",
+    title: "Rally | Free Online Multiplayer Mini Games",
+    description: "Quick, friendly multiplayer games for 2–4 friends. Create a room and play together anywhere.",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Rally — Play together, anywhere" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Rally | Free Online Multiplayer Mini Games",
+    description: "Quick, friendly multiplayer games for 2–4 friends. Create a room and play together anywhere.",
+    images: ["/opengraph-image"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
+  },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -50,4 +81,3 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     </html>
   );
 }
-
