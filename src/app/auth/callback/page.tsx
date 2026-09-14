@@ -44,7 +44,7 @@ function Callback() {
       if (tokenHash && type) {
         supabase.auth.verifyOtp({ token_hash: tokenHash, type: type as any }).then(({ error: otpError }) => {
           if (!otpError) {
-            router.replace("/dashboard");
+            router.replace(type === "recovery" ? "/auth/update-password" : "/dashboard");
           } else {
             setStatus("pkce_verified");
           }
@@ -64,7 +64,7 @@ function Callback() {
               setStatus("error");
             }
           } else {
-            router.replace("/dashboard");
+            router.replace(type === "recovery" ? "/auth/update-password" : "/dashboard");
           }
         });
         return;
