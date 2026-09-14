@@ -4,44 +4,75 @@ class SoundManager {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
   private volume: number = 0.8;
-  private bgmInterval: NodeJS.Timeout | null = null;
+
+  private bgmInterval: ReturnType<typeof setTimeout> | null = null;
   private bgmPlaying: boolean = false;
+  private bgmStep: number = 0;
 
   constructor() {
     if (typeof window !== "undefined") {
       this.isMuted = localStorage.getItem("rally_muted") === "true";
+
       const savedVol = localStorage.getItem("rally_volume");
+
       if (savedVol !== null) {
         const parsed = parseFloat(savedVol);
-        if (!isNaN(parsed)) this.volume = Math.max(0, Math.min(1, parsed));
+
+        if (!isNaN(parsed)) {
+          this.volume = Math.max(0, Math.min(1, parsed));
+        }
       }
     }
   }
 
-  private initCtx() {
+  // =========================================================
+  // AUDIO CONTEXT
+  // =========================================================
+
+  private initCtx(): AudioContext | null {
     if (typeof window === "undefined") return null;
+
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (
+          window as unknown as {
+            webkitAudioContext: typeof AudioContext;
+          }
+        ).webkitAudioContext;
+
       if (AudioCtx) {
         this.ctx = new AudioCtx();
       }
     }
+
     if (this.ctx && this.ctx.state === "suspended") {
       this.ctx.resume();
     }
+
     return this.ctx;
   }
 
+  // =========================================================
+  // MUTE
+  // =========================================================
+
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
+
     if (typeof window !== "undefined") {
-      localStorage.setItem("rally_muted", String(this.isMuted));
+      localStorage.setItem(
+        "rally_muted",
+        String(this.isMuted)
+      );
     }
+
     if (this.isMuted) {
       this.stopBgm();
     } else {
       this.startBgm();
     }
+
     return this.isMuted;
   }
 
@@ -49,166 +80,559 @@ class SoundManager {
     return this.isMuted;
   }
 
+  // =========================================================
+  // VOLUME
+  // =========================================================
+
   public getVolume(): number {
     return this.volume;
   }
 
   public setVolume(vol: number) {
     this.volume = Math.max(0, Math.min(1, vol));
+
     if (typeof window !== "undefined") {
-      localStorage.setItem("rally_volume", String(this.volume));
+      localStorage.setItem(
+        "rally_volume",
+        String(this.volume)
+      );
     }
   }
 
+  // =========================================================
+  // WIN SOUND
+  // =========================================================
 
-  // Play Win Victory Fanfare
   public playWinSound() {
     if (this.isMuted) return;
+
     const ctx = this.initCtx();
     if (!ctx) return;
 
-    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+    const now = ctx.currentTime;
+
+    const notes = [
+      523.25,  // C5
+      659.25,  // E5
+      783.99,  // G5
+      1046.5,  // C6
+      1318.5   // E6
+    ];
+
     notes.forEach((freq, idx) => {
+      const start = now + idx * 0.09;
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc.type = "triangle";
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.1);
+      osc.frequency.setValueAtTime(freq, start);
 
-      gain.gain.setValueAtTime(0.25 * this.volume, ctx.currentTime + idx * 0.1);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.1 + 0.35);
+      gain.gain.setValueAtTime(
+        0.32 * this.volume,
+        start
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        start + 0.45
+      );
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
-      osc.start(ctx.currentTime + idx * 0.1);
-      osc.stop(ctx.currentTime + idx * 0.1 + 0.35);
+      osc.start(start);
+      osc.stop(start + 0.45);
     });
   }
 
-  // Play Defeat / Lose Sound
+  // =========================================================
+  // LOSE SOUND
+  // =========================================================
+
   public playLoseSound() {
     if (this.isMuted) return;
+
     const ctx = this.initCtx();
     if (!ctx) return;
 
-    const notes = [392.0, 349.23, 329.63, 261.63]; // G4, F4, E4, C4
+    const now = ctx.currentTime;
+
+    const notes = [
+      392.0,
+      349.23,
+      329.63,
+      261.63
+    ];
+
     notes.forEach((freq, idx) => {
+      const start = now + idx * 0.15;
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.15);
+      osc.frequency.setValueAtTime(freq, start);
 
-      gain.gain.setValueAtTime(0.2 * this.volume, ctx.currentTime + idx * 0.15);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.15 + 0.3);
+      gain.gain.setValueAtTime(
+        0.25 * this.volume,
+        start
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        start + 0.35
+      );
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
-      osc.start(ctx.currentTime + idx * 0.15);
-      osc.stop(ctx.currentTime + idx * 0.15 + 0.3);
+      osc.start(start);
+      osc.stop(start + 0.35);
     });
   }
 
-  // Play Draw Fanfare
+  // =========================================================
+  // DRAW SOUND
+  // =========================================================
+
   public playDrawSound() {
     if (this.isMuted) return;
+
     const ctx = this.initCtx();
     if (!ctx) return;
 
-    const notes = [440.0, 440.0, 440.0]; // A4
+    const now = ctx.currentTime;
+
+    const notes = [
+      440.0,
+      523.25,
+      440.0
+    ];
+
     notes.forEach((freq, idx) => {
+      const start = now + idx * 0.13;
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.12);
+      osc.frequency.setValueAtTime(freq, start);
 
-      gain.gain.setValueAtTime(0.18 * this.volume, ctx.currentTime + idx * 0.12);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.12 + 0.25);
+      gain.gain.setValueAtTime(
+        0.25 * this.volume,
+        start
+      );
+
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        start + 0.3
+      );
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
-      osc.start(ctx.currentTime + idx * 0.12);
-      osc.stop(ctx.currentTime + idx * 0.12 + 0.25);
+      osc.start(start);
+      osc.stop(start + 0.3);
     });
   }
 
-  // Play UI Click / Action Sound
+  // =========================================================
+  // CLICK SOUND
+  // =========================================================
+
   public playClickSound() {
     if (this.isMuted) return;
+
     const ctx = this.initCtx();
     if (!ctx) return;
+
+    const now = ctx.currentTime;
 
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
     osc.type = "sine";
-    osc.frequency.setValueAtTime(600, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.05);
 
-    gain.gain.setValueAtTime(0.15 * this.volume, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+    osc.frequency.setValueAtTime(
+      700,
+      now
+    );
+
+    osc.frequency.exponentialRampToValueAtTime(
+      250,
+      now + 0.06
+    );
+
+    gain.gain.setValueAtTime(
+      0.2 * this.volume,
+      now
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+      0.001,
+      now + 0.06
+    );
 
     osc.connect(gain);
     gain.connect(ctx.destination);
 
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.05);
+    osc.start(now);
+    osc.stop(now + 0.06);
   }
 
-  // Start Background Music Loop (Gentle arcade synth groove)
+  // =========================================================
+  // BGM
+  // Catchy Rally Arcade Groove
+  // =========================================================
+
   public startBgm() {
     if (this.isMuted || this.bgmPlaying) return;
+
     const ctx = this.initCtx();
     if (!ctx) return;
 
     this.bgmPlaying = true;
-    const chordSeq = [
-      [261.63, 329.63, 392.0],  // C major
-      [220.0, 261.63, 329.63],  // A minor
-      [174.61, 220.0, 261.63],  // F major
-      [196.0, 246.94, 293.66],  // G major
+    this.bgmStep = 0;
+
+    /*
+      Rally's progression:
+
+      C major
+      G major
+      A minor
+      F major
+
+      This gives the track a happy,
+      energetic gaming feel.
+    */
+
+    const chords = [
+      [261.63, 329.63, 392.0], // C
+      [196.0, 246.94, 293.66], // G
+      [220.0, 261.63, 329.63], // Am
+      [174.61, 220.0, 261.63]  // F
     ];
-    let step = 0;
 
-    const playChordStep = () => {
-      if (this.isMuted || !this.bgmPlaying || !this.ctx) return;
+    /*
+      Catchy lead melody.
+
+      Each number is a frequency.
+      null = rest.
+    */
+
+    const melody = [
+      523.25,
+      659.25,
+      783.99,
+      659.25,
+
+      587.33,
+      659.25,
+      783.99,
+      987.77,
+
+      880.0,
+      783.99,
+      659.25,
+      523.25,
+
+      587.33,
+      659.25,
+      523.25,
+      null
+    ];
+
+    const playBeat = () => {
+      if (
+        this.isMuted ||
+        !this.bgmPlaying ||
+        !this.ctx
+      ) {
+        return;
+      }
+
       const now = this.ctx.currentTime;
-      const chord = chordSeq[step % chordSeq.length];
 
-      chord.forEach((freq) => {
-        const osc = this.ctx!.createOscillator();
-        const gain = this.ctx!.createGain();
+      /*
+        110 BPM
 
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(freq * 0.5, now);
+        One beat ≈ 545ms
+        Eighth note ≈ 272ms
+      */
 
-        gain.gain.setValueAtTime(0.015 * this.volume, now);
-        gain.gain.linearRampToValueAtTime(0.03 * this.volume, now + 0.2);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+      const beatDuration = 0.272;
 
+      const step = this.bgmStep;
 
-        osc.connect(gain);
-        gain.connect(this.ctx!.destination);
+      // Current chord
+      const chord =
+        chords[
+          Math.floor(step / 8) % chords.length
+        ];
 
-        osc.start(now);
-        osc.stop(now + 1.8);
-      });
+      // =====================================================
+      // BASS
+      // =====================================================
 
-      step++;
+      const bassFreq = chord[0] / 2;
+
+      const bass = this.ctx.createOscillator();
+      const bassGain = this.ctx.createGain();
+
+      bass.type = "triangle";
+
+      bass.frequency.setValueAtTime(
+        bassFreq,
+        now
+      );
+
+      bassGain.gain.setValueAtTime(
+        0.09 * this.volume,
+        now
+      );
+
+      bassGain.gain.exponentialRampToValueAtTime(
+        0.001,
+        now + beatDuration * 1.7
+      );
+
+      bass.connect(bassGain);
+      bassGain.connect(this.ctx.destination);
+
+      bass.start(now);
+      bass.stop(
+        now + beatDuration * 1.7
+      );
+
+      // =====================================================
+      // CHORD / PAD
+      // =====================================================
+
+      if (step % 2 === 0) {
+        chord.forEach((freq, index) => {
+          const osc =
+            this.ctx!.createOscillator();
+
+          const gain =
+            this.ctx!.createGain();
+
+          osc.type = "sine";
+
+          osc.frequency.setValueAtTime(
+            freq,
+            now
+          );
+
+          gain.gain.setValueAtTime(
+            0.045 * this.volume,
+            now
+          );
+
+          gain.gain.linearRampToValueAtTime(
+            0.075 * this.volume,
+            now + 0.08
+          );
+
+          gain.gain.exponentialRampToValueAtTime(
+            0.001,
+            now + 0.52
+          );
+
+          osc.connect(gain);
+          gain.connect(
+            this.ctx!.destination
+          );
+
+          osc.start(now);
+          osc.stop(now + 0.55);
+        });
+      }
+
+      // =====================================================
+      // CATCHY LEAD
+      // =====================================================
+
+      const melodyIndex =
+        step % melody.length;
+
+      const melodyFreq =
+        melody[melodyIndex];
+
+      if (melodyFreq) {
+        const lead =
+          this.ctx.createOscillator();
+
+        const leadGain =
+          this.ctx.createGain();
+
+        lead.type = "square";
+
+        lead.frequency.setValueAtTime(
+          melodyFreq,
+          now
+        );
+
+        leadGain.gain.setValueAtTime(
+          0.075 * this.volume,
+          now
+        );
+
+        leadGain.gain.exponentialRampToValueAtTime(
+          0.001,
+          now + 0.22
+        );
+
+        lead.connect(leadGain);
+        leadGain.connect(
+          this.ctx.destination
+        );
+
+        lead.start(now);
+        lead.stop(now + 0.25);
+      }
+
+      // =====================================================
+      // SOFT ARPEGGIO
+      // =====================================================
+
+      const arpFreq =
+        chord[(step + 1) % chord.length] * 2;
+
+      const arp =
+        this.ctx.createOscillator();
+
+      const arpGain =
+        this.ctx.createGain();
+
+      arp.type = "triangle";
+
+      arp.frequency.setValueAtTime(
+        arpFreq,
+        now
+      );
+
+      arpGain.gain.setValueAtTime(
+        0.045 * this.volume,
+        now
+      );
+
+      arpGain.gain.exponentialRampToValueAtTime(
+        0.001,
+        now + 0.18
+      );
+
+      arp.connect(arpGain);
+      arpGain.connect(
+        this.ctx.destination
+      );
+
+      arp.start(now);
+      arp.stop(now + 0.2);
+
+      // =====================================================
+      // ELECTRONIC KICK
+      // =====================================================
+
+      if (step % 4 === 0) {
+        const kick =
+          this.ctx.createOscillator();
+
+        const kickGain =
+          this.ctx.createGain();
+
+        kick.type = "sine";
+
+        kick.frequency.setValueAtTime(
+          130,
+          now
+        );
+
+        kick.frequency.exponentialRampToValueAtTime(
+          55,
+          now + 0.12
+        );
+
+        kickGain.gain.setValueAtTime(
+          0.12 * this.volume,
+          now
+        );
+
+        kickGain.gain.exponentialRampToValueAtTime(
+          0.001,
+          now + 0.14
+        );
+
+        kick.connect(kickGain);
+        kickGain.connect(
+          this.ctx.destination
+        );
+
+        kick.start(now);
+        kick.stop(now + 0.15);
+      }
+
+      // =====================================================
+      // HI-HAT
+      // =====================================================
+
+      if (step % 2 === 1) {
+        const hat =
+          this.ctx.createOscillator();
+
+        const hatGain =
+          this.ctx.createGain();
+
+        hat.type = "square";
+
+        hat.frequency.setValueAtTime(
+          5000,
+          now
+        );
+
+        hatGain.gain.setValueAtTime(
+          0.018 * this.volume,
+          now
+        );
+
+        hatGain.gain.exponentialRampToValueAtTime(
+          0.001,
+          now + 0.045
+        );
+
+        hat.connect(hatGain);
+        hatGain.connect(
+          this.ctx.destination
+        );
+
+        hat.start(now);
+        hat.stop(now + 0.05);
+      }
+
+      this.bgmStep++;
+
+      /*
+        Schedule the next beat.
+      */
+
+      this.bgmInterval = setTimeout(
+        playBeat,
+        beatDuration * 1000
+      );
     };
 
-    playChordStep();
-    this.bgmInterval = setInterval(playChordStep, 2000);
+    playBeat();
   }
+
+  // =========================================================
+  // STOP BGM
+  // =========================================================
 
   public stopBgm() {
     this.bgmPlaying = false;
+
     if (this.bgmInterval) {
-      clearInterval(this.bgmInterval);
+      clearTimeout(this.bgmInterval);
       this.bgmInterval = null;
     }
   }
