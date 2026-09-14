@@ -38,7 +38,7 @@ export default function HomePage() {
 
       <section className="px-5 pb-28 text-center"><div className="mx-auto max-w-3xl"><div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-violet-100 text-3xl animate-pulse-soft">✦</div><h2 className="balance mt-7 text-4xl font-black tracking-[-.05em] md:text-6xl">Your next rivalry starts here.</h2><p className="mt-5 text-lg text-slate-500">Create your player profile today. Live game rooms arrive in Phase 2.</p><Link href="/auth?mode=signup" className="mt-8 inline-flex items-center gap-2 rounded-full bg-violet-600 px-8 py-4 font-bold text-white shadow-lg shadow-violet-200 transition hover:-translate-y-1">Create free account <ArrowRight size={18}/></Link><div className="mt-6 flex justify-center gap-5 text-xs text-slate-400"><span className="flex gap-1"><Check size={14}/> Secure profile</span><span className="flex gap-1"><Radio size={14}/> Realtime-ready</span></div></div></section>
 
-      <footer className="border-t border-slate-200 bg-white px-5 py-8"><div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row"><Brand/><p className="text-sm text-slate-400">© 2026 Rally. Better with friends.</p></div></footer>
+      <footer className="border-t border-slate-200 bg-white px-5 py-8"><div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row"><Brand/><p className="text-sm text-slate-400">© 2026 Rally. Play together, anywhere.</p></div></footer>
     </main>
   );
 }
