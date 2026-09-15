@@ -1,6 +1,6 @@
 "use client";
 
-import { History, LayoutGrid, LogOut, Settings, Share2, UserRound } from "lucide-react";
+import { History, LayoutGrid, LogOut, Settings, Share2, ShoppingBag, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -13,6 +13,7 @@ import { sounds } from "@/lib/audio";
 const links = [
   { href: "/dashboard", label: "Home", icon: LayoutGrid },
   { href: "/history", label: "History", icon: History },
+  { href: "/shop", label: "Shop", icon: ShoppingBag },
   { href: "/profile", label: "Profile", icon: UserRound },
 ];
 
