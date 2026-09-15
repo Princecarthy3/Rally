@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const siteUrl = "https://rally-theta-five.vercel.app";
+const siteUrl = "https://rallygames.vercel.app";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
