@@ -490,10 +490,16 @@ begin
     end if;
     state:=jsonb_set(state, '{roundWins}', round_wins, true);
 
+     clue_msg:=case when round_winner is not null then ('Player '||round_winner||' wins Round '||cur_round||'!') else ('Round '||cur_round||' draw!') end;
+     state:=jsonb_set(state, '{history}', coalesce(state->'history', '[]'::jsonb) || jsonb_build_array(jsonb_build_object('round', cur_round, 'winnerSeat', round_winner, 'message', clue_msg)), true);
     if r.game_type in ('rps', 'tic_tac_toe', 'connect_four', 'dots_boxes') then
-      if cur_round >= 3 or coalesce((round_wins->>me.seat::text)::int, 0) >= 2 then
-        state:=jsonb_set(state, '{winnerSeat}', to_jsonb(coalesce(round_winner, me.seat)), true);
-        r.status:='completed';
+       select coalesce((round_wins->>'1')::int, 0) into val;
+       select coalesce((round_wins->>'2')::int, 0) into target_n;
+       if cur_round >= 3 or val >= 2 or target_n >= 2 then
+         r.status:='completed';
+         if val > target_n then winner:=1; elsif target_n > val then winner:=2; else winner:=null; end if;
+         state:=jsonb_set(state, '{winnerSeat}', to_jsonb(winner), true);
+         state:=jsonb_set(state, '{message}', to_jsonb(case when winner is not null then ('Player '||winner||' wins the match!') else 'Match ended in a draw!' end), true);
       else
         if r.game_type='tic_tac_toe' then
           cur_round:=cur_round + 1;

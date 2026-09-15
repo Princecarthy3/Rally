@@ -374,18 +374,53 @@ function NumberGuess({ state, guess, setGuess, submit, busy }: { state: Room["pu
 }
 
 function TicTacToe({ state, mySeat, place, busy }: { state: Room["public_state"]; mySeat?: number; place: (i: number) => void; busy: boolean }) {
+  const curRound = (state.round as number) || 1;
+  const roundWins = (state.roundWins || {}) as Record<string, number>;
+  const history = (state.history || []) as Array<{
+    round: number;
+    winnerSeat: number | null;
+    message: string;
+  }>;
+
   return (
-    <div className="mx-auto grid max-w-sm grid-cols-3 gap-2">
-      {(state.board || Array(9).fill("")).map((cell: string, i: number) => (
-        <button
-          key={i}
-          onClick={() => place(i)}
-          disabled={Boolean(cell) || state.turn !== mySeat || busy}
-          className="aspect-square cursor-pointer rounded-2xl border-2 border-slate-950 bg-[#fff8dd] text-5xl font-black shadow-[3px_3px_0_#171821] disabled:cursor-not-allowed"
-        >
-          {cell}
-        </button>
-      ))}
+    <div className="mx-auto max-w-sm text-center space-y-5">
+      <div className="flex items-center justify-between rounded-2xl border-2 border-slate-950 bg-slate-900 px-4 py-2.5 text-white shadow-[3px_3px_0_#171821]">
+        <div className="text-left">
+          <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">TIC TAC TOE</span>
+          <h3 className="text-sm font-black uppercase">Round {curRound} of 3</h3>
+        </div>
+        <div className="text-right text-xs font-black">
+          <span className="text-emerald-400">P1: {roundWins["1"] || 0}</span>
+          <span className="mx-1.5 opacity-50">|</span>
+          <span className="text-amber-300">P2: {roundWins["2"] || 0}</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        {(state.board || Array(9).fill("")).map((cell: string, i: number) => (
+          <button
+            key={i}
+            onClick={() => place(i)}
+            disabled={Boolean(cell) || state.turn !== mySeat || busy}
+            className="aspect-square cursor-pointer rounded-2xl border-2 border-slate-950 bg-[#fff8dd] text-5xl font-black shadow-[3px_3px_0_#171821] transition hover:bg-[#fff0b3] disabled:cursor-not-allowed"
+          >
+            {cell}
+          </button>
+        ))}
+      </div>
+
+      {history.length > 0 && (
+        <div className="rounded-2xl border-2 border-slate-950 bg-slate-100 p-3 text-left">
+          <h5 className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1.5">Round History</h5>
+          <div className="space-y-1 text-xs font-bold">
+            {history.map((h, i) => (
+              <div key={i} className="flex justify-between items-center bg-white px-3 py-1.5 rounded-xl border border-slate-300">
+                <span>Round {h.round}: {h.message}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
