@@ -345,13 +345,16 @@ begin
    if p_action<>'drop' or p_value is null or p_value !~ '^[0-6]$' then raise exception 'Choose a valid column'; end if;
    if (state->>'turn')::int<>me.seat then raise exception 'Wait for your turn'; end if;
    board:=state->'connectFourBoard';
+   if jsonb_typeof(board) <> 'array' or jsonb_array_length(board) <> 42 then
+     board:=to_jsonb(array_fill(''::text, ARRAY[42]));
+   end if;
    c_idx:=p_value::int; r_idx:=null;
    for i in reverse 5..0 loop
      if coalesce(board->>((i*7+c_idx)::text), '') = '' then r_idx:=i; exit; end if;
    end loop;
    if r_idx is null then raise exception 'That column is full'; end if;
    mark:=me.seat::text;
-   board:=jsonb_set(board,array[(r_idx*7+c_idx)::text],to_jsonb(mark),false);
+   board:=jsonb_set(board,array[(r_idx*7+c_idx)::text],to_jsonb(mark),true);
    state:=jsonb_set(state,'{connectFourBoard}',board,true);
    winner:=null;
    for r_idx in 0..5 loop
