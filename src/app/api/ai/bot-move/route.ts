@@ -65,6 +65,15 @@ export async function POST(request: Request) {
       if (emptyIndices.length > 0) {
         value = String(emptyIndices[Math.floor(Math.random() * emptyIndices.length)]);
       }
+    } else if (gameType === "connect_four") {
+      action = "drop";
+      const board: string[] = state.connectFourBoard || Array(42).fill("");
+      const availableColumns = Array.from({ length: 7 }, (_, column) => column).filter(
+        (column) => board[column] === ""
+      );
+      if (availableColumns.length > 0) {
+        value = String(availableColumns[Math.floor(Math.random() * availableColumns.length)]);
+      }
     } else if (gameType === "number_guess") {
       const pickerSeat = state.pickerSeat || 1;
       const guesserSeat = state.guesserSeat || 2;

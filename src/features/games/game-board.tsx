@@ -9,6 +9,7 @@ import { NumberGuessGame } from "./number-guess-game";
 import { DotsBoxes } from "./dots-boxes";
 import { SkribblGame } from "./skribbl-game";
 import { LudoGame } from "./ludo-game";
+import { ConnectFour } from "./connect-four";
 
 import { sounds } from "@/lib/audio";
 
@@ -66,7 +67,7 @@ export function GameBoard({
     let isBotTurn = false;
     const s = state as Record<string, any>;
 
-    if (["tic_tac_toe", "dots_boxes", "ludo"].includes(room.game_type)) {
+    if (["tic_tac_toe", "connect_four", "dots_boxes", "ludo"].includes(room.game_type)) {
       isBotTurn = s.turn === botSeat;
       if (room.game_type === "ludo" && s.awaitingMove && s.turn === botSeat) isBotTurn = true;
     } else if (room.game_type === "number_guess") {
@@ -166,6 +167,9 @@ export function GameBoard({
           )}
           {room.game_type === "tic_tac_toe" && (
             <TicTacToe state={state} mySeat={me?.seat} place={(i) => act("place", String(i))} busy={busy} />
+          )}
+          {room.game_type === "connect_four" && (
+            <ConnectFour state={state} mySeat={me?.seat} act={act} busy={busy} />
           )}
           {room.game_type === "dots_boxes" && (
             <DotsBoxes state={state} mySeat={me?.seat} act={act} busy={busy} players={players} isHost={room.host_id === me?.player_id} />

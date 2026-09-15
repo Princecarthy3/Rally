@@ -7,6 +7,7 @@ Rally is a responsive online party arcade built with Next.js, TypeScript, Supaba
 - Pocket Basketball (2–4)
 - Neon Ping Pong (2)
 - Rock Paper Scissors (2–4)
+- Connect Four (2)
 - Number Hunt (2–4)
 - Tic-Tac-Toe (2)
 - Dice Dash (2–4)

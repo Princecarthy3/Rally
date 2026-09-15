@@ -1,4 +1,4 @@
-export type GameKey = "rps" | "number_guess" | "tic_tac_toe" | "dots_boxes" | "skribbl" | "ludo";
+export type GameKey = "rps" | "number_guess" | "tic_tac_toe" | "connect_four" | "dots_boxes" | "skribbl" | "ludo";
 
 export type GameDefinition = {
   key: GameKey; name: string; shortName: string; icon: string; description: string;
@@ -11,6 +11,7 @@ export const games: GameDefinition[] = [
   { key:"rps", name:"Rock Paper Scissors", shortName:"RPS", icon:"✊", description:"Secret picks, dramatic reveals, and room for a four-way upset.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#c9b8ff", ink:"#30206c", tag:"Classic" },
   { key:"number_guess", name:"Number Hunt", shortName:"Number Hunt", icon:"🔢", description:"Secret number duel with 45-second countdown & hot-and-cold clues!", players:"2–4", minPlayers:2, maxPlayers:4, color:"#9fcaff", ink:"#123967", tag:"45s Duel" },
   { key:"tic_tac_toe", name:"Tic-Tac-Toe", shortName:"Tic-Tac-Toe", icon:"⭕", description:"The timeless three-in-a-row duel, sharpened for 3-round battles.", players:"2", minPlayers:2, maxPlayers:2, color:"#ff9eaa", ink:"#651927", tag:"Duel" },
+  { key:"connect_four", name:"Connect Four", shortName:"Connect Four", icon:"🔴", description:"Drop discs, line up four, and block your rival before they connect.", players:"2", minPlayers:2, maxPlayers:2, color:"#fdb4d5", ink:"#741b47", tag:"Strategy" },
   { key:"ludo", name:"Ludo", shortName:"Ludo", icon:"🎲", description:"Race four tokens around the board, send rivals home, and finish every piece first.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#f4dc69", ink:"#5b3a00", tag:"Board Game" },
 ];
 

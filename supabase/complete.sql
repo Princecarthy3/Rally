@@ -12,15 +12,15 @@ create table if not exists public.profiles (
 
 create table if not exists public.game_rooms (
  id uuid primary key default gen_random_uuid(), code text not null unique check(code=upper(code) and char_length(code)=5),
- game_type text not null check(game_type in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','dots_boxes','skribbl','ludo')),
+ game_type text not null check(game_type in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','connect_four','dice_dash','dots_boxes','skribbl','ludo')),
  host_id uuid not null references public.profiles(id), status text not null default 'waiting' check(status in ('waiting','playing','completed','cancelled')),
  max_players smallint not null check(max_players between 2 and 4), public_state jsonb not null default '{}'::jsonb,
  state_version bigint not null default 0, match_number integer not null default 1, created_at timestamptz not null default now(), updated_at timestamptz not null default now(), expires_at timestamptz not null default(now()+interval '24 hours')
 );
 
 -- Safely remap any unrecognized legacy records before applying constraint
-update public.game_rooms set game_type = 'skribbl' where game_type not in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','dots_boxes','skribbl','ludo');
-update public.game_results set game_type = 'skribbl' where game_type not in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','dots_boxes','skribbl','ludo');
+update public.game_rooms set game_type = 'skribbl' where game_type not in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','connect_four','dice_dash','dots_boxes','skribbl','ludo');
+update public.game_results set game_type = 'skribbl' where game_type not in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','connect_four','dice_dash','dots_boxes','skribbl','ludo');
 
 -- Drop ALL existing constraints on column game_type dynamically regardless of constraint name
 do $$
@@ -31,7 +31,7 @@ begin
   end loop;
 end $$;
 
-alter table public.game_rooms add constraint game_rooms_game_type_check check (game_type in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','dots_boxes','skribbl','ludo'));
+alter table public.game_rooms add constraint game_rooms_game_type_check check (game_type in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','connect_four','dice_dash','dots_boxes','skribbl','ludo'));
 
 create table if not exists public.game_players (
  id uuid primary key default gen_random_uuid(), room_id uuid not null references public.game_rooms(id) on delete cascade,
@@ -90,8 +90,8 @@ create or replace function public.create_game_room(p_game_type text,p_max_player
 declare v_code text; v_room uuid; v_max int;
 begin
  if auth.uid() is null then raise exception 'Sign in first'; end if;
- if p_game_type not in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','dots_boxes','skribbl','ludo') then raise exception 'Unknown game'; end if;
- v_max:=case when p_game_type in ('ping_pong','tic_tac_toe') then 2 else greatest(2,least(4,p_max_players)) end;
+ if p_game_type not in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','connect_four','dice_dash','dots_boxes','skribbl','ludo') then raise exception 'Unknown game'; end if;
+ v_max:=case when p_game_type in ('ping_pong','tic_tac_toe','connect_four') then 2 else greatest(2,least(4,p_max_players)) end;
  loop v_code:=public.random_room_code(); exit when not exists(select 1 from public.game_rooms where code=v_code); end loop;
  insert into public.game_rooms(code,game_type,host_id,max_players) values(v_code,p_game_type,auth.uid(),v_max) returning id into v_room;
  insert into public.game_players(room_id,player_id,seat) values(v_room,auth.uid(),1); return v_code;
@@ -152,10 +152,14 @@ begin select * into r from public.game_rooms where id=p_room for update; if r.ho
    when 'rps' then jsonb_build_object('round',1,'scores','{}'::jsonb,'choices','{}'::jsonb,'message','Make a secret pick')
    when 'number_guess' then jsonb_build_object('pickerSeat',1,'guesserSeat',2,'targetPicked',false,'targetNumber',null,'lastGuess',null,'attemptsLeft',3,'guesses','[]'::jsonb,'round',1,'scores','{}'::jsonb,'message','Player 1 (Picker): Set a secret number from 1 to 100!')
    when 'tic_tac_toe' then jsonb_build_object('turn',1,'board',jsonb_build_array('','','','','','','','',''),'message','Player 1 places X')
+   when 'connect_four' then jsonb_build_object('turn',1,'round',1,'connectFourBoard',jsonb_build_array('','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''),'roundWins','{}'::jsonb,'message','Player 1 drops first')
    when 'dice_dash' then jsonb_build_object('turn',1,'positions','{}'::jsonb,'message','Player 1, roll the dice')
    when 'dots_boxes' then jsonb_build_object('turn',1,'gridSize',coalesce((r.public_state->>'gridSize')::int,3),'hLines','{}'::jsonb,'vLines','{}'::jsonb,'boxes','{}'::jsonb,'scores','{}'::jsonb,'message','Player 1, draw a line')
    when 'skribbl' then jsonb_build_object('drawerSeat',1,'round',1,'scores','{}'::jsonb,'wordSelected',null,'guessedSeats','[]'::jsonb,'message','Drawer is picking a word...')
    else jsonb_build_object('scores','{}'::jsonb,'message','First to five wins') end;
+ end if;
+ if r.game_type='connect_four' then
+   state:=jsonb_set(state, '{connectFourBoard}', to_jsonb(array_fill(''::text, ARRAY[42])), true);
  end if;
  update public.game_rooms set status='playing',public_state=state,state_version=state_version+1,updated_at=now() where id=p_room;
 end $$;
@@ -336,6 +340,41 @@ begin
      end if;
    end if;
 
+ elsif r.game_type='connect_four' then
+   if p_action<>'drop' or p_value is null or p_value !~ '^[0-6]$' then raise exception 'Choose a valid column'; end if;
+   if (state->>'turn')::int<>me.seat then raise exception 'Wait for your turn'; end if;
+   board:=state->'connectFourBoard';
+   c_idx:=p_value::int; r_idx:=null;
+   for i in reverse 5..0 loop
+     if board->>((i*7+c_idx)::text) = '' then r_idx:=i; exit; end if;
+   end loop;
+   if r_idx is null then raise exception 'That column is full'; end if;
+   mark:=me.seat::text;
+   board:=jsonb_set(board,array[(r_idx*7+c_idx)::text],to_jsonb(mark),false);
+   state:=jsonb_set(state,'{connectFourBoard}',board,true);
+   winner:=null;
+   for r_idx in 0..5 loop
+     for c_idx in 0..6 loop
+       if board->>((r_idx*7+c_idx)::text)=mark then
+         if c_idx<=3 and board->>((r_idx*7+c_idx+1)::text)=mark and board->>((r_idx*7+c_idx+2)::text)=mark and board->>((r_idx*7+c_idx+3)::text)=mark then winner:=me.seat; end if;
+         if r_idx<=2 and board->>(((r_idx+1)*7+c_idx)::text)=mark and board->>(((r_idx+2)*7+c_idx)::text)=mark and board->>(((r_idx+3)*7+c_idx)::text)=mark then winner:=me.seat; end if;
+         if r_idx<=2 and c_idx<=3 and board->>(((r_idx+1)*7+c_idx+1)::text)=mark and board->>(((r_idx+2)*7+c_idx+2)::text)=mark and board->>(((r_idx+3)*7+c_idx+3)::text)=mark then winner:=me.seat; end if;
+         if r_idx<=2 and c_idx>=3 and board->>(((r_idx+1)*7+c_idx-1)::text)=mark and board->>(((r_idx+2)*7+c_idx-2)::text)=mark and board->>(((r_idx+3)*7+c_idx-3)::text)=mark then winner:=me.seat; end if;
+       end if;
+     end loop;
+   end loop;
+   if winner is not null then
+     round_ended:=true; round_winner:=winner;
+     state:=jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' connects four!')::text),true);
+   elsif not exists(select 1 from jsonb_array_elements_text(board) cell where cell='') then
+     round_ended:=true; round_winner:=null;
+     state:=jsonb_set(state,'{message}',to_jsonb('Board full — round draw!'::text),true);
+   else
+     next_seat:=case when me.seat=1 then 2 else 1 end;
+     state:=jsonb_set(state,'{turn}',to_jsonb(next_seat),true);
+     state:=jsonb_set(state,'{message}',to_jsonb(('Player '||next_seat||' drops next')::text),true);
+   end if;
+
  elsif r.game_type='quick_quiz' then
    if p_action<>'answer' then raise exception 'Invalid action'; end if; val:=p_value::int; if val<0 or val>3 then raise exception 'Invalid answer'; end if; if state->'answers' ? me.seat::text then raise exception 'Answer already locked'; end if; state:=jsonb_set(state,array['answers',me.seat::text],to_jsonb(val),true);
    if val=1 then state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(1),true); else state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(0),true); end if;
@@ -445,7 +484,7 @@ begin
     end if;
     state:=jsonb_set(state, '{roundWins}', round_wins, true);
 
-    if r.game_type in ('rps', 'tic_tac_toe', 'dots_boxes') then
+    if r.game_type in ('rps', 'tic_tac_toe', 'connect_four', 'dots_boxes') then
       if cur_round >= 3 or coalesce((round_wins->>me.seat::text)::int, 0) >= 2 then
         state:=jsonb_set(state, '{winnerSeat}', to_jsonb(coalesce(round_winner, me.seat)), true);
         r.status:='completed';
@@ -460,6 +499,11 @@ begin
           state:=jsonb_set(state, '{hLines}', '{}'::jsonb, true);
           state:=jsonb_set(state, '{vLines}', '{}'::jsonb, true);
           state:=jsonb_set(state, '{boxes}', '{}'::jsonb, true);
+        elsif r.game_type='connect_four' then
+          cur_round:=cur_round + 1;
+          state:=jsonb_set(state, '{round}', to_jsonb(cur_round), true);
+          state:=jsonb_set(state, '{turn}', '1'::jsonb, true);
+          state:=jsonb_set(state, '{connectFourBoard}', jsonb_build_array('','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','','',''), true);
         end if;
       end if;
     elsif r.game_type in ('skribbl', 'number_guess') then
@@ -468,6 +512,9 @@ begin
     end if;
   end if;
 
+  if r.game_type='connect_four' and r.status='playing' and round_ended then
+    state:=jsonb_set(state, '{connectFourBoard}', to_jsonb(array_fill(''::text, ARRAY[42])), true);
+  end if;
   update public.game_rooms set public_state=state,status=r.status,state_version=state_version+1,updated_at=now() where id=p_room;
  if r.status='completed' then perform public.finalize_room(p_room,state,r.game_type); end if;
  return state;
