@@ -19,43 +19,55 @@ function UpdatePasswordForm() {
 
   useEffect(() => {
     let active = true;
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) {
-      if (active) setCheckingLink(false);
-      return;
-    }
-    const client = supabase;
-    const { data: listener } = client.auth.onAuthStateChange((event, session) => {
-      if (active && (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && session) {
-        setReady(true);
-        setCheckingLink(false);
-      }
-    });
-    const code = search.get("code");
 
-    async function establishRecoverySession() {
-      if (code) {
-        const { error } = await client.auth.exchangeCodeForSession(code);
-        if (active) {
-          setReady(!error);
-          setCheckingLink(false);
-        }
+    async function initializeRecovery() {
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) {
+        if (active) setCheckingLink(false);
         return;
       }
 
-      const { data } = await client.auth.getSession();
-      if (active && data.session) {
-        setReady(true);
-        setCheckingLink(false);
-      } else if (active) {
-        // With Supabase's implicit flow, the client processes the token in the URL hash
-        // asynchronously and then emits PASSWORD_RECOVERY.
-        window.setTimeout(() => { if (active) setCheckingLink(false); }, 1200);
+      const client = supabase;
+      const { data: listener } = client.auth.onAuthStateChange((event, session) => {
+        if (active && (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && session) {
+          setReady(true);
+          setCheckingLink(false);
+        }
+      });
+
+      const code = search.get("code");
+
+      async function establishRecoverySession() {
+        if (code) {
+          const { error } = await client.auth.exchangeCodeForSession(code);
+          if (active) {
+            setReady(!error);
+            setCheckingLink(false);
+          }
+          return;
+        }
+
+        const { data } = await client.auth.getSession();
+        if (active && data.session) {
+          setReady(true);
+          setCheckingLink(false);
+        } else if (active) {
+          // With Supabase's implicit flow, the client processes the token in the URL hash
+          // asynchronously and then emits PASSWORD_RECOVERY.
+          window.setTimeout(() => { if (active) setCheckingLink(false); }, 1200);
+        }
       }
+
+      await establishRecoverySession();
+
+      return () => { active = false; listener.subscription.unsubscribe(); };
     }
 
-    establishRecoverySession();
-    return () => { active = false; listener.subscription.unsubscribe(); };
+    const cleanup = initializeRecovery();
+    return () => {
+      active = false;
+      cleanup.then((fn) => fn?.());
+    };
   }, [search]);
 
   async function submit(event: FormEvent) {
