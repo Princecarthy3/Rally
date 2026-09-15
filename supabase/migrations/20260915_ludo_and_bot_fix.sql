@@ -10,6 +10,19 @@ begin
 end $$;
 alter table public.game_rooms add constraint game_rooms_game_type_check check (game_type in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','dots_boxes','skribbl','ludo'));
 
+-- The existing room-creation RPC has its own allow-list, separate from the
+-- table constraint. Replace it so Ludo rooms can be created.
+create or replace function public.create_game_room(p_game_type text,p_max_players int default 2) returns text language plpgsql security definer set search_path='' as $$
+declare v_code text; v_room uuid; v_max int;
+begin
+ if auth.uid() is null then raise exception 'Sign in first'; end if;
+ if p_game_type not in ('basketball','ping_pong','rps','number_guess','tic_tac_toe','dice_dash','dots_boxes','skribbl','ludo') then raise exception 'Unknown game'; end if;
+ v_max:=case when p_game_type in ('ping_pong','tic_tac_toe') then 2 else greatest(2,least(4,p_max_players)) end;
+ loop v_code:=public.random_room_code(); exit when not exists(select 1 from public.game_rooms where code=v_code); end loop;
+ insert into public.game_rooms(code,game_type,host_id,max_players) values(v_code,p_game_type,auth.uid(),v_max) returning id into v_room;
+ insert into public.game_players(room_id,player_id,seat) values(v_room,auth.uid(),1); return v_code;
+end $$;
+
 create or replace function public.start_ludo_game(p_room uuid) returns void language plpgsql security definer set search_path='' as $$
 declare r public.game_rooms; n int; state jsonb;
 begin
