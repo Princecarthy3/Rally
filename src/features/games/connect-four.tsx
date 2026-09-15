@@ -45,11 +45,13 @@ export function ConnectFour({
         <div className="grid grid-cols-7 grid-rows-6 gap-2 sm:gap-3">
           {Array.from({ length: ROWS }, (_, row) =>
             Array.from({ length: COLUMNS }, (_, column) => {
-              const index = row * COLUMNS + column;
-              const cell = String(board[index] || "");
+              const columnDiscs = Array.from({ length: ROWS }, (_, offset) => board[(ROWS - 1 - offset) * COLUMNS + column])
+                .filter(Boolean)
+                .slice(0, ROWS);
+              const cell = String(columnDiscs[ROWS - 1 - row] || "");
               return (
                 <div
-                  key={`cell-${row}-${column}-${cell}`}
+                  key={`cell-${row}-${column}`}
                   aria-label={`Column ${column + 1}, row ${row + 1}`}
                   className="aspect-square min-w-0 rounded-full border-2 border-slate-950 bg-white shadow-inner"
                   style={{
