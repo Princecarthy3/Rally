@@ -18,7 +18,7 @@ export function GameRoom(){
  const params=useParams<{code:string}>();const {user,profile}=useAuth();const {room,players,loading,error,onlineIds,connection}=useRoom(params.code,user?.id);const [busy,setBusy]=useState(false);const [notice,setNotice]=useState("");const supabase=getSupabaseBrowserClient();
  const myName=profile?.display_name||user?.user_metadata?.display_name||"Player";
   async function ready(value:boolean){if(!room)return;setBusy(true);const {error}=await supabase!.rpc("set_player_ready",{p_room:room.id,p_ready:value});if(error)setNotice(error.message);setBusy(false)}
-  async function start(){if(!room)return;setBusy(true);setNotice("");const {error}=await supabase!.rpc("start_game",{p_room:room.id});if(error)setNotice(error.message);setBusy(false)}
+  async function start(){if(!room)return;setBusy(true);setNotice("");const {error}=await supabase!.rpc(room.game_type==="ludo"?"start_ludo_game":"start_game",{p_room:room.id});if(error)setNotice(error.message);setBusy(false)}
   async function addBot(){if(!room)return;setBusy(true);setNotice("");const {error}=await supabase!.rpc("add_ai_bot_to_room",{p_room:room.id});if(error)setNotice(error.message);setBusy(false)}
   function flash(text:string){setNotice(text);setTimeout(()=>setNotice(""),2400)}
   async function copy(value:string,label:string){await navigator.clipboard.writeText(value);flash(`${label} copied!`)}

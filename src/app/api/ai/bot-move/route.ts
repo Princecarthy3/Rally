@@ -110,6 +110,18 @@ export async function POST(request: Request) {
       if (availableLines.length > 0) {
         value = availableLines[Math.floor(Math.random() * availableLines.length)];
       }
+    } else if (gameType === "ludo") {
+      if (state.awaitingMove) {
+        action = "move";
+        const tokens: number[] = state.ludoPositions?.[String(botSeat)] || [-1, -1, -1, -1];
+        const roll = Number(state.lastRoll || 0);
+        const movable = tokens.map((position, index) => ({ position, index })).filter(({ position }) =>
+          roll === 6 ? position < 57 : position >= 0 && position + roll <= 57
+        );
+        value = movable.length ? String(movable[Math.floor(Math.random() * movable.length)].index) : "-1";
+      } else {
+        action = "roll";
+      }
     } else if (gameType === "skribbl") {
       if (state.drawerSeat === botSeat && !state.wordSelected) {
         action = "select_word";
@@ -125,7 +137,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "No action required" });
     }
 
-    const { data, error } = await supabase.rpc("play_room_action", {
+    const rpc = gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_bot_rps_move" : "play_room_action";
+    const { data, error } = await supabase.rpc(rpc, {
       p_room: roomId,
       p_action: action,
       p_value: value,
@@ -141,4 +154,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: err.message || "Failed to make bot move" }, { status: 500 });
   }
 }
-

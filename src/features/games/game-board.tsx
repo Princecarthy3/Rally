@@ -8,6 +8,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { NumberGuessGame } from "./number-guess-game";
 import { DotsBoxes } from "./dots-boxes";
 import { SkribblGame } from "./skribbl-game";
+import { LudoGame } from "./ludo-game";
 
 import { sounds } from "@/lib/audio";
 
@@ -35,12 +36,15 @@ export function GameBoard({
 
   async function act(action: string, value?: string) {
     if (busy) return;
+    // Browsers only permit AudioContext playback after a real user gesture.
+    // Starting here makes the music begin with the player's first game action.
+    sounds.startBgm();
     sounds.playClickSound();
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
     setBusy(true);
     setError("");
-    const { error } = await supabase.rpc("play_room_action", {
+    const { error } = await supabase.rpc(room.game_type === "ludo" ? "play_ludo_action" : "play_room_action", {
       p_room: room.id,
       p_action: action,
       p_value: value ?? null,
@@ -61,8 +65,9 @@ export function GameBoard({
     let isBotTurn = false;
     const s = state as Record<string, any>;
 
-    if (["tic_tac_toe", "dots_boxes"].includes(room.game_type)) {
+    if (["tic_tac_toe", "dots_boxes", "ludo"].includes(room.game_type)) {
       isBotTurn = s.turn === botSeat;
+      if (room.game_type === "ludo" && s.awaitingMove && s.turn === botSeat) isBotTurn = true;
     } else if (room.game_type === "number_guess") {
       if (s.pickerSeat === botSeat && !s.targetPicked) isBotTurn = true;
       if (s.guesserSeat === botSeat && s.targetPicked) isBotTurn = true;
@@ -165,6 +170,9 @@ export function GameBoard({
           )}
           {room.game_type === "skribbl" && (
             <SkribblGame room={room} players={players} userId={userId} act={act} busy={busy} />
+          )}
+          {room.game_type === "ludo" && (
+            <LudoGame state={state} players={players} mySeat={me?.seat} busy={busy} act={act} />
           )}
         </div>
 
