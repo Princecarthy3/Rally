@@ -23,6 +23,31 @@ begin
  insert into public.game_players(room_id,player_id,seat) values(v_room,auth.uid(),1); return v_code;
 end $$;
 
+-- Some early Rally databases have a three-argument action RPC. Add the
+-- four-argument bot wrapper only for those projects; current installs already
+-- have the native four-argument version.
+do $$
+begin
+  if to_regprocedure('public.play_room_action(uuid,text,text,integer)') is null
+     and to_regprocedure('public.play_room_action(uuid,text,text)') is not null then
+    execute $wrapper$
+      create function public.play_room_action(p_room uuid,p_action text,p_value text,p_actor_seat integer)
+      returns jsonb language plpgsql security definer set search_path='' as $function$
+      declare bot_id uuid := '11111111-1111-1111-1111-111111111111';
+      begin
+        if p_actor_seat is not null then
+          if not exists (select 1 from public.game_players where room_id=p_room and seat=p_actor_seat and player_id=bot_id) then
+            raise exception 'Invalid bot actor';
+          end if;
+          perform set_config('request.jwt.claim.sub', bot_id::text, true);
+        end if;
+        return public.play_room_action(p_room,p_action,p_value);
+      end;
+      $function$
+    $wrapper$;
+  end if;
+end $$;
+
 create or replace function public.start_ludo_game(p_room uuid) returns void language plpgsql security definer set search_path='' as $$
 declare r public.game_rooms; n int; state jsonb;
 begin
@@ -114,6 +139,12 @@ begin
 end $$;
 -- Server bot requests use the public anon key, but its actor seat is still
 -- constrained inside both functions to the fixed Rally Bot player record.
-grant execute on function public.play_room_action(uuid,text,text,int), public.play_ludo_action(uuid,text,text,int) to anon, authenticated;
+do $$
+begin
+  if to_regprocedure('public.play_room_action(uuid,text,text,integer)') is not null then
+    grant execute on function public.play_room_action(uuid,text,text,integer) to anon, authenticated;
+  end if;
+  grant execute on function public.play_ludo_action(uuid,text,text,integer) to anon, authenticated;
+end $$;
 grant execute on function public.start_ludo_game(uuid) to authenticated;
 grant execute on function public.play_bot_rps_move(uuid,text,int) to anon, authenticated;
