@@ -16,8 +16,11 @@ export function ConnectFour({
   act: (action: string, value?: string) => Promise<void>;
   busy: boolean;
 }) {
-  const board = state.connectFourBoard || Array(ROWS * COLUMNS).fill("");
+  const board = Array.from({ length: ROWS * COLUMNS }, (_, index) => state.connectFourBoard?.[index] || "");
   const isMyTurn = state.turn === mySeat;
+  const openColumns = Array.from({ length: COLUMNS }, (_, column) =>
+    Array.from({ length: ROWS }, (_, row) => board[row * COLUMNS + column]).some((cell) => !cell)
+  );
 
   return (
     <div className="mx-auto max-w-lg text-center">
@@ -25,15 +28,26 @@ export function ConnectFour({
         {isMyTurn ? "YOUR TURN — DROP A DISC" : `WAITING FOR PLAYER ${state.turn}`}
       </div>
       <div className="rounded-3xl border-4 border-slate-950 bg-[#7357ff] p-3 shadow-[6px_6px_0_#171821] sm:p-5">
+        <div className="mb-3 grid grid-cols-7 gap-2 sm:gap-3">
+          {openColumns.map((isOpen, column) => (
+            <button
+              key={column}
+              type="button"
+              aria-label={`Drop disc in column ${column + 1}`}
+              disabled={!isMyTurn || busy || !isOpen}
+              onClick={() => act("drop", String(column))}
+              className="rounded-xl border-2 border-slate-950 bg-white py-2 text-sm font-black transition enabled:hover:-translate-y-1 enabled:hover:bg-[#a7efc8] disabled:cursor-default disabled:opacity-40"
+            >
+              ↓
+            </button>
+          ))}
+        </div>
         <div className="grid grid-cols-7 gap-2 sm:gap-3">
           {board.map((cell, index) => (
-            <button
+            <div
               key={index}
-              type="button"
               aria-label={`Column ${(index % COLUMNS) + 1}, row ${Math.floor(index / COLUMNS) + 1}`}
-              disabled={!isMyTurn || busy || Boolean(cell)}
-              onClick={() => act("drop", String(index % COLUMNS))}
-              className="aspect-square rounded-full border-2 border-slate-950 bg-white shadow-inner transition enabled:hover:-translate-y-1 enabled:hover:bg-slate-100 disabled:cursor-default"
+              className="aspect-square rounded-full border-2 border-slate-950 bg-white shadow-inner"
               style={{ backgroundColor: cell === "1" ? "#ff4d6d" : cell === "2" ? "#f4dc69" : "#fff" }}
             />
           ))}

@@ -365,10 +365,12 @@ begin
      end loop;
    end loop;
    if winner is not null then
-     round_ended:=true; round_winner:=winner;
+     round_ended:=true; round_winner:=winner; r.status:='completed';
+     state:=jsonb_set(state,'{winnerSeat}',to_jsonb(winner),true);
      state:=jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' connects four!')::text),true);
    elsif not exists(select 1 from jsonb_array_elements_text(board) cell where cell='') then
-     round_ended:=true; round_winner:=null;
+     round_ended:=true; round_winner:=null; r.status:='completed';
+     state:=jsonb_set(state,'{winnerSeat}','null'::jsonb,true);
      state:=jsonb_set(state,'{message}',to_jsonb('Board full — round draw!'::text),true);
    else
      next_seat:=case when me.seat=1 then 2 else 1 end;
@@ -478,7 +480,7 @@ begin
  end if;
 
  -- 3-ROUND MATCH LOGIC FOR MATCH GAMES (rps, tic_tac_toe, dots_boxes)
-  if round_ended then
+  if round_ended and r.game_type <> 'connect_four' then
     if round_winner is not null then
       score:=coalesce((round_wins->>round_winner::text)::int, 0) + 1;
       round_wins:=jsonb_set(round_wins, array[round_winner::text], to_jsonb(score), true);
@@ -513,9 +515,6 @@ begin
     end if;
   end if;
 
-  if r.game_type='connect_four' and r.status='playing' and round_ended then
-    state:=jsonb_set(state, '{connectFourBoard}', to_jsonb(array_fill(''::text, ARRAY[42])), true);
-  end if;
   update public.game_rooms set public_state=state,status=r.status,state_version=state_version+1,updated_at=now() where id=p_room;
  if r.status='completed' then perform public.finalize_room(p_room,state,r.game_type); end if;
  return state;
