@@ -4,8 +4,14 @@ import type { Room, RoomPlayer } from "@/features/rooms/types";
 
 type Props = { state: Room["public_state"]; players: RoomPlayer[]; mySeat?: number; busy: boolean; act: (action: string, value?: string) => Promise<void> };
 
-const COLORS = ["#ef4444", "#3b82f6", "#eab308", "#22c55e"];
-const HOME = ["#fee2e2", "#dbeafe", "#fef9c3", "#dcfce7"];
+// Keep the board, starting route, and player seat in the same colour order:
+// red starts top-left; blue top-right; yellow bottom-right; green bottom-left.
+const PLAYERS = [
+  { token: "#ef4444", home: "#fee2e2" }, // red
+  { token: "#3b82f6", home: "#dbeafe" }, // blue
+  { token: "#eab308", home: "#fef9c3" }, // yellow
+  { token: "#22c55e", home: "#dcfce7" }, // green
+];
 const STARTS = [0, 13, 26, 39];
 // Coordinates on the classic 15×15 Ludo grid, in clockwise order.
 const TRACK: Array<[number, number]> = [
@@ -40,19 +46,19 @@ export function LudoGame({ state, players, mySeat, busy, act }: Props) {
       <div className="grid h-full w-full grid-cols-[repeat(15,minmax(0,1fr))] grid-rows-[repeat(15,minmax(0,1fr))]">
         {Array.from({ length: 225 }, (_, i) => <div key={i} className="border-[0.5px] border-slate-200" />)}
       </div>
-      {[0,1,2,3].map(seat => <div key={seat} className="absolute grid grid-cols-2 gap-1 rounded-[20%] border-2 border-slate-950 p-2" style={{ backgroundColor: HOME[seat], width:"35%", height:"35%", left: seat === 1 || seat === 3 ? "3%" : "62%", top: seat < 2 ? "3%" : "62%" }}>
+      {[0,1,2,3].map(seat => <div key={seat} className="absolute grid grid-cols-2 gap-1 rounded-[20%] border-2 border-slate-950 p-2" style={{ backgroundColor: PLAYERS[seat].home, width:"35%", height:"35%", left: seat === 0 || seat === 3 ? "3%" : "62%", top: seat < 2 ? "3%" : "62%" }}>
         {[0,1,2,3].map(token => {
           const isHome = (positions[String(seat + 1)] || [-1,-1,-1,-1])[token] < 0;
           const canBringOut = canMove && seat + 1 === mySeat && state.lastRoll === 6 && isHome;
-          return <button key={token} disabled={!canBringOut || busy} onClick={() => act("move", String(token))} aria-label={`Move token ${token + 1} from home`} className="rounded-full border-2 border-slate-950 disabled:cursor-default" style={{ backgroundColor: COLORS[seat], opacity:isHome ? 1 : .2 }} />;
+          return <button key={token} disabled={!canBringOut || busy} onClick={() => act("move", String(token))} aria-label={`Move token ${token + 1} from home`} className="rounded-full border-2 border-slate-950 disabled:cursor-default" style={{ backgroundColor: PLAYERS[seat].token, opacity:isHome ? 1 : .2 }} />;
         })}
       </div>)}
-      {TRACK.map(([row, col], index) => <span key={index} className="absolute border border-slate-300" style={{ width:"6.6667%", height:"6.6667%", left:`${col * 6.6667}%`, top:`${row * 6.6667}%`, backgroundColor: index % 13 === 0 ? COLORS[STARTS.indexOf(index)] : "#fff" }} />)}
-      {LANES.map((lane, seat) => lane.map(([row,col], index) => <span key={`${seat}-${index}`} className="absolute border border-slate-300" style={{ width:"6.6667%", height:"6.6667%", left:`${col * 6.6667}%`, top:`${row * 6.6667}%`, backgroundColor:HOME[seat] }} />))}
+      {TRACK.map(([row, col], index) => <span key={index} className="absolute border border-slate-300" style={{ width:"6.6667%", height:"6.6667%", left:`${col * 6.6667}%`, top:`${row * 6.6667}%`, backgroundColor: index % 13 === 0 ? PLAYERS[STARTS.indexOf(index)].token : "#fff" }} />)}
+      {LANES.map((lane, seat) => lane.map(([row,col], index) => <span key={`${seat}-${index}`} className="absolute border border-slate-300" style={{ width:"6.6667%", height:"6.6667%", left:`${col * 6.6667}%`, top:`${row * 6.6667}%`, backgroundColor:PLAYERS[seat].home }} />))}
       <span className="absolute left-[40%] top-[40%] grid h-[20%] w-[20%] place-items-center bg-slate-950 text-2xl">🏁</span>
       {players.flatMap(player => (positions[String(player.seat)] || [-1,-1,-1,-1]).map((progress, token) => ({ player, progress, token }))).filter(({ progress }) => progress >= 0).map(({ player, progress, token }) => {
         const point = positionFor(player.seat, progress); if (!point) return null; const [row,col] = point;
-        return <button key={`${player.seat}-${token}`} disabled={!canMove || !movable.some(move => move.index === token) || busy} onClick={() => act("move", String(token))} aria-label={`Move token ${token + 1}`} className="absolute z-10 grid place-items-center rounded-full border-2 border-slate-950 text-[10px] font-black shadow-sm disabled:cursor-default" style={{ width:"5.1%", height:"5.1%", left:`${col * 6.6667 + 0.8}%`, top:`${row * 6.6667 + 0.8}%`, backgroundColor:COLORS[player.seat - 1] }}>{token + 1}</button>;
+        return <button key={`${player.seat}-${token}`} disabled={!canMove || !movable.some(move => move.index === token) || busy} onClick={() => act("move", String(token))} aria-label={`Move token ${token + 1}`} className="absolute z-10 grid place-items-center rounded-full border-2 border-slate-950 text-[10px] font-black shadow-sm disabled:cursor-default" style={{ width:"5.1%", height:"5.1%", left:`${col * 6.6667 + 0.8}%`, top:`${row * 6.6667 + 0.8}%`, backgroundColor:PLAYERS[player.seat - 1].token }}>{token + 1}</button>;
       })}
     </div>
     <div className="mt-5 text-center">
