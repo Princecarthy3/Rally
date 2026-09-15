@@ -42,24 +42,23 @@ export function ConnectFour({
             </button>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-2 sm:gap-3">
-          {Array.from({ length: COLUMNS }, (_, column) => (
-            <div key={column} className="grid gap-2 sm:gap-3">
-              {Array.from({ length: ROWS }, (_, row) => {
-                const cell = String(board[row * COLUMNS + column] || "");
-                return (
-                  <div
-                    key={`${column}-${row}`}
-                    aria-label={`Column ${column + 1}, row ${row + 1}`}
-                    className="aspect-square rounded-full border-2 border-slate-950 bg-white shadow-inner"
-                    style={{
-                      backgroundColor: cell === "1" ? "#ff4d6d" : cell === "2" ? "#f4dc69" : "#fff",
-                    }}
-                  />
-                );
-              })}
-            </div>
-          ))}
+        <div className="grid grid-cols-7 grid-rows-6 gap-2 sm:gap-3">
+          {Array.from({ length: ROWS }, (_, row) =>
+            Array.from({ length: COLUMNS }, (_, column) => {
+              const index = row * COLUMNS + column;
+              const cell = String(board[index] || "");
+              return (
+                <div
+                  key={`cell-${row}-${column}-${cell}`}
+                  aria-label={`Column ${column + 1}, row ${row + 1}`}
+                  className="aspect-square min-w-0 rounded-full border-2 border-slate-950 bg-white shadow-inner"
+                  style={{
+                    backgroundColor: cell === "1" ? "#ff4d6d" : cell === "2" ? "#f4dc69" : "#fff",
+                  }}
+                />
+              );
+            })
+          )}
         </div>
       </div>
       <p className="mt-4 text-xs font-bold text-slate-500">Connect four discs vertically, horizontally, or diagonally to win.</p>
