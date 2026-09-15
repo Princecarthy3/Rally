@@ -347,7 +347,7 @@ begin
    board:=state->'connectFourBoard';
    c_idx:=p_value::int; r_idx:=null;
    for i in reverse 5..0 loop
-     if board->>((i*7+c_idx)::text) = '' then r_idx:=i; exit; end if;
+     if coalesce(board->>((i*7+c_idx)::text), '') = '' then r_idx:=i; exit; end if;
    end loop;
    if r_idx is null then raise exception 'That column is full'; end if;
    mark:=me.seat::text;
