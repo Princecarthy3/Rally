@@ -1,4 +1,4 @@
-import { ArrowRight, Camera, Check, Code2, Link2, MessageCircle, Radio, Sparkles, Trophy } from "lucide-react";
+import { ArrowRight, Check, Link2, MessageCircle, Radio, Sparkles, Trophy } from "lucide-react";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
 
@@ -9,6 +9,14 @@ const games = [
   { icon: "🔲", title: "Dots & Boxes", text: "Claim the grid", color: "bg-[#e4f8ef]", tilt: "rotate-2" },
   { icon: "🎨", title: "Draw & Guess", text: "Sketch it before time runs out", color: "bg-[#fff6c9]", tilt: "-rotate-2" },
 ];
+
+function GitHubLogo() {
+  return <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .7a11.3 11.3 0 0 0-3.57 22.02c.57.1.77-.24.77-.55v-2.15c-3.14.68-3.8-1.33-3.8-1.33-.5-1.3-1.25-1.64-1.25-1.64-1.03-.7.08-.69.08-.69 1.13.08 1.73 1.17 1.73 1.17 1.01 1.73 2.65 1.23 3.3.94.1-.73.4-1.23.72-1.51-2.5-.28-5.13-1.25-5.13-5.56 0-1.23.44-2.24 1.16-3.03-.12-.29-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.16A10.8 10.8 0 0 1 12 6.2c.96 0 1.92.13 2.82.38 2.15-1.46 3.1-1.16 3.1-1.16.61 1.55.23 2.69.11 2.98.72.79 1.16 1.8 1.16 3.03 0 4.32-2.63 5.28-5.14 5.56.41.35.77 1.02.77 2.06v3.06c0 .3.2.66.78.55A11.3 11.3 0 0 0 12 .7Z" /></svg>;
+}
+
+function InstagramLogo() {
+  return <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r=".7" fill="currentColor" stroke="none" /></svg>;
+}
 
 export default function HomePage() {
   return (
@@ -38,7 +46,7 @@ export default function HomePage() {
 
       <section className="px-5 pb-28 text-center"><div className="mx-auto max-w-3xl"><div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-violet-100 text-3xl animate-pulse-soft">✦</div><h2 className="balance mt-7 text-4xl font-black tracking-[-.05em] md:text-6xl">Your next rivalry starts here.</h2><p className="mt-5 text-lg text-slate-500">Create your player profile today. Live game rooms arrive in Phase 2.</p><Link href="/auth?mode=signup" className="mt-8 inline-flex items-center gap-2 rounded-full bg-violet-600 px-8 py-4 font-bold text-white shadow-lg shadow-violet-200 transition hover:-translate-y-1">Create free account <ArrowRight size={18}/></Link><div className="mt-6 flex justify-center gap-5 text-xs text-slate-400"><span className="flex gap-1"><Check size={14}/> Secure profile</span><span className="flex gap-1"><Radio size={14}/> Realtime-ready</span></div></div></section>
 
-      <footer className="border-t border-slate-200 bg-white px-5 py-8"><div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row"><Brand/><p className="text-sm text-slate-400">© 2026 Rally. Play together, anywhere.</p><div className="flex items-center gap-3"><a href="https://github.com/Princecarthy3" target="_blank" rel="noreferrer" aria-label="Princecarthy3 on GitHub" className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"><Code2 size={20}/></a><a href="https://www.instagram.com/princecarthy_arts/" target="_blank" rel="noreferrer" aria-label="Princecarthy Arts on Instagram" className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-pink-600"><Camera size={20}/></a></div></div></footer>
+      <footer className="border-t border-slate-200 bg-white px-5 py-8"><div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row"><Brand/><p className="text-sm text-slate-400">© 2026 Rally. Play together, anywhere.</p><div className="flex items-center gap-3"><a href="https://github.com/Princecarthy3" target="_blank" rel="noreferrer" aria-label="Princecarthy3 on GitHub" className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"><GitHubLogo/></a><a href="https://www.instagram.com/princecarthy_arts/" target="_blank" rel="noreferrer" aria-label="Princecarthy Arts on Instagram" className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-pink-600"><InstagramLogo/></a></div></div></footer>
     </main>
   );
 }
