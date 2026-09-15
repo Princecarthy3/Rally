@@ -43,13 +43,22 @@ export function ConnectFour({
           ))}
         </div>
         <div className="grid grid-cols-7 gap-2 sm:gap-3">
-          {board.map((cell, index) => (
-            <div
-              key={index}
-              aria-label={`Column ${(index % COLUMNS) + 1}, row ${Math.floor(index / COLUMNS) + 1}`}
-              className="aspect-square rounded-full border-2 border-slate-950 bg-white shadow-inner"
-              style={{ backgroundColor: cell === "1" ? "#ff4d6d" : cell === "2" ? "#f4dc69" : "#fff" }}
-            />
+          {Array.from({ length: COLUMNS }, (_, column) => (
+            <div key={column} className="grid gap-2 sm:gap-3">
+              {Array.from({ length: ROWS }, (_, row) => {
+                const cell = String(board[row * COLUMNS + column] || "");
+                return (
+                  <div
+                    key={`${column}-${row}`}
+                    aria-label={`Column ${column + 1}, row ${row + 1}`}
+                    className="aspect-square rounded-full border-2 border-slate-950 bg-white shadow-inner"
+                    style={{
+                      backgroundColor: cell === "1" ? "#ff4d6d" : cell === "2" ? "#f4dc69" : "#fff",
+                    }}
+                  />
+                );
+              })}
+            </div>
           ))}
         </div>
       </div>
