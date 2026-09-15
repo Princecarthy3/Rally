@@ -112,5 +112,8 @@ begin
   update public.game_rooms set public_state=state,state_version=state_version+1,updated_at=now() where id=p_room;
   return state;
 end $$;
-grant execute on function public.start_ludo_game(uuid), public.play_ludo_action(uuid,text,text,int) to authenticated;
+-- Server bot requests use the public anon key, but its actor seat is still
+-- constrained inside both functions to the fixed Rally Bot player record.
+grant execute on function public.play_room_action(uuid,text,text,int), public.play_ludo_action(uuid,text,text,int) to anon, authenticated;
+grant execute on function public.start_ludo_game(uuid) to authenticated;
 grant execute on function public.play_bot_rps_move(uuid,text,int) to anon, authenticated;

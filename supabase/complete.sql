@@ -498,7 +498,10 @@ end $$;
 
 revoke all on function public.finalize_room(uuid,jsonb,text) from public;
 revoke all on function public.create_game_room(text,int),public.join_game_room(text),public.set_player_ready(uuid,boolean),public.start_game(uuid),public.play_room_action(uuid,text,text,int),public.rematch_room(uuid),public.add_ai_bot_to_room(uuid) from public;
-grant execute on function public.create_game_room(text,int),public.join_game_room(text),public.set_player_ready(uuid,boolean),public.start_game(uuid),public.play_room_action(uuid,text,text,int),public.rematch_room(uuid),public.add_ai_bot_to_room(uuid) to authenticated;
+grant execute on function public.create_game_room(text,int),public.join_game_room(text),public.set_player_ready(uuid,boolean),public.start_game(uuid),public.rematch_room(uuid),public.add_ai_bot_to_room(uuid) to authenticated;
+-- Bot moves are sent through the server route with Supabase's anon key. The
+-- RPC validates p_actor_seat against the dedicated bot record before acting.
+grant execute on function public.play_room_action(uuid,text,text,int) to anon, authenticated;
 
 -- Realtime publication (safe if already added).
 do $$ begin alter publication supabase_realtime add table public.game_rooms; exception when duplicate_object then null; end $$;
