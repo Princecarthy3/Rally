@@ -16,10 +16,10 @@ export function ConnectFour({
   act: (action: string, value?: string) => Promise<void>;
   busy: boolean;
 }) {
-  const board = Array.from({ length: ROWS * COLUMNS }, (_, index) => state.connectFourBoard?.[index] || "");
+  const board = Array.from({ length: ROWS * COLUMNS }, (_, index) => String(state.connectFourBoard?.[index] || ""));
   const isMyTurn = state.turn === mySeat;
   const openColumns = Array.from({ length: COLUMNS }, (_, column) =>
-    Array.from({ length: ROWS }, (_, row) => board[row * COLUMNS + column]).some((cell) => !cell)
+    board[0 * COLUMNS + column] === ""
   );
 
   return (
@@ -45,10 +45,7 @@ export function ConnectFour({
         <div className="grid grid-cols-7 grid-rows-6 gap-2 sm:gap-3">
           {Array.from({ length: ROWS }, (_, row) =>
             Array.from({ length: COLUMNS }, (_, column) => {
-              const columnDiscs = Array.from({ length: ROWS }, (_, offset) => board[(ROWS - 1 - offset) * COLUMNS + column])
-                .filter(Boolean)
-                .slice(0, ROWS);
-              const cell = String(columnDiscs[ROWS - 1 - row] || "");
+              const cell = board[row * COLUMNS + column];
               return (
                 <div
                   key={`cell-${row}-${column}`}
