@@ -4,7 +4,7 @@ import { AuthProvider } from "@/components/auth-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://rally-theta-five.vercel.app"),
+  metadataBase: new URL("https://rallygames.vercel.app"),
   title: { default: "Rally | Free Online Multiplayer Mini Games", template: "%s | Rally" },
   description: "Play free online multiplayer mini games with friends. Create a private room, share the link, and compete in quick live games for 2–4 players.",
   keywords: [
