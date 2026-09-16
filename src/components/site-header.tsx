@@ -163,20 +163,26 @@ export function SiteHeader() {
         </div>
       )}
 
-      {/* Mobile navigation */}
-      <nav className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 justify-around rounded-full border border-white/20 bg-slate-950/95 p-1.5 text-white shadow-2xl backdrop-blur-lg md:hidden">
-        {links.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition ${
-              pathname === href ? "bg-white/20 text-white" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <Icon size={16} />
-            <span>{label}</span>
-          </Link>
-        ))}
+      {/* Mobile navigation (Symbols only for clean responsive layout) */}
+      <nav className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-xs -translate-x-1/2 items-center justify-around rounded-full border-2 border-slate-950 bg-slate-950/95 p-1.5 text-white shadow-[0_10px_30px_rgba(0,0,0,0.6)] backdrop-blur-md md:hidden">
+        {links.map(({ href, label, icon: Icon }) => {
+          const isActive = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              title={label}
+              aria-label={label}
+              className={`grid h-11 w-11 place-items-center rounded-full transition-all ${
+                isActive
+                  ? "bg-[#7357ff] text-white shadow-[0_0_12px_rgba(115,87,255,0.8)] scale-105"
+                  : "text-slate-400 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <Icon size={20} />
+            </Link>
+          );
+        })}
       </nav>
     </>
   );

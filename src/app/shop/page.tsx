@@ -168,7 +168,7 @@ export default function ShopPage() {
       await unequipCategory(item.category);
       setNotice(`${item.name} unequipped.`);
     } else {
-      setLocalEquippedIds((prev) => [...prev, item.id]);
+      setLocalEquippedIds((prev) => (item.category === "badge" ? [...prev, item.id] : [item.id]));
       const success = await equipItem(item.id);
       if (success) {
         setNotice(`${item.name} equipped!`);
@@ -178,6 +178,7 @@ export default function ShopPage() {
       }
     }
     await refreshCustomization();
+    setLocalEquippedIds([]);
     setBusy(null);
   }
 

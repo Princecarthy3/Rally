@@ -31,15 +31,20 @@ export function UserAvatar({
   const sizeClass = sizes[size] || sizes.md;
   const initial = fallbackName.trim().charAt(0).toUpperCase() || "P";
   const avatarAsset = equippedAvatar?.asset_value;
+  const isCustomAssetImage = avatarAsset?.startsWith("http") || avatarAsset?.startsWith("/");
 
   return (
     <div
       className={`relative grid place-items-center overflow-hidden rounded-full bg-slate-900 font-black text-white shrink-0 transition-transform ${sizeClass} ${frameClass} ${className}`}
     >
-      {avatarUrl ? (
+      {avatarAsset ? (
+        isCustomAssetImage ? (
+          <img src={avatarAsset} alt={fallbackName} className="h-full w-full object-cover" />
+        ) : (
+          <span className="select-none">{avatarAsset}</span>
+        )
+      ) : avatarUrl ? (
         <img src={avatarUrl} alt={fallbackName} className="h-full w-full object-cover" />
-      ) : avatarAsset ? (
-        <span className="select-none">{avatarAsset}</span>
       ) : (
         <span className="select-none">{initial}</span>
       )}

@@ -206,10 +206,11 @@ export default function ProfilePage() {
       setLocalEquippedIds((prev) => prev.filter((id) => id !== item.id));
       await unequipCategory(item.category);
     } else {
-      setLocalEquippedIds((prev) => [...prev, item.id]);
+      setLocalEquippedIds((prev) => (item.category === "badge" ? [...prev, item.id] : [item.id]));
       await equipItem(item.id);
     }
     await refreshCustomization();
+    setLocalEquippedIds([]);
   }
 
   return (
