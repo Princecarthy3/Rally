@@ -3,7 +3,7 @@
 import { ArrowLeft, Check, Copy, LoaderCircle, Radio, Share2, ShieldCheck, UsersRound, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/components/auth-provider";
 import { gameByKey } from "@/features/games/registry";
@@ -23,7 +23,7 @@ const BOT_ID = "11111111-1111-1111-1111-111111111111";
 export function GameRoom() {
   const params = useParams<{ code: string }>();
   const { user, profile } = useAuth();
-  const { room, players, loading, error, onlineIds, connection } = useRoom(params.code, user?.id);
+  const { room, players, loading, error, onlineIds, connection, channel } = useRoom(params.code, user?.id);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [activeEmotes, setActiveEmotes] = useState<Array<{ seat: number; emote: string; id: number }>>([]);
@@ -35,6 +35,19 @@ export function GameRoom() {
   // Host room theme
   const hostPlayer = players.find((p) => p.player_id === room?.host_id);
   const roomThemeStyle = getRoomThemeStyle(hostPlayer?.customization?.room_theme);
+
+  useEffect(() => {
+    if (!channel) return;
+    channel.on("broadcast", { event: "emote" }, (payload) => {
+      if (payload.payload) {
+        const item = payload.payload as { seat: number; emote: string; id: number };
+        setActiveEmotes((prev) => [...prev, item]);
+        setTimeout(() => {
+          setActiveEmotes((prev) => prev.filter((e) => e.id !== item.id));
+        }, 3000);
+      }
+    });
+  }, [channel]);
 
   async function ready(value: boolean) {
     if (!room) return;
@@ -90,7 +103,15 @@ export function GameRoom() {
     setActiveEmotes((prev) => [...prev, item]);
     setTimeout(() => {
       setActiveEmotes((prev) => prev.filter((e) => e.id !== item.id));
-    }, 2500);
+    }, 3000);
+
+    if (channel) {
+      void channel.send({
+        type: "broadcast",
+        event: "emote",
+        payload: item,
+      });
+    }
   }
 
   // Determine winner for victory animation

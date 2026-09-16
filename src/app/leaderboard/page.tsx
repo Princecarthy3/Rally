@@ -7,7 +7,8 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { UserAvatar } from "@/components/customization/user-avatar";
 import { NameDisplay } from "@/components/customization/name-display";
 import { ShopItem } from "@/lib/customization";
-import { Trophy, Gamepad2, Sparkles, LoaderCircle, Award } from "lucide-react";
+import { PlayerCard } from "@/components/customization/player-card";
+import { Trophy, Gamepad2, Sparkles, LoaderCircle, Award, X, Eye } from "lucide-react";
 
 type LeaderboardUser = {
   user_id: string;
@@ -20,9 +21,14 @@ type LeaderboardUser = {
   customization?: {
     avatar?: ShopItem | null;
     frame?: ShopItem | null;
+    banner?: ShopItem | null;
+    background?: ShopItem | null;
     title?: ShopItem | null;
     name_color?: ShopItem | null;
     name_effect?: ShopItem | null;
+    badges?: ShopItem[];
+    bio?: string;
+    status_preset?: string;
   } | null;
 };
 
@@ -30,6 +36,7 @@ export default function LeaderboardPage() {
   const { user } = useAuth();
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<LeaderboardUser | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -112,22 +119,44 @@ export default function LeaderboardPage() {
               {top3.length > 0 && (
                 <div className="mb-12">
                   <p className="mb-6 text-center text-xs font-black uppercase tracking-widest text-violet-600">
-                    The Champions Podium
+                    The Champions Podium (Click card to view profile)
                   </p>
                   <div className="grid gap-4 sm:grid-cols-3 sm:items-end">
                     {/* #2 Silver */}
                     {top3[1] && (
-                      <PodiumCard user={top3[1]} rank={2} color="bg-slate-200" titleBadge="🥈 2nd Place" isMe={top3[1].user_id === user?.id} />
+                      <PodiumCard
+                        user={top3[1]}
+                        rank={2}
+                        color="bg-slate-200"
+                        titleBadge="🥈 2nd Place"
+                        isMe={top3[1].user_id === user?.id}
+                        onSelect={() => setSelectedUser(top3[1])}
+                      />
                     )}
 
                     {/* #1 Gold */}
                     {top3[0] && (
-                      <PodiumCard user={top3[0]} rank={1} color="bg-[#f4dc69]" titleBadge="👑 1st Champion" isMe={top3[0].user_id === user?.id} isFirst />
+                      <PodiumCard
+                        user={top3[0]}
+                        rank={1}
+                        color="bg-[#f4dc69]"
+                        titleBadge="👑 1st Champion"
+                        isMe={top3[0].user_id === user?.id}
+                        isFirst
+                        onSelect={() => setSelectedUser(top3[0])}
+                      />
                     )}
 
                     {/* #3 Bronze */}
                     {top3[2] && (
-                      <PodiumCard user={top3[2]} rank={3} color="bg-amber-100" titleBadge="🥉 3rd Place" isMe={top3[2].user_id === user?.id} />
+                      <PodiumCard
+                        user={top3[2]}
+                        rank={3}
+                        color="bg-amber-100"
+                        titleBadge="🥉 3rd Place"
+                        isMe={top3[2].user_id === user?.id}
+                        onSelect={() => setSelectedUser(top3[2])}
+                      />
                     )}
                   </div>
                 </div>
@@ -137,7 +166,7 @@ export default function LeaderboardPage() {
               <section className="rounded-[28px] border-2 border-slate-950 bg-white p-6 shadow-[6px_6px_0_#171821]">
                 <div className="flex items-center justify-between border-b-2 border-slate-100 pb-4 mb-4">
                   <h2 className="text-xl font-black text-slate-950">Global XP Rankings</h2>
-                  <span className="text-xs font-bold text-slate-600">Ranked by total XP & Wins</span>
+                  <span className="text-xs font-bold text-slate-600">Click any player to view profile</span>
                 </div>
 
                 <div className="divide-y-2 divide-slate-100">
@@ -148,7 +177,8 @@ export default function LeaderboardPage() {
                     return (
                       <div
                         key={item.user_id}
-                        className={`flex flex-wrap items-center justify-between gap-4 py-3.5 px-3 rounded-2xl transition ${
+                        onClick={() => setSelectedUser(item)}
+                        className={`flex flex-wrap items-center justify-between gap-4 py-3.5 px-3 rounded-2xl cursor-pointer transition ${
                           isMe ? "bg-violet-100/90 border-2 border-slate-950 shadow-[3px_3px_0_#171821]" : "hover:bg-slate-50"
                         }`}
                       >
@@ -198,11 +228,16 @@ export default function LeaderboardPage() {
                             <span className="text-[11px] font-bold text-slate-600">Level {item.level}</span>
                           </div>
 
-                          <div className="hidden sm:block text-right">
-                            <span className="flex items-center justify-end gap-1 text-xs font-black text-slate-900">
-                              <Trophy size={13} className="text-amber-500" /> {item.wins} Wins
+                          <div className="hidden sm:flex items-center gap-2 text-right">
+                            <div>
+                              <span className="flex items-center justify-end gap-1 text-xs font-black text-slate-900">
+                                <Trophy size={13} className="text-amber-500" /> {item.wins} Wins
+                              </span>
+                              <span className="text-[11px] font-bold text-slate-600">{item.games_played} Games</span>
+                            </div>
+                            <span className="grid h-8 w-8 place-items-center rounded-lg border border-slate-300 bg-white text-slate-600 shadow-sm">
+                              <Eye size={14} />
                             </span>
-                            <span className="text-[11px] font-bold text-slate-600">{item.games_played} Games</span>
                           </div>
                         </div>
                       </div>
@@ -214,6 +249,45 @@ export default function LeaderboardPage() {
           )}
         </div>
       </main>
+
+      {/* Inspect Player Profile Card Modal */}
+      {selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-md overflow-hidden rounded-[28px] border-2 border-slate-950 bg-[#fffdf7] p-6 shadow-[8px_8px_0_#171821]">
+            <div className="flex items-center justify-between border-b-2 border-slate-950 pb-4 mb-4">
+              <div>
+                <span className="text-[10px] font-black uppercase text-violet-600 tracking-wider">Player Profile Card</span>
+                <h2 className="text-xl font-black text-slate-950">{selectedUser.display_name}</h2>
+              </div>
+              <button onClick={() => setSelectedUser(null)} className="rounded-full border-2 border-slate-950 bg-white p-2 hover:bg-slate-100">
+                <X size={18} />
+              </button>
+            </div>
+
+            <PlayerCard
+              displayName={selectedUser.display_name}
+              avatarUrl={selectedUser.avatar_url}
+              customization={
+                selectedUser.customization
+                  ? {
+                      ...selectedUser.customization,
+                      badges: selectedUser.customization.badges || [],
+                      bio: selectedUser.customization.bio || "",
+                      status_preset: selectedUser.customization.status_preset || "Online",
+                    }
+                  : null
+              }
+              levelState={{ xp: selectedUser.xp, level: selectedUser.level }}
+              wins={selectedUser.wins}
+              gamesPlayed={selectedUser.games_played}
+            />
+
+            <button onClick={() => setSelectedUser(null)} className="arcade-button mt-6 w-full bg-slate-950 text-white text-xs font-black">
+              CLOSE PROFILE
+            </button>
+          </div>
+        </div>
+      )}
     </ProtectedPage>
   );
 }
@@ -225,6 +299,7 @@ function PodiumCard({
   titleBadge,
   isMe,
   isFirst = false,
+  onSelect,
 }: {
   user: LeaderboardUser;
   rank: number;
@@ -232,10 +307,12 @@ function PodiumCard({
   titleBadge: string;
   isMe: boolean;
   isFirst?: boolean;
+  onSelect?: () => void;
 }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-[26px] border-2 border-slate-950 p-5 text-center shadow-[6px_6px_0_#171821] ${color} ${
+      onClick={onSelect}
+      className={`relative overflow-hidden rounded-[26px] border-2 border-slate-950 p-5 text-center shadow-[6px_6px_0_#171821] cursor-pointer transition hover:-translate-y-1 ${color} ${
         isFirst ? "sm:-translate-y-4" : ""
       } ${isMe ? "ring-4 ring-violet-600" : ""}`}
     >

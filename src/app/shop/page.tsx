@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/components/auth-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { ShopItem, RARITY_STYLES } from "@/lib/customization";
+import { ShopItem, RARITY_STYLES, getItemPreviewIcon } from "@/lib/customization";
 import { ItemPreviewModal } from "@/components/customization/item-preview-modal";
 import { CoinWalletModal } from "@/components/customization/coin-wallet-modal";
 import { StreakClaimModal } from "@/components/customization/streak-claim-modal";
@@ -352,7 +352,7 @@ export default function ShopPage() {
                       {/* Top Header */}
                       <div className="flex items-start justify-between gap-3">
                         <span className="grid h-14 w-14 place-items-center rounded-2xl border-2 border-slate-950 bg-[#f0edff] text-3xl shadow-[2px_2px_0_#171821]">
-                          {item.asset_value?.startsWith("#") ? "🎨" : item.asset_value || "✦"}
+                          {getItemPreviewIcon(item)}
                         </span>
                         <div className="flex items-center gap-2">
                           <button onClick={() => toggleFavorite(item.id)} className="text-slate-400 hover:text-rose-500">

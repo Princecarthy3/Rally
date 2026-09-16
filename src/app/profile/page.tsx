@@ -6,7 +6,7 @@ import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/components/auth-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { PlayerCard } from "@/components/customization/player-card";
-import { ShopItem, RARITY_STYLES } from "@/lib/customization";
+import { ShopItem, RARITY_STYLES, getItemPreviewIcon } from "@/lib/customization";
 
 const inventoryTabs = [
   { id: "all", label: "All Owned" },
@@ -40,6 +40,16 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const liveCustomization = useMemo(
+    () => ({
+      ...customization,
+      bio: bio,
+      status_preset: statusPreset,
+      badges: customization?.badges || [],
+    }),
+    [customization, bio, statusPreset]
+  );
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -226,7 +236,7 @@ export default function ProfilePage() {
           <PlayerCard
             displayName={name || "Player"}
             avatarUrl={avatar}
-            customization={customization}
+            customization={liveCustomization}
             levelState={levelState}
             wins={profile?.wins ?? 0}
             gamesPlayed={profile?.games_played ?? 0}
@@ -387,7 +397,7 @@ export default function ProfilePage() {
                     <div>
                       <div className="flex items-start justify-between gap-3">
                         <span className="grid h-12 w-12 place-items-center rounded-xl border-2 border-slate-950 bg-[#f0edff] text-2xl shadow-[2px_2px_0_#171821]">
-                          {item.asset_value?.startsWith("#") ? "🎨" : item.asset_value || "✦"}
+                          {getItemPreviewIcon(item)}
                         </span>
                         <span className={`rounded-full border-2 border-slate-950 px-2 py-0.5 text-[9px] font-black uppercase ${rarityStyle.bg} ${rarityStyle.text}`}>
                           {item.rarity}

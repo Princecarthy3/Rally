@@ -136,22 +136,25 @@ export function CoinWalletModal({ isOpen, onClose, balance, userId, onClaimDaily
         <div className="mt-5 max-h-[340px] overflow-y-auto pr-1">
           {tab === "topup" && (
             <div className="space-y-3">
-              <p className="text-xs text-slate-500">Rally Coins are cosmetic-only and provide zero competitive gameplay advantage.</p>
+              <div className="rounded-xl border-2 border-slate-950 bg-amber-100 p-3 text-xs font-black text-amber-950 text-center">
+                🚀 In-App Rally Coin purchases will launch soon! Earn free Rally Coins right now by winning mini-games, maintaining daily streaks, and completing achievements.
+              </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {coinPackages.map((pkg) => (
                   <div
                     key={pkg.id}
-                    onClick={() => simulatePurchase(pkg.coins + pkg.bonus, pkg.price)}
-                    className="cursor-pointer rounded-2xl border-2 border-slate-950 bg-white p-4 shadow-[3px_3px_0_#171821] transition hover:-translate-y-1"
+                    className="relative rounded-2xl border-2 border-slate-950 bg-white p-4 shadow-[3px_3px_0_#171821] opacity-90"
                   >
                     <div className="flex items-center justify-between">
                       <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[10px] font-black uppercase text-violet-800">{pkg.tag}</span>
-                      {pkg.bonus > 0 && <span className="text-[10px] font-black text-emerald-600">+{pkg.bonus} Bonus</span>}
+                      <span className="rounded-full border border-slate-950 bg-amber-300 px-2 py-0.5 text-[9px] font-black uppercase text-slate-950">COMING SOON</span>
                     </div>
                     <strong className="mt-3 block text-xl font-black">{pkg.coins.toLocaleString()} RC</strong>
                     <div className="mt-3 flex items-center justify-between border-t-2 border-slate-100 pt-2">
-                      <span className="text-xs font-bold text-slate-500">Real Currency</span>
-                      <span className="arcade-button bg-[#f4dc69] text-xs py-1 px-3">{pkg.price}</span>
+                      <span className="text-xs font-bold text-slate-500">{pkg.price}</span>
+                      <button disabled className="arcade-button bg-slate-200 text-slate-600 text-xs py-1 px-3 cursor-not-allowed">
+                        COMING SOON
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -193,9 +196,12 @@ export function CoinWalletModal({ isOpen, onClose, balance, userId, onClaimDaily
 
           {tab === "plus" && (
             <div className="rounded-2xl border-2 border-slate-950 bg-slate-900 p-6 text-white text-center shadow-[4px_4px_0_#171821]">
+              <div className="inline-block rounded-full bg-amber-400/20 px-3 py-1 text-[10px] font-black uppercase text-amber-300 border border-amber-400/40 mb-3">
+                🚀 COMING SOON
+              </div>
               <Crown size={36} className="mx-auto text-amber-400 mb-2" />
               <h3 className="text-xl font-black">Rally Plus Membership</h3>
-              <p className="mt-2 text-xs text-slate-300">$2.99 / month</p>
+              <p className="mt-2 text-xs text-slate-300">$2.99 / month (Launching Soon)</p>
               <ul className="mt-4 space-y-2 text-left text-xs text-slate-300 border-t border-white/10 pt-4">
                 <li className="flex items-center gap-2">
                   <ShieldCheck size={14} className="text-emerald-400" /> Ad-Free multiplayer experience
@@ -211,10 +217,10 @@ export function CoinWalletModal({ isOpen, onClose, balance, userId, onClaimDaily
                 </li>
               </ul>
               <button
-                onClick={() => simulatePurchase(0, "$2.99/mo")}
-                className="arcade-button mt-6 w-full bg-[#f4dc69] text-slate-950 font-black"
+                disabled
+                className="arcade-button mt-6 w-full bg-slate-700 text-slate-300 font-black cursor-not-allowed"
               >
-                JOIN RALLY PLUS — $2.99/MO
+                RALLY PLUS — COMING SOON
               </button>
             </div>
           )}

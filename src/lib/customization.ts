@@ -174,3 +174,52 @@ export function getRoomThemeStyle(theme?: ShopItem | null): { containerClass: st
       return { containerClass: "bg-[#fffdf7]", bgStyle: {} };
   }
 }
+
+// Helper: Get Item Card Preview Icon/Badge
+export function getItemPreviewIcon(item?: ShopItem | null): string {
+  if (!item) return "🎁";
+  const val = (item.asset_value || item.slug || "").toLowerCase();
+
+  if (item.category === "victory") {
+    if (val.includes("firework")) return "🎆";
+    if (val.includes("lightning") || val.includes("storm")) return "⚡";
+    if (val.includes("flame") || val.includes("dragon") || val.includes("fire")) return "🔥";
+    if (val.includes("crown") || val.includes("king")) return "👑";
+    if (val.includes("galaxy") || val.includes("supernova")) return "🌌";
+    if (val.includes("confetti")) return "🎊";
+    return "🎉";
+  }
+
+  if (item.category === "room_theme") {
+    if (val.includes("arcade")) return "🕹️";
+    if (val.includes("neon")) return "🌃";
+    if (val.includes("space")) return "🚀";
+    if (val.includes("galaxy")) return "🌌";
+    if (val.includes("fire") || val.includes("volcano")) return "🌋";
+    if (val.includes("cyber")) return "🌆";
+    if (val.includes("royal") || val.includes("palace")) return "🏰";
+    if (val.includes("legend") || val.includes("hall")) return "👑";
+    return "🎮";
+  }
+
+  if (item.category === "name_effect") {
+    if (val.includes("sparkle")) return "✨";
+    if (val.includes("flame")) return "🔥";
+    if (val.includes("lightning")) return "⚡";
+    if (val.includes("rainbow")) return "🌈";
+    if (val.includes("diamond")) return "💎";
+    if (val.includes("royal")) return "👑";
+    return "✨";
+  }
+
+  if (item.category === "name_color") return "🎨";
+  if (item.category === "title") return "🏆";
+  if (item.category === "banner") return "🚩";
+  if (item.category === "background") return "🖼️";
+  if (item.category === "frame") return "⭕";
+  if (item.category === "badge") return item.asset_value || "🎖️";
+  if (item.category === "avatar") return item.asset_value || "👤";
+  if (item.category === "emote") return item.asset_value || "😀";
+
+  return item.asset_value || "🎁";
+}
