@@ -1,242 +1,30 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
-import { sounds } from "@/lib/audio";
-import { Timer, Flame, Snowflake, ArrowUp, ArrowDown, Target, HelpCircle } from "lucide-react";
+import { Target } from "lucide-react";
 
-interface NumberGuessGameProps {
+export function NumberGuessGame({ room, players, meSeat, onAct, busy }: {
   room: Room;
   players: RoomPlayer[];
   meSeat: number;
   isMyTurn: boolean;
   onAct: (action: string, value?: string) => Promise<void>;
-}
-
-export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: NumberGuessGameProps) {
+  busy?: boolean;
+}) {
   const state = (room.public_state || {}) as Record<string, any>;
-  const pickerSeat = state.pickerSeat || 1;
-  const guesserSeat = state.guesserSeat || (pickerSeat === 1 ? 2 : 1);
-  const targetPicked = state.targetPicked || false;
-  const targetNumber = state.targetNumber; // Secret target (visible only to picker)
-  const lastGuess = state.lastGuess;
-  const hintType = state.hintType; // 'very_close' | 'far' | 'higher' | 'lower' | 'correct'
-  const isPicker = meSeat === pickerSeat;
-  const isGuesser = meSeat === guesserSeat;
-  const turn = state.turn || guesserSeat;
+  const round = state.round || 1;
+  const guesses = (state.guesses || {}) as Record<string, number>;
+  const mine = guesses[String(meSeat)];
+  const scores = (state.scores || {}) as Record<string, number>;
 
-  const attemptsLeft = state.attemptsLeft !== undefined ? state.attemptsLeft : 3;
-  const [inputVal, setInputVal] = useState("");
-  const [timeLeft, setTimeLeft] = useState<number>(45);
-
-  // A hunt has one clock. Previously this effect restarted every time a guess
-  // arrived, which silently gave the guesser a fresh 45 seconds per attempt.
-  useEffect(() => {
-    if (!targetPicked || room.status !== "playing") return;
-
-    let isMounted = true;
-    const timeoutId = setTimeout(() => {
-      if (isMounted) setTimeLeft(45);
-    }, 0);
-
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          if (isGuesser) {
-            onAct("time_expired");
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
-      clearInterval(interval);
-    };
-  }, [targetPicked, room.status, isGuesser]);
-
-  const handlePickSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const num = parseInt(inputVal, 10);
-    if (isNaN(num) || num < 1 || num > 100) return;
-
-    sounds.playClickSound();
-    onAct("set_target", num.toString());
-    setInputVal("");
-  };
-
-  const handleGuessSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const num = parseInt(inputVal, 10);
-    if (isNaN(num) || num < 1 || num > 100) return;
-
-    sounds.playClickSound();
-    onAct("guess", num.toString());
-    setInputVal("");
-  };
-
-  const pickerPlayer = players.find((p) => p.seat === pickerSeat);
-  const guesserPlayer = players.find((p) => p.seat === guesserSeat);
-
-  return (
-    <div className="flex flex-col items-center gap-6 p-4 w-full max-w-xl mx-auto">
-      {/* Game Stage Info Card */}
-      <div className="w-full bg-slate-900 border-2 border-slate-800 text-white rounded-3xl p-6 shadow-xl flex flex-col items-center gap-5 text-center">
-        <div className="flex items-center gap-3">
-          <span className="text-3xl">🔢</span>
-          <div>
-            <h3 className="font-black text-base uppercase tracking-wider text-amber-400">Number Hunt: Signal Search</h3>
-            <p className="text-xs text-slate-300">
-              One player hides a signal in sectors 1–100. The hunter follows the radar—higher, lower, hot, or cold—before the signal fades.
-            </p>
-          </div>
-        </div>
-
-        {/* Status Message */}
-        {state.message && (
-          <div className="w-full bg-slate-800/90 border border-slate-700 text-amber-300 font-bold text-xs px-4 py-2.5 rounded-2xl animate-in fade-in">
-            {state.message}
-          </div>
-        )}
-
-        {/* Phase 1: Picker Secret Number Selection */}
-        {!targetPicked && (
-          <div className="w-full flex flex-col items-center gap-4 py-4">
-            {isPicker ? (
-              <form onSubmit={handlePickSubmit} className="w-full flex flex-col items-center gap-3">
-                <label className="text-sm font-black text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                  <Target className="w-4 h-4" /> Hide the Signal in Sector 1–100
-                </label>
-                <div className="flex gap-2 w-full max-w-xs">
-                  <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={inputVal}
-                    onChange={(e) => setInputVal(e.target.value)}
-                    placeholder="Choose a sector"
-                    className="flex-1 px-4 py-3 bg-slate-950 border-2 border-amber-500/50 rounded-2xl text-white font-black text-center text-lg focus:outline-none focus:border-amber-400"
-                    autoFocus
-                  />
-                  <button
-                    type="submit"
-                    className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:scale-105 text-white font-black text-sm uppercase rounded-2xl shadow-lg transition-all"
-                  >
-                    Lock 🔒
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
-                <HelpCircle className="w-10 h-10 text-amber-400 animate-pulse" />
-                <p className="text-xs font-bold">
-                  Waiting for {pickerPlayer?.profile?.display_name || `Player ${pickerSeat}`} to hide the signal...
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Phase 2: Guesser 45-Second / 3-Tries Guessing Duel */}
-        {targetPicked && (
-          <div className="w-full flex flex-col items-center gap-6 py-2">
-            {/* Countdown & Attempts Row */}
-            <div className="w-full flex flex-col items-center gap-3">
-              <div className="flex items-center justify-between w-full px-2">
-                <div className="flex items-center gap-2 text-red-400 font-black text-sm uppercase tracking-wider">
-                  <Timer className="w-5 h-5 animate-spin" />
-                  <span>Signal: <strong className="text-xl text-white">{timeLeft}s</strong></span>
-                </div>
-                <div className="flex items-center gap-1 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-amber-400 text-xs font-black">
-                  <span>Tries Left:</span>
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <span key={i} className={`text-base ${i < attemptsLeft ? "opacity-100 scale-110" : "opacity-30 grayscale"}`}>
-                      🎯
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
-                <div
-                  className={`h-full transition-all duration-1000 ${
-                    timeLeft <= 5 ? "bg-red-600 animate-pulse" : "bg-gradient-to-r from-amber-500 to-red-500"
-                  }`}
-                  style={{ width: `${(timeLeft / 45) * 100}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Last Guess Clue Badges */}
-            {lastGuess !== null && lastGuess !== undefined && (
-              <div className="flex flex-col items-center gap-2 bg-slate-950/80 p-4 rounded-2xl border border-slate-800 w-full">
-                <span className="text-xs font-bold text-slate-400">Last scanned sector: <strong className="text-white text-sm">{lastGuess}</strong></span>
-                <div className="flex flex-wrap justify-center gap-2 mt-1">
-                  {Math.abs((targetNumber || 0) - lastGuess) <= 5 && (
-                    <span className="inline-flex items-center gap-1.5 bg-red-500/20 text-red-400 border border-red-500/40 px-3 py-1 rounded-xl text-xs font-black">
-                      <Flame className="w-4 h-4 text-red-500" /> 🔥 Very close
-                    </span>
-                  )}
-                  {Math.abs((targetNumber || 0) - lastGuess) > 25 && (
-                    <span className="inline-flex items-center gap-1.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 px-3 py-1 rounded-xl text-xs font-black">
-                      <Snowflake className="w-4 h-4 text-cyan-400" /> 🥶 Far
-                    </span>
-                  )}
-                  {(targetNumber || 0) > lastGuess && (
-                    <span className="inline-flex items-center gap-1.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-3 py-1 rounded-xl text-xs font-black">
-                      <ArrowUp className="w-4 h-4" /> ⬆️ Higher
-                    </span>
-                  )}
-                  {(targetNumber || 0) < lastGuess && (
-                    <span className="inline-flex items-center gap-1.5 bg-purple-500/20 text-purple-400 border border-purple-500/40 px-3 py-1 rounded-xl text-xs font-black">
-                      <ArrowDown className="w-4 h-4" /> ⬇️ Lower
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Guesser Input Form */}
-            {isGuesser ? (
-              <form onSubmit={handleGuessSubmit} className="w-full flex flex-col items-center gap-3">
-                <label className="text-xs font-black text-emerald-400 uppercase tracking-wider">
-                  Scan a sector (1–100):
-                </label>
-                <div className="flex gap-2 w-full max-w-xs">
-                  <input
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={inputVal}
-                    onChange={(e) => setInputVal(e.target.value)}
-                    placeholder="Sector #"
-                    className="flex-1 px-4 py-3 bg-slate-950 border-2 border-emerald-500/50 rounded-2xl text-white font-black text-center text-lg focus:outline-none focus:border-emerald-400"
-                    autoFocus
-                  />
-                  <button
-                    type="submit"
-                    className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:scale-105 text-white font-black text-sm uppercase rounded-2xl shadow-lg transition-all"
-                  >
-                    Guess 🎯
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="text-xs font-bold text-slate-400 animate-pulse">
-                {guesserPlayer?.profile?.display_name || `Player ${guesserSeat}`} is tracking the signal...
-                {isPicker && targetNumber && (
-                  <span className="block mt-2 text-amber-300 font-extrabold text-sm">
-                    Your hidden signal: Sector {targetNumber} 🤫
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+  return <div className="mx-auto max-w-2xl space-y-5 text-center">
+    <div className="rounded-3xl border-4 border-slate-950 bg-slate-900 p-5 text-white shadow-[6px_6px_0_#171821]">
+      <div className="flex items-center justify-center gap-3"><span className="text-3xl">🔎</span><div className="text-left"><p className="text-[10px] font-black uppercase tracking-widest text-cyan-300">Number Hunt: Grid Rush</p><h3 className="text-lg font-black">Round {round} of 5</h3></div></div>
+      <p className="mt-3 text-sm text-slate-300">Everyone secretly picks one tile. Find the hidden number to score 100 points—then a new number appears.</p>
+      <div className="mt-4 flex justify-center gap-3 text-xs font-black">{players.map((player) => <span key={player.seat} className="rounded-full bg-white/10 px-3 py-1">P{player.seat}: {scores[String(player.seat)] || 0}</span>)}</div>
     </div>
-  );
+    {state.message && <p className="rounded-xl border-2 border-slate-950 bg-[#f4dc69] px-4 py-2 text-sm font-black">{state.message}</p>}
+    {mine ? <div className="rounded-2xl border-2 border-slate-950 bg-emerald-50 p-6 shadow-[4px_4px_0_#171821]"><Target className="mx-auto text-emerald-600" /><p className="mt-2 font-black">Tile {mine} locked in.</p><p className="mt-1 text-sm text-slate-600">Waiting for the other hunters…</p></div> :
+      <div className="grid grid-cols-5 gap-2 sm:gap-3">{Array.from({ length: 25 }, (_, index) => index + 1).map((tile) => <button key={tile} disabled={busy} onClick={() => onAct("choose", String(tile))} className="aspect-square rounded-xl border-2 border-slate-950 bg-[#e0f2fe] text-lg font-black shadow-[3px_3px_0_#171821] transition hover:-translate-y-1 hover:bg-cyan-300 disabled:opacity-50">{tile}</button>)}</div>}
+  </div>;
 }

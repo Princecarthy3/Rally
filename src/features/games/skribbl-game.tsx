@@ -4,7 +4,6 @@ import { Eraser, Paintbrush, RotateCcw, Send, Sparkles } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { sounds } from "@/lib/audio";
 
 const WORD_BANK = [
   "Apple", "Banana", "House", "Cat", "Dog", "Sun", "Moon", "Tree", "Car", "Fish",
@@ -29,6 +28,16 @@ interface StrokeData {
   y1: number;
   color: string;
   size: number;
+}
+
+function fallbackWords(excluded: string[]) {
+  const blocked = new Set(excluded.map((word) => word.toLowerCase()));
+  const pool = WORD_BANK.filter((word) => !blocked.has(word.toLowerCase()));
+  const choices: string[] = [];
+  while (choices.length < 3 && pool.length) {
+    choices.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+  }
+  return choices;
 }
 
 export function SkribblGame({
@@ -56,13 +65,12 @@ export function SkribblGame({
   const [brushSize, setBrushSize] = useState(6);
   const [tool, setTool] = useState<"brush" | "eraser">("brush");
   const [guess, setGuess] = useState("");
-  const [guessFeed, setGuessFeed] = useState<{ sender: string; text: string; correct?: boolean }[]>([]);
+  const [secondsLeft, setSecondsLeft] = useState(80);
 
   const prevPos = useRef<{ x: number; y: number } | null>(null);
   const channelRef = useRef<any>(null);
 
   const [wordChoices, setWordChoices] = useState<string[]>([]);
-  const [loadingAiWords, setLoadingAiWords] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -76,30 +84,31 @@ export function SkribblGame({
           if (data.words && Array.isArray(data.words) && data.words.length === 3) {
             setWordChoices(data.words);
           } else {
-            const pool = [...WORD_BANK];
-            const choices: string[] = [];
-            for (let i = 0; i < 3; i++) {
-              const idx = Math.floor(Math.random() * pool.length);
-              choices.push(pool.splice(idx, 1)[0]);
-            }
-            setWordChoices(choices);
+            setWordChoices(fallbackWords(usedWords));
           }
         })
         .catch(() => {
           if (ignore) return;
-          const pool = [...WORD_BANK];
-          const choices: string[] = [];
-          for (let i = 0; i < 3; i++) {
-            const idx = Math.floor(Math.random() * pool.length);
-            choices.push(pool.splice(idx, 1)[0]);
-          }
-          setWordChoices(choices);
+          setWordChoices(fallbackWords(usedWords));
         });
     }
     return () => {
       ignore = true;
     };
   }, [isDrawer, wordSelected, room.id, room.match_number, state.round, drawerSeat, state.usedWords]);
+
+  useEffect(() => {
+    if (!wordSelected || !state.roundStartedAt || room.status !== "playing") return;
+    const tick = () => setSecondsLeft(Math.max(0, 80 - Math.floor((Date.now() - Number(state.roundStartedAt)) / 1000)));
+    tick();
+    const interval = window.setInterval(tick, 1000);
+    return () => window.clearInterval(interval);
+  }, [wordSelected, state.roundStartedAt, room.status]);
+
+  useEffect(() => {
+    if (secondsLeft !== 0 || !wordSelected || !isDrawer) return;
+    void act("time_expired");
+  }, [secondsLeft, wordSelected, isDrawer, act]);
 
 
 
@@ -231,15 +240,6 @@ export function SkribblGame({
     const val = guess.trim();
     setGuess("");
 
-    const isCorrect = Boolean(wordSelected && val.toLowerCase() === wordSelected.toLowerCase());
-    const senderName = me?.profile?.display_name || `Player ${me?.seat}`;
-
-    setGuessFeed((prev) => [...prev, { sender: senderName, text: val, correct: isCorrect }]);
-
-    if (isCorrect) {
-      sounds.playWinSound();
-    }
-
     await act("guess", val);
   };
 
@@ -296,6 +296,7 @@ export function SkribblGame({
           </h3>
         </div>
         <div className="text-right">
+          <p className={`text-xl font-black ${secondsLeft <= 10 ? "text-red-400" : "text-cyan-300"}`}>⏱ {secondsLeft}s</p>
           <span className="text-[10px] font-bold opacity-60">DRAWER</span>
           <p className="text-xs font-black text-amber-300">
             Player {drawerSeat} {isDrawer ? "(YOU)" : ""}
@@ -406,16 +407,16 @@ export function SkribblGame({
       )}
 
       {/* Recent Guesses */}
-      {guessFeed.length > 0 && (
+      {Array.isArray(state.guessFeed) && state.guessFeed.length > 0 && (
         <div className="max-h-28 overflow-y-auto space-y-1.5 rounded-2xl border-2 border-slate-950 bg-slate-50 p-3 text-xs font-bold">
-          {guessFeed.slice(-4).map((g, i) => (
+          {state.guessFeed.slice(-8).map((g: { seat: number; text: string; correct?: boolean }, i: number) => (
             <div
               key={i}
               className={`flex justify-between rounded-lg px-2 py-1 ${
                 g.correct ? "bg-emerald-100 text-emerald-800 border border-emerald-400" : "bg-white"
               }`}
             >
-              <span>{g.sender}: {g.text}</span>
+              <span>{players.find((player) => player.seat === g.seat)?.profile?.display_name || `Player ${g.seat}`}: {g.text}</span>
               {g.correct && <span className="font-black">🎯 CORRECT!</span>}
             </div>
           ))}

@@ -75,27 +75,9 @@ export async function POST(request: Request) {
         value = String(availableColumns[Math.floor(Math.random() * availableColumns.length)]);
       }
     } else if (gameType === "number_guess") {
-      const pickerSeat = state.pickerSeat || 1;
-      const guesserSeat = state.guesserSeat || 2;
-      if (pickerSeat === botSeat && !state.targetPicked) {
-        action = "set_target";
-        value = String(1 + Math.floor(Math.random() * 100));
-      } else if (guesserSeat === botSeat && state.targetPicked) {
-        action = "guess";
-        const lastGuess = state.lastGuess;
-        const msg: string = state.message || "";
-        if (lastGuess !== null && lastGuess !== undefined) {
-          const delta = Math.floor(Math.random() * 8) + 1;
-          if (msg.includes("TOO LOW")) {
-            value = String(Math.min(100, lastGuess + delta));
-          } else if (msg.includes("TOO HIGH")) {
-            value = String(Math.max(1, lastGuess - delta));
-          } else {
-            value = String(Math.min(100, Math.max(1, lastGuess + (Math.random() > 0.5 ? delta : -delta))));
-          }
-        } else {
-          value = String(40 + Math.floor(Math.random() * 20));
-        }
+      if (!state.guesses?.[botSeat]) {
+        action = "choose";
+        value = String(1 + Math.floor(Math.random() * 25));
       }
     } else if (gameType === "dots_boxes") {
       action = "line";
@@ -134,7 +116,7 @@ export async function POST(request: Request) {
     } else if (gameType === "skribbl") {
       if (state.drawerSeat === botSeat && !state.wordSelected) {
         action = "select_word";
-        const aiWords = await generateSkribblWordsAI();
+        const aiWords = await generateSkribblWordsAI(`${roomId}:${state.round || 1}`, state.usedWords || []);
         value = aiWords[0] || "Pikachu";
       } else if (state.drawerSeat !== botSeat && state.wordSelected) {
         action = "guess";
@@ -146,12 +128,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "No action required" });
     }
 
-    const rpc = gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_bot_rps_move" : "play_room_action";
+    const rpc = gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_rps_action" : gameType === "number_guess" ? "play_number_hunt_action" : gameType === "skribbl" ? "play_skribbl_action" : "play_room_action";
     // `play_bot_rps_move` intentionally has no p_action argument. Sending the
     // generic payload made PostgREST fail function resolution, so the bot
     // appeared to think forever without ever locking in a hand.
-    const params = gameType === "rps"
+    const params = gameType === "number_guess"
       ? { p_room: roomId, p_value: value, p_actor_seat: botSeat }
+      : gameType === "rps"
+      ? { p_room: roomId, p_action: action, p_value: value, p_actor_seat: botSeat }
       : { p_room: roomId, p_action: action, p_value: value, p_actor_seat: botSeat };
     const { data, error } = await supabase.rpc(rpc, params);
 

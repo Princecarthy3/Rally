@@ -46,11 +46,9 @@ export function GameBoard({
     if (!supabase) return;
     setBusy(true);
     setError("");
-    const { error } = await supabase.rpc(room.game_type === "ludo" ? "play_ludo_action" : "play_room_action", {
-      p_room: room.id,
-      p_action: action,
-      p_value: value ?? null,
-    });
+    const rpc = room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "skribbl" ? "play_skribbl_action" : "play_room_action";
+    const params = room.game_type === "number_guess" ? { p_room: room.id, p_value: value ?? null } : { p_room: room.id, p_action: action, p_value: value ?? null };
+    const { error } = await supabase.rpc(rpc, params);
     if (error) setError(error.message);
     setBusy(false);
   }
@@ -77,7 +75,7 @@ export function GameBoard({
       isBotTurn = !s.choices?.[botSeat];
     } else if (room.game_type === "skribbl") {
       if (s.drawerSeat === botSeat && !s.wordSelected) isBotTurn = true;
-      if (s.drawerSeat !== botSeat && s.wordSelected && !s.scores?.[botSeat]) isBotTurn = true;
+      if (s.drawerSeat !== botSeat && s.wordSelected && !s.guessedSeats?.includes(botSeat)) isBotTurn = true;
     }
 
     if (!isBotTurn) return;
@@ -163,6 +161,7 @@ export function GameBoard({
               meSeat={me?.seat || 1}
               isMyTurn={state.turn === me?.seat}
               onAct={act}
+              busy={busy}
             />
           )}
           {room.game_type === "tic_tac_toe" && (
