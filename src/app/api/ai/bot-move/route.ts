@@ -75,8 +75,12 @@ export async function POST(request: Request) {
         value = String(availableColumns[Math.floor(Math.random() * availableColumns.length)]);
       }
     } else if (gameType === "number_guess") {
-      if (!state.guesses?.[botSeat]) {
-        action = "choose";
+      const isPicker = (state.pickerSeat || 1) === botSeat;
+      if (isPicker && !state.targetPicked) {
+        action = "set_target";
+        value = String(1 + Math.floor(Math.random() * 25));
+      } else if (!isPicker && state.targetPicked && !state.guesses?.[botSeat]) {
+        action = "guess";
         value = String(1 + Math.floor(Math.random() * 25));
       }
     } else if (gameType === "dots_boxes") {
@@ -129,14 +133,7 @@ export async function POST(request: Request) {
     }
 
     const rpc = gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_rps_action" : gameType === "number_guess" ? "play_number_hunt_action" : gameType === "skribbl" ? "play_skribbl_action" : "play_room_action";
-    // `play_bot_rps_move` intentionally has no p_action argument. Sending the
-    // generic payload made PostgREST fail function resolution, so the bot
-    // appeared to think forever without ever locking in a hand.
-    const params = gameType === "number_guess"
-      ? { p_room: roomId, p_value: value, p_actor_seat: botSeat }
-      : gameType === "rps"
-      ? { p_room: roomId, p_action: action, p_value: value, p_actor_seat: botSeat }
-      : { p_room: roomId, p_action: action, p_value: value, p_actor_seat: botSeat };
+    const params = { p_room: roomId, p_action: action, p_value: value, p_actor_seat: botSeat };
     const { data, error } = await supabase.rpc(rpc, params);
 
     if (error) {
