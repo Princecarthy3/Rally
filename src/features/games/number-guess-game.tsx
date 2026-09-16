@@ -32,7 +32,7 @@ export function NumberGuessGame({ room, players, meSeat, onAct, busy }: {
     {!targetPicked && !isPicker && <div className="rounded-2xl border-2 border-slate-950 bg-slate-100 p-6 font-bold">{pickerName} is choosing a secret number…</div>}
     {targetPicked && isPicker && <div className="rounded-2xl border-2 border-slate-950 bg-violet-50 p-6 font-bold"><LockKeyhole className="mx-auto text-violet-700" /><p className="mt-2">Your number is hidden. Watch the hunters make their picks.</p></div>}
     {(!targetPicked && isPicker || targetPicked && !isPicker && !myGuess) && <>
-      <p className="font-black">{isPicker ? "Choose a secret number hidden from every other player." : "Pick the number you think is hidden."}</p>
+      <p className="font-black">{isPicker ? "Pick a hidden number — your friends won’t see it" : "Pick the number you think is hidden."}</p>
       <div className="grid grid-cols-5 gap-2 sm:gap-3">{Array.from({ length: 25 }, (_, i) => i + 1).map((tile) => <button key={tile} onClick={() => setSelected(tile)} disabled={busy} className={`aspect-square rounded-xl border-2 border-slate-950 text-lg font-black shadow-[3px_3px_0_#171821] ${selected === tile ? "bg-cyan-400 ring-4 ring-cyan-200" : "bg-[#e0f2fe] hover:bg-cyan-200"}`}>{tile}</button>)}</div>
       <button disabled={!selected || busy} onClick={choose} className="arcade-button mx-auto bg-[#7357ff] text-white shadow-[4px_4px_0_#171821]">{isPicker ? <><LockKeyhole size={16}/> HIDE {selected || ""}</> : <><Search size={16}/> GUESS {selected || ""}</>}</button>
     </>}

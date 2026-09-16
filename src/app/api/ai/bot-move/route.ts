@@ -75,11 +75,17 @@ export async function POST(request: Request) {
         value = String(availableColumns[Math.floor(Math.random() * availableColumns.length)]);
       }
     } else if (gameType === "number_guess") {
-      const isPicker = (state.pickerSeat || 1) === botSeat;
-      if (isPicker && !state.targetPicked) {
+      // Normalize types and handle string-keyed guess objects safely so the bot can act reliably
+      const pickerSeat = Number(state.pickerSeat ?? 1);
+      const targetPicked = Boolean(state.targetPicked);
+      const guesses = state.guesses || {};
+      const hasGuessed = Object.prototype.hasOwnProperty.call(guesses, String(botSeat));
+      const isPicker = pickerSeat === Number(botSeat);
+
+      if (isPicker && !targetPicked) {
         action = "set_target";
         value = String(1 + Math.floor(Math.random() * 25));
-      } else if (!isPicker && state.targetPicked && !state.guesses?.[botSeat]) {
+      } else if (!isPicker && targetPicked && !hasGuessed) {
         action = "guess";
         value = String(1 + Math.floor(Math.random() * 25));
       }
