@@ -814,3 +814,41 @@ create trigger rally_reward_completed_game after insert on public.game_results f
 
 grant execute on function public.claim_daily_reward(), public.purchase_shop_item(uuid), public.equip_shop_item(uuid), public.unequip_shop_item(text), public.update_profile_bio(text, text) to authenticated;
 
+-- Leaderboard RPC function: ranks all signed-up players by XP
+create or replace function public.get_leaderboard(p_limit int default 50) returns table(
+  user_id uuid,
+  display_name text,
+  avatar_url text,
+  xp int,
+  level int,
+  wins int,
+  games_played int,
+  customization jsonb
+) language plpgsql security definer set search_path='' as $$
+begin
+  return query
+  select
+    p.id as user_id,
+    p.display_name,
+    p.avatar_url,
+    coalesce(ul.xp, 0) as xp,
+    coalesce(ul.level, 1) as level,
+    p.wins,
+    p.games_played,
+    jsonb_build_object(
+      'avatar', (select to_jsonb(s) from public.shop_items s where s.id = uc.avatar_id),
+      'frame', (select to_jsonb(s) from public.shop_items s where s.id = uc.frame_id),
+      'title', (select to_jsonb(s) from public.shop_items s where s.id = uc.title_id),
+      'name_color', (select to_jsonb(s) from public.shop_items s where s.id = uc.name_color_id),
+      'name_effect', (select to_jsonb(s) from public.shop_items s where s.id = uc.name_effect_id)
+    ) as customization
+  from public.profiles p
+  left join public.user_levels ul on ul.user_id = p.id
+  left join public.user_customization uc on uc.user_id = p.id
+  order by coalesce(ul.xp, 0) desc, p.wins desc, p.games_played desc
+  limit p_limit;
+end $$;
+
+grant execute on function public.get_leaderboard(int) to authenticated, anon;
+
+

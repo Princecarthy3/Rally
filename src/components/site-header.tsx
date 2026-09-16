@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleDollarSign, History, LayoutGrid, LogOut, Settings, Share2, ShoppingBag, UserRound } from "lucide-react";
+import { CircleDollarSign, History, LayoutGrid, LogOut, Settings, Share2, ShoppingBag, Trophy, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -15,6 +15,7 @@ import { CoinWalletModal } from "@/components/customization/coin-wallet-modal";
 
 const links = [
   { href: "/dashboard", label: "Home", icon: LayoutGrid },
+  { href: "/leaderboard", label: "Rankings", icon: Trophy },
   { href: "/history", label: "History", icon: History },
   { href: "/shop", label: "Shop", icon: ShoppingBag },
   { href: "/profile", label: "Profile", icon: UserRound },

@@ -60,7 +60,7 @@ const cosmeticBundles = [
 ];
 
 export default function ShopPage() {
-  const { user, profile, customization, balance, streak, claimDaily, equipItem, refreshCustomization } = useAuth();
+  const { user, profile, customization, balance, streak, claimDaily, equipItem, unequipCategory, refreshCustomization } = useAuth();
   const [items, setItems] = useState<ShopItem[]>([]);
   const [owned, setOwned] = useState<string[]>([]);
   const [category, setCategory] = useState("all");
@@ -140,14 +140,44 @@ export default function ShopPage() {
     setBusy(null);
   }
 
+  const [localEquippedIds, setLocalEquippedIds] = useState<string[]>([]);
+
+  const equippedIds = useMemo(() => {
+    const ids: string[] = [...localEquippedIds];
+    if (customization) {
+      if (customization.avatar?.id) ids.push(customization.avatar.id);
+      if (customization.frame?.id) ids.push(customization.frame.id);
+      if (customization.banner?.id) ids.push(customization.banner.id);
+      if (customization.background?.id) ids.push(customization.background.id);
+      if (customization.title?.id) ids.push(customization.title.id);
+      if (customization.name_color?.id) ids.push(customization.name_color.id);
+      if (customization.name_effect?.id) ids.push(customization.name_effect.id);
+      if (customization.victory?.id) ids.push(customization.victory.id);
+      if (customization.room_theme?.id) ids.push(customization.room_theme.id);
+      customization.badges?.forEach((b) => ids.push(b.id));
+    }
+    return Array.from(new Set(ids));
+  }, [customization, localEquippedIds]);
+
   async function equip(item: ShopItem) {
     setBusy(item.id);
-    const success = await equipItem(item.id);
-    if (success) {
-      setNotice(`${item.name} equipped successfully!`);
+    const isCurrentlyEquipped = equippedIds.includes(item.id);
+
+    if (isCurrentlyEquipped) {
+      setLocalEquippedIds((prev) => prev.filter((id) => id !== item.id));
+      await unequipCategory(item.category);
+      setNotice(`${item.name} unequipped.`);
     } else {
-      setNotice(`Could not equip ${item.name}.`);
+      setLocalEquippedIds((prev) => [...prev, item.id]);
+      const success = await equipItem(item.id);
+      if (success) {
+        setNotice(`${item.name} equipped!`);
+      } else {
+        setLocalEquippedIds((prev) => prev.filter((id) => id !== item.id));
+        setNotice(`Could not equip ${item.name}.`);
+      }
     }
+    await refreshCustomization();
     setBusy(null);
   }
 
@@ -178,22 +208,6 @@ export default function ShopPage() {
   function toggleFavorite(itemId: string) {
     setFavorites((prev) => (prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]));
   }
-
-  const equippedIds = useMemo(() => {
-    if (!customization) return [];
-    const ids: string[] = [];
-    if (customization.avatar?.id) ids.push(customization.avatar.id);
-    if (customization.frame?.id) ids.push(customization.frame.id);
-    if (customization.banner?.id) ids.push(customization.banner.id);
-    if (customization.background?.id) ids.push(customization.background.id);
-    if (customization.title?.id) ids.push(customization.title.id);
-    if (customization.name_color?.id) ids.push(customization.name_color.id);
-    if (customization.name_effect?.id) ids.push(customization.name_effect.id);
-    if (customization.victory?.id) ids.push(customization.victory.id);
-    if (customization.room_theme?.id) ids.push(customization.room_theme.id);
-    customization.badges?.forEach((b) => ids.push(b.id));
-    return ids;
-  }, [customization]);
 
   return (
     <ProtectedPage>

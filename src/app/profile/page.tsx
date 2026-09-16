@@ -89,21 +89,7 @@ export default function ProfilePage() {
     return { avatars, frames, badges, themes };
   }, [ownedItems]);
 
-  const equippedIds = useMemo(() => {
-    if (!customization) return [];
-    const ids: string[] = [];
-    if (customization.avatar?.id) ids.push(customization.avatar.id);
-    if (customization.frame?.id) ids.push(customization.frame.id);
-    if (customization.banner?.id) ids.push(customization.banner.id);
-    if (customization.background?.id) ids.push(customization.background.id);
-    if (customization.title?.id) ids.push(customization.title.id);
-    if (customization.name_color?.id) ids.push(customization.name_color.id);
-    if (customization.name_effect?.id) ids.push(customization.name_effect.id);
-    if (customization.victory?.id) ids.push(customization.victory.id);
-    if (customization.room_theme?.id) ids.push(customization.room_theme.id);
-    customization.badges?.forEach((b) => ids.push(b.id));
-    return ids;
-  }, [customization]);
+
 
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -195,11 +181,32 @@ export default function ProfilePage() {
     setBusy(false);
   }
 
+  const [localEquippedIds, setLocalEquippedIds] = useState<string[]>([]);
+
+  const equippedIds = useMemo(() => {
+    const ids: string[] = [...localEquippedIds];
+    if (customization) {
+      if (customization.avatar?.id) ids.push(customization.avatar.id);
+      if (customization.frame?.id) ids.push(customization.frame.id);
+      if (customization.banner?.id) ids.push(customization.banner.id);
+      if (customization.background?.id) ids.push(customization.background.id);
+      if (customization.title?.id) ids.push(customization.title.id);
+      if (customization.name_color?.id) ids.push(customization.name_color.id);
+      if (customization.name_effect?.id) ids.push(customization.name_effect.id);
+      if (customization.victory?.id) ids.push(customization.victory.id);
+      if (customization.room_theme?.id) ids.push(customization.room_theme.id);
+      customization.badges?.forEach((b) => ids.push(b.id));
+    }
+    return Array.from(new Set(ids));
+  }, [customization, localEquippedIds]);
+
   async function toggleEquip(item: ShopItem) {
     const isEquipped = equippedIds.includes(item.id);
     if (isEquipped) {
+      setLocalEquippedIds((prev) => prev.filter((id) => id !== item.id));
       await unequipCategory(item.category);
     } else {
+      setLocalEquippedIds((prev) => [...prev, item.id]);
       await equipItem(item.id);
     }
     await refreshCustomization();
