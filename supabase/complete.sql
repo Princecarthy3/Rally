@@ -562,3 +562,255 @@ grant execute on function public.play_room_action(uuid,text,text,int) to anon, a
 -- Realtime publication (safe if already added).
 do $$ begin alter publication supabase_realtime add table public.game_rooms; exception when duplicate_object then null; end $$;
 do $$ begin alter publication supabase_realtime add table public.game_players; exception when duplicate_object then null; end $$;
+
+-- ============================================================================
+-- RALLY COINS, COSMETICS & CUSTOMIZATION SYSTEM
+-- ============================================================================
+
+create table if not exists public.user_wallets (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  balance integer not null default 500 check (balance >= 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.coin_transactions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  amount integer not null check (amount <> 0),
+  transaction_type text not null,
+  description text not null,
+  reference_id text,
+  created_at timestamptz not null default now(),
+  unique(user_id, transaction_type, reference_id)
+);
+
+create table if not exists public.shop_items (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  name text not null,
+  description text not null,
+  category text not null check(category in ('avatar','frame','banner','background','title','name_color','name_effect','badge','victory','room_theme','emote')),
+  rarity text not null check(rarity in ('common','uncommon','rare','epic','legendary','mythic')),
+  price integer not null check(price >= 0),
+  asset_value text,
+  active boolean not null default true,
+  limited boolean not null default false,
+  event_ends_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.user_inventory (
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  item_id uuid not null references public.shop_items(id) on delete cascade,
+  acquired_at timestamptz not null default now(),
+  primary key(user_id, item_id)
+);
+
+create table if not exists public.user_customization (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  avatar_id uuid references public.shop_items(id),
+  frame_id uuid references public.shop_items(id),
+  banner_id uuid references public.shop_items(id),
+  background_id uuid references public.shop_items(id),
+  title_id uuid references public.shop_items(id),
+  name_color_id uuid references public.shop_items(id),
+  name_effect_id uuid references public.shop_items(id),
+  victory_id uuid references public.shop_items(id),
+  room_theme_id uuid references public.shop_items(id),
+  badge_ids uuid[] not null default '{}',
+  bio text not null default '' check(char_length(bio) <= 120),
+  status_preset text not null default 'Online',
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.daily_rewards (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  current_streak integer not null default 0,
+  last_claim_date date,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.user_levels (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  xp integer not null default 0 check(xp >= 0),
+  level integer not null default 1 check(level >= 1),
+  updated_at timestamptz not null default now()
+);
+
+-- Default provisioning triggers for new users
+insert into public.user_wallets(user_id, balance) select id, 500 from public.profiles on conflict(user_id) do nothing;
+insert into public.coin_transactions(user_id, amount, transaction_type, description, reference_id)
+select id, 500, 'welcome', 'Welcome to Rally Coins', 'welcome' from public.profiles
+on conflict(user_id, transaction_type, reference_id) do nothing;
+insert into public.user_customization(user_id) select id from public.profiles on conflict(user_id) do nothing;
+insert into public.daily_rewards(user_id) select id from public.profiles on conflict(user_id) do nothing;
+insert into public.user_levels(user_id, xp, level) select id, 0, 1 from public.profiles on conflict(user_id) do nothing;
+
+create or replace function public.create_rally_wallet() returns trigger language plpgsql security definer set search_path='' as $$
+begin
+  insert into public.user_wallets(user_id, balance) values(new.id, 500) on conflict do nothing;
+  insert into public.coin_transactions(user_id, amount, transaction_type, description, reference_id) values(new.id, 500, 'welcome', 'Welcome to Rally Coins', 'welcome') on conflict do nothing;
+  insert into public.user_customization(user_id) values(new.id) on conflict do nothing;
+  insert into public.daily_rewards(user_id) values(new.id) on conflict do nothing;
+  insert into public.user_levels(user_id, xp, level) values(new.id, 0, 1) on conflict do nothing;
+  return new;
+end $$;
+
+drop trigger if exists rally_wallet_for_profile on public.profiles;
+create trigger rally_wallet_for_profile after insert on public.profiles for each row execute procedure public.create_rally_wallet();
+
+-- Enable RLS
+alter table public.user_wallets enable row level security;
+alter table public.coin_transactions enable row level security;
+alter table public.shop_items enable row level security;
+alter table public.user_inventory enable row level security;
+alter table public.user_customization enable row level security;
+alter table public.daily_rewards enable row level security;
+alter table public.user_levels enable row level security;
+
+-- Policies
+drop policy if exists "wallet owner reads" on public.user_wallets;
+create policy "wallet owner reads" on public.user_wallets for select to authenticated using(user_id = auth.uid());
+
+drop policy if exists "transactions owner reads" on public.coin_transactions;
+create policy "transactions owner reads" on public.coin_transactions for select to authenticated using(user_id = auth.uid());
+
+drop policy if exists "active shop readable" on public.shop_items;
+create policy "active shop readable" on public.shop_items for select to authenticated using(active = true);
+
+drop policy if exists "inventory owner reads" on public.user_inventory;
+create policy "inventory owner reads" on public.user_inventory for select to authenticated using(user_id = auth.uid());
+
+drop policy if exists "customization readable" on public.user_customization;
+create policy "customization readable" on public.user_customization for select to authenticated using(true);
+
+drop policy if exists "daily owner reads" on public.daily_rewards;
+create policy "daily owner reads" on public.daily_rewards for select to authenticated using(user_id = auth.uid());
+
+drop policy if exists "levels readable" on public.user_levels;
+create policy "levels readable" on public.user_levels for select to authenticated using(true);
+
+-- Grant Read Access
+grant select on public.user_wallets, public.coin_transactions, public.shop_items, public.user_inventory, public.user_customization, public.daily_rewards, public.user_levels to authenticated;
+
+-- RPC Functions
+create or replace function public.claim_daily_reward() returns jsonb language plpgsql security definer set search_path='' as $$
+declare r public.daily_rewards; reward int; today date := current_date;
+begin
+  if auth.uid() is null then raise exception 'Sign in first'; end if;
+  select * into r from public.daily_rewards where user_id = auth.uid() for update;
+  if r.last_claim_date = today then raise exception 'Today''s reward is already claimed'; end if;
+  if r.last_claim_date = today - 1 then r.current_streak := least(r.current_streak + 1, 7); else r.current_streak := 1; end if;
+  reward := case r.current_streak when 1 then 50 when 2 then 75 when 3 then 100 when 4 then 125 when 5 then 150 when 6 then 200 else 500 end;
+  update public.daily_rewards set current_streak = r.current_streak, last_claim_date = today, updated_at = now() where user_id = auth.uid();
+  update public.user_wallets set balance = balance + reward, updated_at = now() where user_id = auth.uid();
+  insert into public.coin_transactions(user_id, amount, transaction_type, description, reference_id) values(auth.uid(), reward, 'daily_reward', 'Day ' || r.current_streak || ' daily streak', 'daily:' || today);
+  return jsonb_build_object('balance', (select balance from public.user_wallets where user_id = auth.uid()), 'reward', reward, 'streak', r.current_streak);
+end $$;
+
+create or replace function public.purchase_shop_item(p_item uuid) returns jsonb language plpgsql security definer set search_path='' as $$
+declare item public.shop_items; wallet public.user_wallets;
+begin
+  if auth.uid() is null then raise exception 'Sign in first'; end if;
+  select * into item from public.shop_items where id = p_item and active = true and (event_ends_at is null or event_ends_at > now());
+  if item.id is null then raise exception 'Item unavailable'; end if;
+  if exists(select 1 from public.user_inventory where user_id = auth.uid() and item_id = p_item) then raise exception 'Already owned'; end if;
+  select * into wallet from public.user_wallets where user_id = auth.uid() for update;
+  if wallet.balance < item.price then raise exception 'Not enough Rally Coins'; end if;
+  if item.price > 0 then
+    update public.user_wallets set balance = balance - item.price, updated_at = now() where user_id = auth.uid();
+    insert into public.coin_transactions(user_id, amount, transaction_type, description, reference_id) values(auth.uid(), -item.price, 'purchase', 'Purchased ' || item.name, item.id::text);
+  end if;
+  insert into public.user_inventory(user_id, item_id) values(auth.uid(), p_item);
+  return jsonb_build_object('balance', wallet.balance - item.price, 'item_id', item.id);
+end $$;
+
+create or replace function public.equip_shop_item(p_item uuid) returns jsonb language plpgsql security definer set search_path='' as $$
+declare item public.shop_items; badges uuid[];
+begin
+  if auth.uid() is null then raise exception 'Sign in first'; end if;
+  select * into item from public.shop_items where id = p_item and active = true;
+  if item.id is null then raise exception 'Item unavailable'; end if;
+  if item.price > 0 and not exists(select 1 from public.user_inventory where user_id = auth.uid() and item_id = p_item) then raise exception 'Purchase this item first'; end if;
+  insert into public.user_inventory(user_id, item_id) values(auth.uid(), p_item) on conflict do nothing;
+  insert into public.user_customization(user_id) values(auth.uid()) on conflict do nothing;
+  
+  if item.category = 'badge' then
+    select array(select distinct x from unnest(array_append((select badge_ids from public.user_customization where user_id = auth.uid()), p_item)) x limit 3) into badges;
+    update public.user_customization set badge_ids = badges, updated_at = now() where user_id = auth.uid();
+  else
+    update public.user_customization set
+      avatar_id = case when item.category = 'avatar' then p_item else avatar_id end,
+      frame_id = case when item.category = 'frame' then p_item else frame_id end,
+      banner_id = case when item.category = 'banner' then p_item else banner_id end,
+      background_id = case when item.category = 'background' then p_item else background_id end,
+      title_id = case when item.category = 'title' then p_item else title_id end,
+      name_color_id = case when item.category = 'name_color' then p_item else name_color_id end,
+      name_effect_id = case when item.category = 'name_effect' then p_item else name_effect_id end,
+      victory_id = case when item.category = 'victory' then p_item else victory_id end,
+      room_theme_id = case when item.category = 'room_theme' then p_item else room_theme_id end,
+      updated_at = now()
+    where user_id = auth.uid();
+  end if;
+  return jsonb_build_object('equipped', p_item);
+end $$;
+
+create or replace function public.unequip_shop_item(p_category text) returns jsonb language plpgsql security definer set search_path='' as $$
+begin
+  if auth.uid() is null then raise exception 'Sign in first'; end if;
+  update public.user_customization set
+    avatar_id = case when p_category = 'avatar' then null else avatar_id end,
+    frame_id = case when p_category = 'frame' then null else frame_id end,
+    banner_id = case when p_category = 'banner' then null else banner_id end,
+    background_id = case when p_category = 'background' then null else background_id end,
+    title_id = case when p_category = 'title' then null else title_id end,
+    name_color_id = case when p_category = 'name_color' then null else name_color_id end,
+    name_effect_id = case when p_category = 'name_effect' then null else name_effect_id end,
+    victory_id = case when p_category = 'victory' then null else victory_id end,
+    room_theme_id = case when p_category = 'room_theme' then null else room_theme_id end,
+    badge_ids = case when p_category = 'badge' then '{}'::uuid[] else badge_ids end,
+    updated_at = now()
+  where user_id = auth.uid();
+  return jsonb_build_object('unequipped', p_category);
+end $$;
+
+create or replace function public.update_profile_bio(p_bio text, p_status_preset text default 'Online') returns void language plpgsql security definer set search_path='' as $$
+begin
+  if auth.uid() is null then raise exception 'Sign in first'; end if;
+  insert into public.user_customization(user_id, bio, status_preset)
+  values(auth.uid(), left(coalesce(p_bio, ''), 120), coalesce(p_status_preset, 'Online'))
+  on conflict(user_id) do update set bio = left(coalesce(p_bio, ''), 120), status_preset = coalesce(p_status_preset, 'Online'), updated_at = now();
+end $$;
+
+-- Award Game Rewards Trigger (Coins + XP)
+create or replace function public.reward_completed_game() returns trigger language plpgsql security definer set search_path='' as $$
+declare played_added integer; win_added integer; cur_xp integer; new_xp integer; cur_lvl integer; calc_lvl integer;
+begin
+  -- Coins
+  insert into public.coin_transactions(user_id, amount, transaction_type, description, reference_id) values(new.player_id, 10, 'game_completed', 'Completed a ' || new.game_type || ' game', new.id::text) on conflict do nothing;
+  get diagnostics played_added = row_count;
+  if played_added > 0 then update public.user_wallets set balance = balance + 10, updated_at = now() where user_id = new.player_id; end if;
+  
+  if new.outcome = 'win' then
+    insert into public.coin_transactions(user_id, amount, transaction_type, description, reference_id) values(new.player_id, 25, 'game_win', 'Won a ' || new.game_type || ' game', new.id::text) on conflict do nothing;
+    get diagnostics win_added = row_count;
+    if win_added > 0 then update public.user_wallets set balance = balance + 25, updated_at = now() where user_id = new.player_id; end if;
+  end if;
+
+  -- XP & Leveling (50 XP for completed, +150 XP bonus for win)
+  select xp, level into cur_xp, cur_lvl from public.user_levels where user_id = new.player_id for update;
+  if cur_xp is null then cur_xp := 0; cur_lvl := 1; end if;
+  new_xp := cur_xp + case when new.outcome = 'win' then 150 else 50 end;
+  calc_lvl := greatest(1, 1 + floor(new_xp / 250)::int);
+  insert into public.user_levels(user_id, xp, level) values(new.player_id, new_xp, calc_lvl)
+  on conflict(user_id) do update set xp = new_xp, level = calc_lvl, updated_at = now();
+
+  return new;
+end $$;
+
+drop trigger if exists rally_reward_completed_game on public.game_results;
+create trigger rally_reward_completed_game after insert on public.game_results for each row execute procedure public.reward_completed_game();
+
+grant execute on function public.claim_daily_reward(), public.purchase_shop_item(uuid), public.equip_shop_item(uuid), public.unequip_shop_item(text), public.update_profile_bio(text, text) to authenticated;
+

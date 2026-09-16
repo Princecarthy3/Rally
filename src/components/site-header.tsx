@@ -1,6 +1,6 @@
 "use client";
 
-import { History, LayoutGrid, LogOut, Settings, Share2, ShoppingBag, UserRound } from "lucide-react";
+import { CircleDollarSign, History, LayoutGrid, LogOut, Settings, Share2, ShoppingBag, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -9,6 +9,9 @@ import { useAuth } from "./auth-provider";
 import { SoundToggle } from "./sound-toggle";
 import { SettingsModal } from "./settings-modal";
 import { sounds } from "@/lib/audio";
+import { UserAvatar } from "@/components/customization/user-avatar";
+import { NameDisplay } from "@/components/customization/name-display";
+import { CoinWalletModal } from "@/components/customization/coin-wallet-modal";
 
 const links = [
   { href: "/dashboard", label: "Home", icon: LayoutGrid },
@@ -20,9 +23,10 @@ const links = [
 export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { profile, user, signOut } = useAuth();
+  const { profile, user, customization, balance, claimDaily, signOut } = useAuth();
   const name = profile?.display_name || user?.user_metadata?.display_name || "Player";
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [toast, setToast] = useState("");
 
   async function handleSignOut() {
@@ -74,6 +78,18 @@ export function SiteHeader() {
           </nav>
 
           <div className="flex items-center gap-2">
+            {/* Coin Balance Badge */}
+            {user && (
+              <button
+                onClick={() => setIsWalletOpen(true)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-black text-slate-800 shadow-sm transition hover:bg-slate-100 cursor-pointer"
+                title="Rally Coin Wallet"
+              >
+                <CircleDollarSign size={16} className="text-amber-500" />
+                <span>{balance.toLocaleString()}</span>
+              </button>
+            )}
+
             {/* Share App Button */}
             <button
               onClick={handleShareApp}
@@ -100,10 +116,23 @@ export function SiteHeader() {
 
             <SoundToggle />
 
-            <Link href="/profile" className="hidden text-right sm:block">
-              <span className="block text-[11px] font-medium text-slate-400">Playing as</span>
-              <span className="block max-w-28 truncate text-xs font-bold text-slate-900">{name}</span>
-            </Link>
+            {user && (
+              <Link href="/profile" className="hidden items-center gap-2.5 rounded-full border border-slate-200 bg-white p-1 pl-2.5 shadow-sm transition hover:bg-slate-50 sm:flex">
+                <div className="text-right leading-tight">
+                  <NameDisplay name={name} nameColor={customization?.name_color} nameEffect={customization?.name_effect} className="block max-w-28 truncate text-xs" />
+                  <span className="block text-[10px] font-bold text-slate-400">
+                    [{customization?.title?.asset_value || "Newcomer"}]
+                  </span>
+                </div>
+                <UserAvatar
+                  avatarUrl={profile?.avatar_url}
+                  equippedAvatar={customization?.avatar}
+                  equippedFrame={customization?.frame}
+                  fallbackName={name}
+                  size="xs"
+                />
+              </Link>
+            )}
 
             <button
               onClick={handleSignOut}
@@ -119,14 +148,21 @@ export function SiteHeader() {
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
+      <CoinWalletModal
+        isOpen={isWalletOpen}
+        onClose={() => setIsWalletOpen(false)}
+        balance={balance}
+        userId={user?.id}
+        onClaimDaily={claimDaily ? async () => { await claimDaily(); } : undefined}
+      />
+
       {toast && (
         <div className="fixed top-20 right-6 z-50 rounded-full border-2 border-slate-950 bg-[#f4dc69] px-4 py-2 text-xs font-black shadow-[3px_3px_0_#171821] animate-in fade-in">
           {toast}
         </div>
       )}
 
-
-      {/* Mobile navigation positioned relative to window viewport */}
+      {/* Mobile navigation */}
       <nav className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 justify-around rounded-full border border-white/20 bg-slate-950/95 p-1.5 text-white shadow-2xl backdrop-blur-lg md:hidden">
         {links.map(({ href, label, icon: Icon }) => (
           <Link
