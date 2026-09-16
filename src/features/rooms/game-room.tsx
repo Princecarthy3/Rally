@@ -16,6 +16,7 @@ import { NameDisplay } from "@/components/customization/name-display";
 import { EmoteWheel } from "@/components/customization/emote-wheel";
 import { VictoryAnimationOverlay } from "@/components/customization/victory-animation-overlay";
 import { getRoomThemeStyle } from "@/lib/customization";
+import { sounds } from "@/lib/audio";
 
 const colors = ["#ff9eaa", "#77dce7", "#f4dc69", "#8de2bd"];
 const BOT_ID = "11111111-1111-1111-1111-111111111111";
@@ -42,6 +43,7 @@ export function GameRoom() {
       if (payload.payload) {
         const item = payload.payload as { seat: number; emote: string; senderName?: string; id: number };
         setActiveEmotes((prev) => [...prev, item]);
+        sounds.playMessageSound();
         setTimeout(() => {
           setActiveEmotes((prev) => prev.filter((e) => e.id !== item.id));
         }, 3500);

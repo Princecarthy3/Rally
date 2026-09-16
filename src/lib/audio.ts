@@ -282,6 +282,38 @@ class SoundManager {
   }
 
   // =========================================================
+  // MESSAGE / NOTIFICATION SOUND
+  // =========================================================
+
+  public playMessageSound() {
+    if (this.isMuted) return;
+
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const notes = [880, 1318.5]; // Bright A5 -> E6 double chime pop
+
+    notes.forEach((freq, idx) => {
+      const start = now + idx * 0.08;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, start);
+
+      gain.gain.setValueAtTime(0.28 * this.volume, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.18);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(start);
+      osc.stop(start + 0.18);
+    });
+  }
+
+  // =========================================================
   // BGM
   // Catchy Rally Arcade Groove
   // =========================================================

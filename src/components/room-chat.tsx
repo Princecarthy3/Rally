@@ -46,6 +46,9 @@ export function RoomChat({
       .on("broadcast", { event: "chat_message" }, ({ payload }) => {
         const msg = payload as ChatMessage;
         setMessages((prev) => [...prev, msg]);
+        if (msg.senderId !== userId) {
+          sounds.playMessageSound();
+        }
         if (!isOpen && msg.senderId !== userId) {
           setUnread((prev) => prev + 1);
         }
