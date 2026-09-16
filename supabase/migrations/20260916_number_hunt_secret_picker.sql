@@ -21,7 +21,7 @@ begin
     state:=jsonb_set(state,'{pickerSeat}',to_jsonb(picker),true);
     state:=jsonb_set(state,'{targetPicked}','true'::jsonb,true);
     state:=jsonb_set(state,'{guesses}','{}'::jsonb,true);
-    state:=jsonb_set(state,'{message}',to_jsonb('The number is hidden. Every hunter gets one guess!')::text,true);
+    state:=jsonb_set(state,'{message}',to_jsonb('The number is hidden. Every hunter gets one guess!'::text),true);
   elsif p_action='guess' then
     if not coalesce((state->>'targetPicked')::boolean,false) then raise exception 'Wait for the picker to hide a number'; end if;
     if me.seat=picker then raise exception 'The picker cannot guess'; end if;
@@ -44,7 +44,7 @@ begin
       if current_round>=5 then
         select max(coalesce((state->'scores'->>seat::text)::int,0)) into top_score from public.game_players where room_id=p_room;
         select min(seat) into winner from public.game_players where room_id=p_room and coalesce((state->'scores'->>seat::text)::int,0)=top_score;
-        r.status:='completed'; state:=jsonb_set(state,'{winnerSeat}',to_jsonb(winner),true); state:=jsonb_set(state,'{message}',to_jsonb('Number Hunt complete!')::text,true);
+        r.status:='completed'; state:=jsonb_set(state,'{winnerSeat}',to_jsonb(winner),true); state:=jsonb_set(state,'{message}',to_jsonb('Number Hunt complete!'::text),true);
       else
         state:=state-'targetNumber'-'lastGuess'-'attemptsLeft';
         state:=jsonb_set(state,'{round}',to_jsonb(current_round+1),true);
