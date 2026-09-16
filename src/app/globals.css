@@ -81,21 +81,13 @@ button, a { -webkit-tap-highlight-color: transparent; }
 @keyframes popIn { from{opacity:0;transform:scale(.85) rotate(-2deg)} to{opacity:1;transform:scale(1) rotate(0)} }
 .pop-in { animation:popIn .25s cubic-bezier(.2,.8,.2,1) both; }
 
-/* Theme Contrast Overrides */
+/* Theme Contrast Utilities */
 [data-theme="dark"], html.dark {
-  .text-slate-900, .text-slate-950, .text-slate-800, .text-slate-700 { color: #f8fafc; }
-  .text-slate-600, .text-slate-500 { color: #cbd5e1; }
-  .bg-\[\#fffdf7\], .bg-\[\#faf9f3\], .bg-\[\#f8f9fd\] { background-color: #0f172a; }
-  .bg-white { background-color: #1e293b; color: #f8fafc; }
-  .border-slate-950, .border-slate-900 { border-color: #334155; }
+  color-scheme: dark;
 }
 
 [data-theme="emerald"] {
-  .text-slate-900, .text-slate-950, .text-slate-800, .text-slate-700 { color: #ecfdf5; }
-  .text-slate-600, .text-slate-500 { color: #a7f3d0; }
-  .bg-\[\#fffdf7\], .bg-\[\#faf9f3\], .bg-\[\#f8f9fd\] { background-color: #064e3b; }
-  .bg-white { background-color: #047857; color: #ecfdf5; }
-  .border-slate-950, .border-slate-900 { border-color: #a7f3d0; }
+  color-scheme: dark;
 }
 
 @keyframes rainbow {

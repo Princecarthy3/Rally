@@ -110,15 +110,19 @@ export function getBackgroundStyle(bg?: ShopItem | null): { background: string }
 // Helper: Get Name Color CSS / Style
 export function getNameColorStyle(nameColor?: ShopItem | null): { className: string; style?: React.CSSProperties } {
   if (!nameColor || !nameColor.asset_value || nameColor.asset_value === "default") {
-    return { className: "text-slate-950 dark:text-white" };
+    return { className: "text-slate-950 font-black" };
   }
   if (nameColor.asset_value === "rainbow" || nameColor.slug === "rainbow-name-color") {
     return { className: "bg-gradient-to-r from-red-500 via-yellow-400 via-emerald-400 via-blue-500 to-purple-500 bg-clip-text text-transparent animate-rainbow font-extrabold" };
   }
   if (nameColor.asset_value.startsWith("#")) {
+    const hex = nameColor.asset_value.toLowerCase().trim();
+    if (["#ffffff", "#fff", "#f8fafc", "#f1f5f9", "#e2e8f0", "#cbd5e1", "#f5f5f5"].includes(hex)) {
+      return { className: "text-slate-950 font-extrabold" };
+    }
     return { className: "font-extrabold", style: { color: nameColor.asset_value } };
   }
-  return { className: "text-slate-950 dark:text-white" };
+  return { className: "text-slate-950 font-black" };
 }
 
 // Helper: Get Name Effect Asset/Emoji

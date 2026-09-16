@@ -120,8 +120,8 @@ export function SiteHeader() {
             {user && (
               <Link href="/profile" className="hidden items-center gap-2.5 rounded-full border border-slate-200 bg-white p-1 pl-2.5 shadow-sm transition hover:bg-slate-50 sm:flex">
                 <div className="text-right leading-tight">
-                  <NameDisplay name={name} nameColor={customization?.name_color} nameEffect={customization?.name_effect} className="block max-w-28 truncate text-xs" />
-                  <span className="block text-[10px] font-bold text-slate-400">
+                  <NameDisplay name={name} nameColor={customization?.name_color} nameEffect={customization?.name_effect} className="block max-w-28 truncate text-xs font-black text-slate-950" />
+                  <span className="block text-[10px] font-extrabold text-slate-600">
                     [{customization?.title?.asset_value || "Newcomer"}]
                   </span>
                 </div>
