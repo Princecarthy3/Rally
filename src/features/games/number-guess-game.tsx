@@ -2,7 +2,7 @@
 
 import type { Room, RoomPlayer } from "@/features/rooms/types";
 import { Bell, LockKeyhole, Search } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function NumberGuessGame({ room, players, meSeat, onAct, busy }: {
   room: Room; players: RoomPlayer[]; meSeat: number; isMyTurn: boolean;
@@ -15,16 +15,41 @@ export function NumberGuessGame({ room, players, meSeat, onAct, busy }: {
   const guesses = (state.guesses || {}) as Record<string, number>;
   const guessResults = (state.guessResults || {}) as Record<string, { guess: number; correct: boolean }>;
   const [selected, setSelected] = useState<number | null>(null);
+  const [choiceNotice, setChoiceNotice] = useState("");
+  const seenChoices = useRef<Record<string, number>>({});
+  const seenRound = useRef(round);
   const isPicker = meSeat === pickerSeat;
   const myGuess = guesses[String(meSeat)];
   const scores = (state.scores || {}) as Record<string, number>;
   const choose = async () => { if (selected) await onAct(isPicker && !targetPicked ? "set_target" : "guess", String(selected)); };
+
+  useEffect(() => {
+    if (seenRound.current !== round) {
+      seenRound.current = round;
+      seenChoices.current = {};
+    }
+
+    const newChoices = Object.entries(guessResults)
+      .filter(([seat, result]) => seenChoices.current[seat] !== result.guess)
+      .map(([seat, result]) => {
+        seenChoices.current[seat] = result.guess;
+        const name = players.find((player) => String(player.seat) === seat)?.profile?.display_name || `Player ${seat}`;
+        return `${name} chose ${result.guess}.`;
+      });
+
+    if (newChoices.length > 0) {
+      setChoiceNotice(newChoices.join(" "));
+      const timeout = window.setTimeout(() => setChoiceNotice(""), 3500);
+      return () => window.clearTimeout(timeout);
+    }
+  }, [guessResults, players, round]);
 
   return <div className="mx-auto max-w-2xl space-y-5 text-center">
     <div className="flex items-center justify-between gap-3 border-b-2 border-slate-200 pb-3 text-left">
       <h3 className="text-xl font-black">Round {round} of 5</h3>
       <div className="flex gap-2 text-xs font-black">{players.map((player) => <span key={player.seat} className="rounded-full bg-slate-100 px-3 py-1">P{player.seat}: {scores[String(player.seat)] || 0}</span>)}</div>
     </div>
+    {choiceNotice && <p role="status" className="flex items-center justify-center gap-2 rounded-xl border-2 border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-black text-cyan-950"><Bell size={16} /> {choiceNotice}</p>}
     {state.message && <p role="status" className="flex items-center justify-center gap-2 rounded-xl border-2 border-violet-200 bg-violet-50 px-4 py-2 text-sm font-black text-violet-900"><Bell size={16} /> {state.message}</p>}
     {!targetPicked && !isPicker && <div className="rounded-2xl border-2 border-slate-200 bg-slate-50 p-4 font-bold">Waiting for the round number to be chosen…</div>}
     {targetPicked && isPicker && <div className="rounded-2xl border-2 border-slate-200 bg-slate-50 p-4 font-bold"><LockKeyhole className="mx-auto text-violet-700" /><p className="mt-2">The round number is set. Watch the guesses come in.</p></div>}
