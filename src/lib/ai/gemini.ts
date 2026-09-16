@@ -76,8 +76,9 @@ async function callGemini(prompt: string): Promise<string | null> {
 }
 
 
-export async function generateSkribblWordsAI(): Promise<string[]> {
-  const prompt = `Generate 3 fun, creative, distinct single-word or short 2-word nouns suitable for a drawing game like Skribbl. Return JSON array format: ["Word1", "Word2", "Word3"]`;
+export async function generateSkribblWordsAI(seed?: string, excludedWords: string[] = []): Promise<string[]> {
+  const excluded = excludedWords.slice(-30).join(", ") || "none";
+  const prompt = `Generate exactly 3 fun, creative, distinct single-word or short two-word nouns suitable for a drawing game like Skribbl. This is a fresh game prompt with nonce ${seed || crypto.randomUUID()}. Do not use any of these recently used words: ${excluded}. Return only a JSON array: ["Word1", "Word2", "Word3"]`;
   const responseText = await callGemini(prompt);
   if (responseText) {
     try {
@@ -88,7 +89,10 @@ export async function generateSkribblWordsAI(): Promise<string[]> {
     } catch {}
   }
 
-  const randomSet = FALLBACK_SKRIBBL_WORDS[Math.floor(Math.random() * FALLBACK_SKRIBBL_WORDS.length)];
+  // Include the game nonce in fallback selection too, so a missing AI key does
+  // not make every room begin with the same three suggestions.
+  const index = [...(seed || crypto.randomUUID())].reduce((total, char) => total + char.charCodeAt(0), 0) % FALLBACK_SKRIBBL_WORDS.length;
+  const randomSet = FALLBACK_SKRIBBL_WORDS[index];
   return randomSet;
 }
 

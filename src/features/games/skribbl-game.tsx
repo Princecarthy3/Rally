@@ -67,7 +67,9 @@ export function SkribblGame({
   useEffect(() => {
     let ignore = false;
     if (isDrawer && !wordSelected) {
-      fetch("/api/ai/content?type=skribbl")
+      const usedWords = Array.isArray(state.usedWords) ? state.usedWords : [];
+      const seed = `${room.id}:${room.match_number}:${state.round || 1}:${drawerSeat}`;
+      fetch(`/api/ai/content?type=skribbl&seed=${encodeURIComponent(seed)}&exclude=${encodeURIComponent(usedWords.join(","))}`)
         .then((res) => res.json())
         .then((data) => {
           if (ignore) return;
@@ -97,7 +99,7 @@ export function SkribblGame({
     return () => {
       ignore = true;
     };
-  }, [isDrawer, wordSelected]);
+  }, [isDrawer, wordSelected, room.id, room.match_number, state.round, drawerSeat, state.usedWords]);
 
 
 

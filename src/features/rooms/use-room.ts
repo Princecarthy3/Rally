@@ -104,12 +104,13 @@ export function useRoom(code: string, userId?: string) {
 
   useEffect(() => {
     if (!supabase || !room || !userId) return;
-    const ch = supabase.channel(`room:${room.id}`, { config: { presence: { key: userId } } });
+    const roomId = room.id;
+    const ch = supabase.channel(`room:${roomId}`, { config: { presence: { key: userId } } });
 
-    ch.on("postgres_changes", { event: "*", schema: "public", table: "game_rooms", filter: `id=eq.${room.id}` }, (payload) => {
+    ch.on("postgres_changes", { event: "*", schema: "public", table: "game_rooms", filter: `id=eq.${roomId}` }, (payload) => {
       if (payload.eventType !== "DELETE") setRoom(payload.new as Room);
     })
-      .on("postgres_changes", { event: "*", schema: "public", table: "game_players", filter: `room_id=eq.${room.id}` }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "game_players", filter: `room_id=eq.${roomId}` }, () => {
         void refresh();
       })
       .on("presence", { event: "sync" }, () => {
@@ -136,7 +137,9 @@ export function useRoom(code: string, userId?: string) {
       supabase.removeChannel(ch);
       setChannel(null);
     };
-  }, [refresh, room, supabase, userId]);
+  // Do not recreate the Realtime channel after every state update. Rejoining on
+  // each move was dropping presence and adding visible turn-to-turn latency.
+  }, [refresh, room?.id, supabase, userId]);
 
   return { room, players, loading, error, onlineIds, connection, refresh, channel };
 }

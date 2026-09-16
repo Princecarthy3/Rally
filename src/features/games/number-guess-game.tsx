@@ -29,7 +29,8 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
   const [inputVal, setInputVal] = useState("");
   const [timeLeft, setTimeLeft] = useState<number>(45);
 
-  // 45-second countdown timer for guesser phase
+  // A hunt has one clock. Previously this effect restarted every time a guess
+  // arrived, which silently gave the guesser a fresh 45 seconds per attempt.
   useEffect(() => {
     if (!targetPicked || room.status !== "playing") return;
 
@@ -56,7 +57,7 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
       clearTimeout(timeoutId);
       clearInterval(interval);
     };
-  }, [targetPicked, lastGuess, state.turn, room.status, isGuesser, onAct]);
+  }, [targetPicked, room.status, isGuesser]);
 
   const handlePickSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,10 +89,9 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
         <div className="flex items-center gap-3">
           <span className="text-3xl">🔢</span>
           <div>
-            <h3 className="font-black text-base uppercase tracking-wider text-amber-400">45-Second Number Hunt</h3>
+            <h3 className="font-black text-base uppercase tracking-wider text-amber-400">Number Hunt: Signal Search</h3>
             <p className="text-xs text-slate-300">
-              {pickerPlayer?.profile?.display_name || `Player ${pickerSeat}`} picks secret number (1-100),{" "}
-              {guesserPlayer?.profile?.display_name || `Player ${guesserSeat}`} gets 3 tries in 45 seconds!
+              One player hides a signal in sectors 1–100. The hunter follows the radar—higher, lower, hot, or cold—before the signal fades.
             </p>
           </div>
         </div>
@@ -109,7 +109,7 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
             {isPicker ? (
               <form onSubmit={handlePickSubmit} className="w-full flex flex-col items-center gap-3">
                 <label className="text-sm font-black text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                  <Target className="w-4 h-4" /> Pick Secret Target Number (1 - 100)
+                  <Target className="w-4 h-4" /> Hide the Signal in Sector 1–100
                 </label>
                 <div className="flex gap-2 w-full max-w-xs">
                   <input
@@ -118,7 +118,7 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
                     max={100}
                     value={inputVal}
                     onChange={(e) => setInputVal(e.target.value)}
-                    placeholder="Enter 1-100"
+                    placeholder="Choose a sector"
                     className="flex-1 px-4 py-3 bg-slate-950 border-2 border-amber-500/50 rounded-2xl text-white font-black text-center text-lg focus:outline-none focus:border-amber-400"
                     autoFocus
                   />
@@ -134,7 +134,7 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
               <div className="flex flex-col items-center gap-2 py-6 text-slate-400">
                 <HelpCircle className="w-10 h-10 text-amber-400 animate-pulse" />
                 <p className="text-xs font-bold">
-                  Waiting for {pickerPlayer?.profile?.display_name || `Player ${pickerSeat}`} to set secret number...
+                  Waiting for {pickerPlayer?.profile?.display_name || `Player ${pickerSeat}`} to hide the signal...
                 </p>
               </div>
             )}
@@ -149,7 +149,7 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
               <div className="flex items-center justify-between w-full px-2">
                 <div className="flex items-center gap-2 text-red-400 font-black text-sm uppercase tracking-wider">
                   <Timer className="w-5 h-5 animate-spin" />
-                  <span>Timer: <strong className="text-xl text-white">{timeLeft}s</strong></span>
+                  <span>Signal: <strong className="text-xl text-white">{timeLeft}s</strong></span>
                 </div>
                 <div className="flex items-center gap-1 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-amber-400 text-xs font-black">
                   <span>Tries Left:</span>
@@ -173,7 +173,7 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
             {/* Last Guess Clue Badges */}
             {lastGuess !== null && lastGuess !== undefined && (
               <div className="flex flex-col items-center gap-2 bg-slate-950/80 p-4 rounded-2xl border border-slate-800 w-full">
-                <span className="text-xs font-bold text-slate-400">Last Guess: <strong className="text-white text-sm">{lastGuess}</strong></span>
+                <span className="text-xs font-bold text-slate-400">Last scanned sector: <strong className="text-white text-sm">{lastGuess}</strong></span>
                 <div className="flex flex-wrap justify-center gap-2 mt-1">
                   {Math.abs((targetNumber || 0) - lastGuess) <= 5 && (
                     <span className="inline-flex items-center gap-1.5 bg-red-500/20 text-red-400 border border-red-500/40 px-3 py-1 rounded-xl text-xs font-black">
@@ -203,7 +203,7 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
             {isGuesser ? (
               <form onSubmit={handleGuessSubmit} className="w-full flex flex-col items-center gap-3">
                 <label className="text-xs font-black text-emerald-400 uppercase tracking-wider">
-                  Quick! Type your guess (1-100):
+                  Scan a sector (1–100):
                 </label>
                 <div className="flex gap-2 w-full max-w-xs">
                   <input
@@ -212,7 +212,7 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
                     max={100}
                     value={inputVal}
                     onChange={(e) => setInputVal(e.target.value)}
-                    placeholder="Guess #"
+                    placeholder="Sector #"
                     className="flex-1 px-4 py-3 bg-slate-950 border-2 border-emerald-500/50 rounded-2xl text-white font-black text-center text-lg focus:outline-none focus:border-emerald-400"
                     autoFocus
                   />
@@ -226,10 +226,10 @@ export function NumberGuessGame({ room, players, meSeat, isMyTurn, onAct }: Numb
               </form>
             ) : (
               <div className="text-xs font-bold text-slate-400 animate-pulse">
-                {guesserPlayer?.profile?.display_name || `Player ${guesserSeat}`} is guessing...
+                {guesserPlayer?.profile?.display_name || `Player ${guesserSeat}`} is tracking the signal...
                 {isPicker && targetNumber && (
                   <span className="block mt-2 text-amber-300 font-extrabold text-sm">
-                    Secret Target: {targetNumber} 🤫
+                    Your hidden signal: Sector {targetNumber} 🤫
                   </span>
                 )}
               </div>

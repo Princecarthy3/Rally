@@ -147,12 +147,13 @@ export async function POST(request: Request) {
     }
 
     const rpc = gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_bot_rps_move" : "play_room_action";
-    const { data, error } = await supabase.rpc(rpc, {
-      p_room: roomId,
-      p_action: action,
-      p_value: value,
-      p_actor_seat: botSeat,
-    });
+    // `play_bot_rps_move` intentionally has no p_action argument. Sending the
+    // generic payload made PostgREST fail function resolution, so the bot
+    // appeared to think forever without ever locking in a hand.
+    const params = gameType === "rps"
+      ? { p_room: roomId, p_value: value, p_actor_seat: botSeat }
+      : { p_room: roomId, p_action: action, p_value: value, p_actor_seat: botSeat };
+    const { data, error } = await supabase.rpc(rpc, params);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });

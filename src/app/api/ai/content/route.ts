@@ -6,7 +6,9 @@ export async function GET(request: Request) {
   const type = searchParams.get("type") || "skribbl";
 
   if (type === "skribbl") {
-    const words = await generateSkribblWordsAI();
+    const seed = searchParams.get("seed") || undefined;
+    const excluded = (searchParams.get("exclude") || "").split(",").map((word) => word.trim()).filter(Boolean);
+    const words = await generateSkribblWordsAI(seed, excluded);
     return NextResponse.json({ words });
   }
 
