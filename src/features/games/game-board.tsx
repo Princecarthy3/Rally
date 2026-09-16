@@ -10,6 +10,7 @@ import { DotsBoxes } from "./dots-boxes";
 import { SkribblGame } from "./skribbl-game";
 import { LudoGame } from "./ludo-game";
 import { ConnectFour } from "./connect-four";
+import { TriviaClash } from "./trivia-clash";
 
 import { sounds } from "@/lib/audio";
 
@@ -46,7 +47,7 @@ export function GameBoard({
     if (!supabase) return;
     setBusy(true);
     setError("");
-    const rpc = room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "skribbl" ? "play_skribbl_action" : "play_room_action";
+    const rpc = room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "trivia_clash" ? "play_trivia_action" : room.game_type === "skribbl" ? "play_skribbl_action" : "play_room_action";
     const params = { p_room: room.id, p_action: action, p_value: value ?? null };
     const { error } = await supabase.rpc(rpc, params);
     if (error) setError(error.message);
@@ -80,6 +81,10 @@ export function GameBoard({
     } else if (room.game_type === "skribbl") {
       if (s.drawerSeat === botSeat && !s.wordSelected) isBotTurn = true;
       if (s.drawerSeat !== botSeat && s.wordSelected && !s.guessedSeats?.includes(botSeat)) isBotTurn = true;
+    } else if (room.game_type === "trivia_clash") {
+      isBotTurn = Boolean(s.revealed && Number(s.round || 1) < 5)
+        || !s.question
+        || !Object.prototype.hasOwnProperty.call(s.answers || {}, String(botSeat));
     }
 
     if (!isBotTurn) return;
@@ -167,6 +172,9 @@ export function GameBoard({
               onAct={act}
               busy={busy}
             />
+          )}
+          {room.game_type === "trivia_clash" && (
+            <TriviaClash room={room} players={players} meSeat={me?.seat || 1} onAct={act} busy={busy} />
           )}
           {room.game_type === "tic_tac_toe" && (
             <TicTacToe state={state} mySeat={me?.seat} place={(i) => act("place", String(i))} busy={busy} />
