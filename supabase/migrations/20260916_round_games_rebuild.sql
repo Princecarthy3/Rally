@@ -72,7 +72,8 @@ begin
   state:=coalesce(r.public_state,'{}'::jsonb); current_round:=coalesce((state->>'round')::int,1);
   insert into private.number_hunt_targets(room_id,round,target) values(p_room,current_round,1+floor(random()*25)::int) on conflict do nothing;
   select t.target into target from private.number_hunt_targets t where t.room_id=p_room and t.round=current_round;
-  guesses:=coalesce(state->'guesses','{}'::jsonb); if guesses ? me.seat::text then raise exception 'You already chose a tile this round'; end if;
+  -- Older Number Hunt rooms used an array here; Grid Rush uses player-seat keys.
+  guesses:=case when jsonb_typeof(state->'guesses')='object' then state->'guesses' else '{}'::jsonb end; if guesses ? me.seat::text then raise exception 'You already chose a tile this round'; end if;
   guesses:=jsonb_set(guesses,array[me.seat::text],to_jsonb(guess),true); state:=jsonb_set(state,'{guesses}',guesses,true);
   if guess=target then
     score:=coalesce((state->'scores'->>me.seat::text)::int,0)+100;
