@@ -127,44 +127,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [loadUserData, supabase]);
 
-  const refreshProfile = useCallback(async () => loadUserData(session?.user.id), [loadUserData, session?.user.id]);
-  const refreshCustomization = useCallback(async () => loadUserData(session?.user.id), [loadUserData, session?.user.id]);
+  const userId = session?.user.id;
+  const refreshProfile = useCallback(async () => loadUserData(userId), [loadUserData, userId]);
+  const refreshCustomization = useCallback(async () => loadUserData(userId), [loadUserData, userId]);
 
   const equipItem = useCallback(
     async (itemId: string) => {
-      if (!supabase || !session?.user.id) return false;
+      if (!supabase || !userId) return false;
       const { error } = await supabase.rpc("equip_shop_item", { p_item: itemId });
       if (!error) {
-        await loadUserData(session.user.id);
+        await loadUserData(userId);
         return true;
       }
       return false;
     },
-    [loadUserData, session?.user.id, supabase]
+    [loadUserData, userId, supabase]
   );
 
   const unequipCategory = useCallback(
     async (category: string) => {
-      if (!supabase || !session?.user.id) return false;
+      if (!supabase || !userId) return false;
       const { error } = await supabase.rpc("unequip_shop_item", { p_category: category });
       if (!error) {
-        await loadUserData(session.user.id);
+        await loadUserData(userId);
         return true;
       }
       return false;
     },
-    [loadUserData, session?.user.id, supabase]
+    [loadUserData, userId, supabase]
   );
 
   const claimDaily = useCallback(async () => {
-    if (!supabase || !session?.user.id) return null;
+    if (!supabase || !userId) return null;
     const { data, error } = await supabase.rpc("claim_daily_reward");
     if (!error && data) {
-      await loadUserData(session.user.id);
+      await loadUserData(userId);
       return data as { balance: number; reward: number; streak: number };
     }
     return null;
-  }, [loadUserData, session?.user.id, supabase]);
+  }, [loadUserData, userId, supabase]);
 
   const signOut = useCallback(async () => {
     await supabase?.auth.signOut();

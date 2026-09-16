@@ -76,7 +76,7 @@ export function StreakClaimModal({ isOpen, onClose, currentStreak, onClaim, busy
           className="arcade-button mt-6 w-full bg-[#f4dc69] text-slate-950 text-sm shadow-[4px_4px_0_#171821]"
         >
           {busy ? <LoaderCircle className="animate-spin" size={18} /> : <Sparkles size={18} />}
-          CLAIM TODAY'S REWARD
+          CLAIM TODAY&apos;S REWARD
         </button>
       </div>
     </div>

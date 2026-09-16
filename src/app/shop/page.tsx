@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, CircleDollarSign, Eye, LoaderCircle, Search, ShoppingBag, Sparkles, Heart } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/components/auth-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -76,7 +76,7 @@ export default function ShopPage() {
 
   const displayName = profile?.display_name || user?.user_metadata?.display_name || "Player";
 
-  async function loadShop() {
+  const loadShop = useCallback(async () => {
     const sb = getSupabaseBrowserClient();
     if (!sb || !user) return;
     const [shopRes, invRes] = await Promise.all([
@@ -85,10 +85,26 @@ export default function ShopPage() {
     ]);
     setItems((shopRes.data || []) as ShopItem[]);
     setOwned((invRes.data || []).map((i) => i.item_id));
-  }
+  }, [user]);
 
   useEffect(() => {
-    loadShop();
+    let active = true;
+    async function fetchShop() {
+      const sb = getSupabaseBrowserClient();
+      if (!sb || !user) return;
+      const [shopRes, invRes] = await Promise.all([
+        sb.from("shop_items").select("*").eq("active", true).order("price"),
+        sb.from("user_inventory").select("item_id").eq("user_id", user.id),
+      ]);
+      if (active) {
+        setItems((shopRes.data || []) as ShopItem[]);
+        setOwned((invRes.data || []).map((i) => i.item_id));
+      }
+    }
+    void fetchShop();
+    return () => {
+      active = false;
+    };
   }, [user]);
 
   const shown = useMemo(() => {

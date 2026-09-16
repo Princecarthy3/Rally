@@ -39,16 +39,24 @@ export function CoinWalletModal({ isOpen, onClose, balance, userId, onClaimDaily
     const sb = getSupabaseBrowserClient();
     if (!sb) return;
 
-    setLoading(true);
-    sb.from("coin_transactions")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(20)
-      .then(({ data }) => {
+    let active = true;
+    async function fetchTransactions() {
+      setLoading(true);
+      const { data } = await sb
+        .from("coin_transactions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (active) {
         setTransactions((data || []) as Transaction[]);
         setLoading(false);
-      });
+      }
+    }
+    void fetchTransactions();
+    return () => {
+      active = false;
+    };
   }, [isOpen, userId]);
 
   if (!isOpen) return null;

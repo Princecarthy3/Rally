@@ -129,7 +129,7 @@ export function PlayerCard({
             )}
           </div>
 
-          <p className="mt-3 text-xs italic text-slate-600 dark:text-slate-300">"{bioText}"</p>
+          <p className="mt-3 text-xs italic text-slate-600 dark:text-slate-300">&quot;{bioText}&quot;</p>
         </div>
 
         {/* XP Level Bar */}

@@ -1,7 +1,7 @@
 "use client";
 
 import { Camera, CheckCircle2, LoaderCircle, Trash2, UserRound, Sparkles, Check } from "lucide-react";
-import { ChangeEvent, FormEvent, useEffect, useRef, useState, useMemo } from "react";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/components/auth-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -42,13 +42,15 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setName(profile?.display_name || user?.user_metadata?.display_name || "");
-    setAvatar(profile?.avatar_url || "");
-    setBio(customization?.bio || "");
-    setStatusPreset(customization?.status_preset || "Online");
+    queueMicrotask(() => {
+      setName(profile?.display_name || user?.user_metadata?.display_name || "");
+      setAvatar(profile?.avatar_url || "");
+      setBio(customization?.bio || "");
+      setStatusPreset(customization?.status_preset || "Online");
+    });
   }, [profile, user, customization]);
 
-  async function loadInventory() {
+  const loadInventory = useCallback(async () => {
     const sb = getSupabaseBrowserClient();
     if (!sb || !user) return;
     const { data } = await sb.from("user_inventory").select("acquired_at, item:item_id(*)").eq("user_id", user.id);
@@ -56,10 +58,23 @@ export default function ProfilePage() {
       const items = data.map((d) => ({ ...(d.item as unknown as ShopItem), acquired_at: d.acquired_at }));
       setOwnedItems(items as InventoryItem[]);
     }
-  }
+  }, [user]);
 
   useEffect(() => {
-    loadInventory();
+    let active = true;
+    async function fetchInventory() {
+      const sb = getSupabaseBrowserClient();
+      if (!sb || !user) return;
+      const { data } = await sb.from("user_inventory").select("acquired_at, item:item_id(*)").eq("user_id", user.id);
+      if (active && data) {
+        const items = data.map((d) => ({ ...(d.item as unknown as ShopItem), acquired_at: d.acquired_at }));
+        setOwnedItems(items as InventoryItem[]);
+      }
+    }
+    void fetchInventory();
+    return () => {
+      active = false;
+    };
   }, [user]);
 
   const filteredOwned = useMemo(() => {
