@@ -118,14 +118,21 @@ create policy "inventory owner reads" on public.user_inventory for select to aut
 drop policy if exists "customization readable" on public.user_customization;
 create policy "customization readable" on public.user_customization for select to authenticated using(true);
 
+drop policy if exists "customization update owner" on public.user_customization;
+create policy "customization update owner" on public.user_customization for update to authenticated using(user_id = auth.uid());
+
+drop policy if exists "customization insert owner" on public.user_customization;
+create policy "customization insert owner" on public.user_customization for insert to authenticated with check(user_id = auth.uid());
+
 drop policy if exists "daily owner reads" on public.daily_rewards;
 create policy "daily owner reads" on public.daily_rewards for select to authenticated using(user_id = auth.uid());
 
 drop policy if exists "levels readable" on public.user_levels;
 create policy "levels readable" on public.user_levels for select to authenticated using(true);
 
--- Grant Read Access
-grant select on public.user_wallets, public.coin_transactions, public.shop_items, public.user_inventory, public.user_customization, public.daily_rewards, public.user_levels to authenticated;
+-- Grant Access
+grant select on public.user_wallets, public.coin_transactions, public.shop_items, public.user_inventory, public.daily_rewards, public.user_levels to authenticated;
+grant select, insert, update on public.user_customization to authenticated;
 
 -- RPC Functions
 create or replace function public.claim_daily_reward() returns jsonb language plpgsql security definer set search_path='' as $$

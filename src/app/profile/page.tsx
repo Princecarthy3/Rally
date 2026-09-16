@@ -169,24 +169,28 @@ export default function ProfilePage() {
     if (!supabase || !user) return;
     setBusy(true);
 
-    const [profRes, bioRes] = await Promise.all([
-      supabase
-        .from("profiles")
-        .update({
-          display_name: name.trim(),
-          avatar_url: avatar.trim() || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id),
-      supabase.rpc("update_profile_bio", { p_bio: bio.trim(), p_status_preset: statusPreset }),
-    ]);
+    const profRes = await supabase
+      .from("profiles")
+      .update({
+        display_name: name.trim(),
+        avatar_url: avatar.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", user.id);
+
+    const bioRes = await supabase.rpc("update_profile_bio", {
+      p_bio: bio.trim(),
+      p_status_preset: statusPreset,
+    });
 
     if (profRes.error) {
       setError(profRes.error.message);
+    } else if (bioRes.error) {
+      setError(bioRes.error.message);
     } else {
       await refreshProfile();
       await refreshCustomization();
-      setMessage("Profile and bio saved successfully.");
+      setMessage("Profile details, bio quote, and status preset saved successfully.");
     }
     setBusy(false);
   }

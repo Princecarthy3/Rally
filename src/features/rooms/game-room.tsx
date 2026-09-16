@@ -26,7 +26,7 @@ export function GameRoom() {
   const { room, players, loading, error, onlineIds, connection, channel } = useRoom(params.code, user?.id);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
-  const [activeEmotes, setActiveEmotes] = useState<Array<{ seat: number; emote: string; id: number }>>([]);
+  const [activeEmotes, setActiveEmotes] = useState<Array<{ seat: number; emote: string; senderName?: string; id: number }>>([]);
   const [showVictory, setShowVictory] = useState(true);
 
   const supabase = getSupabaseBrowserClient();
@@ -40,11 +40,11 @@ export function GameRoom() {
     if (!channel) return;
     channel.on("broadcast", { event: "emote" }, (payload) => {
       if (payload.payload) {
-        const item = payload.payload as { seat: number; emote: string; id: number };
+        const item = payload.payload as { seat: number; emote: string; senderName?: string; id: number };
         setActiveEmotes((prev) => [...prev, item]);
         setTimeout(() => {
           setActiveEmotes((prev) => prev.filter((e) => e.id !== item.id));
-        }, 3000);
+        }, 3500);
       }
     });
   }, [channel]);
@@ -98,12 +98,11 @@ export function GameRoom() {
 
   function handleSendEmote(emote: string) {
     const me = players.find((p) => p.player_id === user?.id);
-    if (!me) return;
-    const item = { seat: me.seat, emote, id: Date.now() };
+    const item = { seat: me?.seat || 1, emote, senderName: myName, id: Date.now() + Math.random() };
     setActiveEmotes((prev) => [...prev, item]);
     setTimeout(() => {
       setActiveEmotes((prev) => prev.filter((e) => e.id !== item.id));
-    }, 3000);
+    }, 3500);
 
     if (channel) {
       void channel.send({
@@ -190,6 +189,33 @@ export function GameRoom() {
           {notice && room && room.status !== "waiting" && (
             <div className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-full border-2 border-slate-950 bg-[#f4dc69] px-5 py-3 text-sm font-black shadow-[4px_4px_0_#171821]">
               {notice}
+            </div>
+          )}
+
+          {/* Full-Screen Realtime Reaction Overlay for All Players */}
+          {activeEmotes.length > 0 && (
+            <div className="fixed inset-0 z-[100] pointer-events-none flex flex-col items-center justify-center overflow-hidden bg-slate-950/20 backdrop-blur-[2px] animate-in fade-in duration-200">
+              {activeEmotes.map((e) => (
+                <div key={e.id} className="relative flex flex-col items-center justify-center animate-in zoom-in-75 duration-300">
+                  {/* Massive Floating Emote */}
+                  <div className="text-8xl sm:text-[12rem] filter drop-shadow-[0_25px_25px_rgba(0,0,0,0.5)] animate-bounce">
+                    {e.emote}
+                  </div>
+                  {/* Floating background particles */}
+                  <div className="absolute inset-0 flex items-center justify-center gap-12 -z-10 opacity-80 pointer-events-none">
+                    <span className="text-6xl animate-ping">{e.emote}</span>
+                    <span className="text-7xl animate-pulse">{e.emote}</span>
+                    <span className="text-6xl animate-bounce">{e.emote}</span>
+                  </div>
+                  {/* Player Toast Banner */}
+                  <div className="mt-4 flex items-center gap-3 rounded-full border-4 border-slate-950 bg-[#f4dc69] px-6 py-2.5 shadow-[6px_6px_0_#171821]">
+                    <span className="text-2xl">{e.emote}</span>
+                    <span className="text-base sm:text-xl font-black text-slate-950">
+                      {e.senderName || `Player ${e.seat}`} sent a reaction!
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

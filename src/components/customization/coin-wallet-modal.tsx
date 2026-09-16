@@ -21,11 +21,11 @@ interface CoinWalletModalProps {
 }
 
 const coinPackages = [
-  { id: "starter", coins: 1000, bonus: 0, price: "$0.99", tag: "Starter" },
-  { id: "popular", coins: 5000, bonus: 500, price: "$4.99", tag: "Most Popular" },
-  { id: "pro", coins: 10500, bonus: 1500, price: "$9.99", tag: "Pro Value" },
-  { id: "mega", coins: 25000, bonus: 5000, price: "$19.99", tag: "Mega Pack" },
-  { id: "ultimate", coins: 70000, bonus: 15000, price: "$49.99", tag: "Ultimate" },
+  { id: "starter", coins: 1000, bonus: 0, price: "GH₵ 2", tag: "Starter" },
+  { id: "popular", coins: 3500, bonus: 500, price: "GH₵ 5", tag: "Most Popular" },
+  { id: "pro", coins: 8000, bonus: 1500, price: "GH₵ 10", tag: "Pro Value" },
+  { id: "mega", coins: 18000, bonus: 3500, price: "GH₵ 20", tag: "Mega Pack" },
+  { id: "ultimate", coins: 30000, bonus: 7500, price: "GH₵ 30", tag: "Ultimate Pack (Max)" },
 ];
 
 export function CoinWalletModal({ isOpen, onClose, balance, userId, onClaimDaily }: CoinWalletModalProps) {
@@ -201,7 +201,7 @@ export function CoinWalletModal({ isOpen, onClose, balance, userId, onClaimDaily
               </div>
               <Crown size={36} className="mx-auto text-amber-400 mb-2" />
               <h3 className="text-xl font-black">Rally Plus Membership</h3>
-              <p className="mt-2 text-xs text-slate-300">$2.99 / month (Launching Soon)</p>
+              <p className="mt-2 text-xs text-slate-300">GH₵ 15 / month (Launching Soon)</p>
               <ul className="mt-4 space-y-2 text-left text-xs text-slate-300 border-t border-white/10 pt-4">
                 <li className="flex items-center gap-2">
                   <ShieldCheck size={14} className="text-emerald-400" /> Ad-Free multiplayer experience
