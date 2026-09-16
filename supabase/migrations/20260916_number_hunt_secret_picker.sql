@@ -1,7 +1,7 @@
 -- Number Hunt: one player hides a private 1–25 number; every other player guesses.
 create or replace function public.play_number_hunt_action(p_room uuid, p_action text, p_value text default null, p_actor_seat int default null) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare r public.game_rooms; me public.game_players; state jsonb; n int; current_round int; picker int; guess int; target int; guesses jsonb; guessed_count int; next_picker int; winner int:=null; score int; top_score int;
+declare r public.game_rooms; me public.game_players; state jsonb; n int; current_round int; picker int; guess int; target int; guesses jsonb; results jsonb; guessed_count int; next_picker int; winner int:=null; score int; top_score int;
 begin
   select * into r from public.game_rooms where id=p_room for update;
   if r.status<>'playing' or r.game_type<>'number_guess' then raise exception 'Number Hunt is not active'; end if;
@@ -21,6 +21,7 @@ begin
     state:=jsonb_set(state,'{pickerSeat}',to_jsonb(picker),true);
     state:=jsonb_set(state,'{targetPicked}','true'::jsonb,true);
     state:=jsonb_set(state,'{guesses}','{}'::jsonb,true);
+    state:=jsonb_set(state,'{guessResults}','{}'::jsonb,true);
     state:=jsonb_set(state,'{message}',to_jsonb('The number is hidden. Every hunter gets one guess!'::text),true);
   elsif p_action='guess' then
     if not coalesce((state->>'targetPicked')::boolean,false) then raise exception 'Wait for the picker to hide a number'; end if;
@@ -32,6 +33,9 @@ begin
     if target is null then raise exception 'Secret number is missing'; end if;
     guesses:=jsonb_set(guesses,array[me.seat::text],to_jsonb(guess),true);
     state:=jsonb_set(state,'{guesses}',guesses,true);
+    results:=case when jsonb_typeof(state->'guessResults')='object' then state->'guessResults' else '{}'::jsonb end;
+    results:=jsonb_set(results,array[me.seat::text],jsonb_build_object('guess',guess,'correct',guess=target),true);
+    state:=jsonb_set(state,'{guessResults}',results,true);
     if guess=target then
       winner:=me.seat; score:=coalesce((state->'scores'->>me.seat::text)::int,0)+100;
       state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(score),true);
@@ -51,6 +55,7 @@ begin
         state:=jsonb_set(state,'{pickerSeat}',to_jsonb(next_picker),true);
         state:=jsonb_set(state,'{targetPicked}','false'::jsonb,true);
         state:=jsonb_set(state,'{guesses}','{}'::jsonb,true);
+        state:=jsonb_set(state,'{guessResults}','{}'::jsonb,true);
         state:=jsonb_set(state,'{message}',to_jsonb(('Round '||(current_round+1)||': Player '||next_picker||' hides a number.')::text),true);
       end if;
     end if;

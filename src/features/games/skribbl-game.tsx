@@ -409,6 +409,7 @@ export function SkribblGame({
       {/* Recent Guesses */}
       {Array.isArray(state.guessFeed) && state.guessFeed.length > 0 && (
         <div className="max-h-28 overflow-y-auto space-y-1.5 rounded-2xl border-2 border-slate-950 bg-slate-50 p-3 text-xs font-bold">
+          <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-600">Live room guesses</h4>
           {state.guessFeed.slice(-8).map((g: { seat: number; text: string; correct?: boolean }, i: number) => (
             <div
               key={i}

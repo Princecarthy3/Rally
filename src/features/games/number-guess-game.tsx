@@ -13,6 +13,7 @@ export function NumberGuessGame({ room, players, meSeat, onAct, busy }: {
   const pickerSeat = state.pickerSeat || 1;
   const targetPicked = Boolean(state.targetPicked);
   const guesses = (state.guesses || {}) as Record<string, number>;
+  const guessResults = (state.guessResults || {}) as Record<string, { guess: number; correct: boolean }>;
   const [selected, setSelected] = useState<number | null>(null);
   const isPicker = meSeat === pickerSeat;
   const myGuess = guesses[String(meSeat)];
@@ -31,10 +32,11 @@ export function NumberGuessGame({ room, players, meSeat, onAct, busy }: {
     {!targetPicked && !isPicker && <div className="rounded-2xl border-2 border-slate-950 bg-slate-100 p-6 font-bold">{pickerName} is choosing a secret number…</div>}
     {targetPicked && isPicker && <div className="rounded-2xl border-2 border-slate-950 bg-violet-50 p-6 font-bold"><LockKeyhole className="mx-auto text-violet-700" /><p className="mt-2">Your number is hidden. Watch the hunters make their picks.</p></div>}
     {(!targetPicked && isPicker || targetPicked && !isPicker && !myGuess) && <>
-      <p className="font-black">{isPicker ? "Choose the secret number—only the database will keep it." : "Pick the number you think is hidden."}</p>
+      <p className="font-black">{isPicker ? "Choose a secret number hidden from every other player." : "Pick the number you think is hidden."}</p>
       <div className="grid grid-cols-5 gap-2 sm:gap-3">{Array.from({ length: 25 }, (_, i) => i + 1).map((tile) => <button key={tile} onClick={() => setSelected(tile)} disabled={busy} className={`aspect-square rounded-xl border-2 border-slate-950 text-lg font-black shadow-[3px_3px_0_#171821] ${selected === tile ? "bg-cyan-400 ring-4 ring-cyan-200" : "bg-[#e0f2fe] hover:bg-cyan-200"}`}>{tile}</button>)}</div>
       <button disabled={!selected || busy} onClick={choose} className="arcade-button mx-auto bg-[#7357ff] text-white shadow-[4px_4px_0_#171821]">{isPicker ? <><LockKeyhole size={16}/> HIDE {selected || ""}</> : <><Search size={16}/> GUESS {selected || ""}</>}</button>
     </>}
     {targetPicked && !isPicker && myGuess && <div className="rounded-2xl border-2 border-slate-950 bg-emerald-50 p-6 font-bold">Your guess, {myGuess}, is locked. Waiting for the other hunters…</div>}
+    {Object.keys(guessResults).length > 0 && <section className="rounded-2xl border-2 border-slate-950 bg-slate-50 p-4 text-left shadow-[3px_3px_0_#171821]"><h4 className="text-xs font-black uppercase tracking-wider text-slate-600">Round activity</h4><div className="mt-3 space-y-2">{Object.entries(guessResults).map(([seat, result]) => <div key={seat} className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm font-bold ${result.correct ? "border-emerald-500 bg-emerald-100 text-emerald-900" : "border-slate-200 bg-white"}`}><span>{players.find((player) => String(player.seat) === seat)?.profile?.display_name || `Player ${seat}`} picked {result.guess}</span><span>{result.correct ? "🎯 Found it!" : "✗ Not this time"}</span></div>)}</div></section>}
   </div>;
 }
