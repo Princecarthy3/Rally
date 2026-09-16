@@ -36,11 +36,12 @@ export function CoinWalletModal({ isOpen, onClose, balance, userId, onClaimDaily
 
   useEffect(() => {
     if (!isOpen || !userId) return;
-    const sb = getSupabaseBrowserClient();
-    if (!sb) return;
 
     let active = true;
     async function fetchTransactions() {
+      const sb = getSupabaseBrowserClient();
+      if (!sb) return;
+
       setLoading(true);
       const { data } = await sb
         .from("coin_transactions")
