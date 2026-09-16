@@ -57,6 +57,13 @@ create table if not exists public.user_customization (
   updated_at timestamptz not null default now()
 );
 
+-- Ensure missing columns exist on table if created in earlier migrations
+alter table public.user_customization add column if not exists bio text not null default '';
+alter table public.user_customization add column if not exists status_preset text not null default 'Online';
+alter table public.user_customization add column if not exists victory_id uuid references public.shop_items(id);
+alter table public.user_customization add column if not exists room_theme_id uuid references public.shop_items(id);
+alter table public.user_customization add column if not exists badge_ids uuid[] not null default '{}';
+
 create table if not exists public.daily_rewards (
   user_id uuid primary key references public.profiles(id) on delete cascade,
   current_streak integer not null default 0,
