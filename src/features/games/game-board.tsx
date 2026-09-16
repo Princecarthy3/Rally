@@ -69,8 +69,12 @@ export function GameBoard({
       isBotTurn = s.turn === botSeat;
       if (room.game_type === "ludo" && s.awaitingMove && s.turn === botSeat) isBotTurn = true;
     } else if (room.game_type === "number_guess") {
-      if (s.pickerSeat === botSeat && !s.targetPicked) isBotTurn = true;
-      if (s.guesserSeat === botSeat && s.targetPicked) isBotTurn = true;
+      const pickerSeat = Number(s.pickerSeat ?? 1);
+      const targetPicked = Boolean(s.targetPicked);
+      const guesses = s.guesses || {};
+      const hasGuessed = Object.prototype.hasOwnProperty.call(guesses, String(botSeat));
+      if (pickerSeat === botSeat && !targetPicked) isBotTurn = true;
+      if (pickerSeat !== botSeat && targetPicked && !hasGuessed) isBotTurn = true;
     } else if (room.game_type === "rps") {
       isBotTurn = !s.choices?.[botSeat];
     } else if (room.game_type === "skribbl") {
