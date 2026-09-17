@@ -22,6 +22,7 @@ export function MemoryMatch({ room, players, meSeat, onAct, busy }: {
   const matched = state.matched || [];
   const cards = state.cards || Array(16).fill(null);
   const isMyTurn = state.turn === meSeat;
+  const isResolvingPair = state.revealed || flipped.length === 2;
 
   useEffect(() => {
     if (meSeat !== state.turn || !state.revealed || flipped.length !== 2 || busy) return;
@@ -39,7 +40,7 @@ export function MemoryMatch({ room, players, meSeat, onAct, busy }: {
       <div className="grid grid-cols-4 gap-3">
         {cards.map((card, index) => {
           const visible = card !== null || flipped.includes(index) || matched.includes(index);
-          return <button key={index} disabled={!isMyTurn || busy || visible} onClick={() => onAct("flip", String(index))} className={`aspect-square rounded-2xl border-2 border-slate-950 text-2xl font-black shadow-[3px_3px_0_#171821] transition ${visible ? "bg-orange-100" : "bg-violet-600 text-white hover:bg-violet-500"}`}>{visible ? card : "?"}</button>;
+          return <button key={index} disabled={!isMyTurn || busy || visible || isResolvingPair} onClick={() => onAct("flip", String(index))} className={`aspect-square rounded-2xl border-2 border-slate-950 text-2xl font-black shadow-[3px_3px_0_#171821] transition ${visible ? "bg-orange-100" : "bg-violet-600 text-white hover:bg-violet-500"}`}>{visible ? card : "?"}</button>;
         })}
       </div>
       <p className="text-center text-xs font-bold text-slate-400">Match pairs to keep your turn. Miss and the next player goes.</p>
