@@ -60,6 +60,9 @@ begin
     if cards->(flipped->>0)=cards->(flipped->>1) then
       if jsonb_array_length(matched)=16 then select max(coalesce((state->'scores'->>seat::text)::int,0)) into top_score from public.game_players where room_id=p_room; select min(seat) into winner from public.game_players where room_id=p_room and coalesce((state->'scores'->>seat::text)::int,0)=top_score; r.status:='completed'; state:=jsonb_set(state,'{winnerSeat}',to_jsonb(winner),true); state:=jsonb_set(state,'{message}',to_jsonb('Memory Match complete!'::text),true); end if;
     else
+      cards:=jsonb_set(cards,array[(flipped->>0)::text],'null'::jsonb,true);
+      cards:=jsonb_set(cards,array[(flipped->>1)::text],'null'::jsonb,true);
+      state:=jsonb_set(state,'{cards}',cards,true);
       select min(seat) into next_seat from public.game_players where room_id=p_room and seat>me.seat; if next_seat is null then select min(seat) into next_seat from public.game_players where room_id=p_room; end if; state:=jsonb_set(state,'{turn}',to_jsonb(next_seat),true);
     end if;
     state:=jsonb_set(state,'{flipped}','[]'::jsonb,true); state:=jsonb_set(state,'{revealed}','false'::jsonb,true);
