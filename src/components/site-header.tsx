@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleDollarSign, History, LayoutGrid, LogOut, Settings, Share2, ShoppingBag, Trophy, UserRound, UsersRound } from "lucide-react";
+import { CircleDollarSign, History, LayoutGrid, LogOut, MessageCircle, Settings, Share2, ShoppingBag, Trophy, UserRound, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -19,6 +19,7 @@ const links = [
   { href: "/leaderboard", label: "Rankings", icon: Trophy },
   { href: "/history", label: "History", icon: History },
   { href: "/friends", label: "Friends", icon: UsersRound },
+  { href: "/messages", label: "Messages", icon: MessageCircle },
   { href: "/shop", label: "Shop", icon: ShoppingBag },
   { href: "/profile", label: "Profile", icon: UserRound },
 ];

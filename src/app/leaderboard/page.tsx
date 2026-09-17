@@ -37,6 +37,14 @@ export default function LeaderboardPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<LeaderboardUser | null>(null);
+  const [socialNotice, setSocialNotice] = useState("");
+
+  async function addFriend(playerId: string) {
+    const sb = getSupabaseBrowserClient();
+    if (!sb) return;
+    const { error } = await sb.rpc("send_friend_request", { p_receiver: playerId });
+    setSocialNotice(error ? error.message : "Friend request sent.");
+  }
 
   useEffect(() => {
     let active = true;
@@ -285,6 +293,12 @@ export default function LeaderboardPage() {
             <button onClick={() => setSelectedUser(null)} className="arcade-button mt-6 w-full bg-slate-950 text-white text-xs font-black">
               CLOSE PROFILE
             </button>
+            {selectedUser.user_id !== user?.id && (
+              <button onClick={() => void addFriend(selectedUser.user_id)} className="arcade-button mt-3 w-full bg-[#a7efc8] text-xs font-black">
+                ADD FRIEND
+              </button>
+            )}
+            {socialNotice && <p className="mt-3 text-center text-xs font-bold text-slate-600">{socialNotice}</p>}
           </div>
         </div>
       )}
