@@ -1,9 +1,10 @@
 "use client";
 
-import { CircleDollarSign, History, LayoutGrid, LogOut, Settings, Share2, ShoppingBag, Trophy, UserRound } from "lucide-react";
+import { CircleDollarSign, History, LayoutGrid, LogOut, Settings, Share2, ShoppingBag, Trophy, UserRound, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Brand } from "./brand";
 import { useAuth } from "./auth-provider";
 import { SoundToggle } from "./sound-toggle";
@@ -17,6 +18,7 @@ const links = [
   { href: "/dashboard", label: "Home", icon: LayoutGrid },
   { href: "/leaderboard", label: "Rankings", icon: Trophy },
   { href: "/history", label: "History", icon: History },
+  { href: "/friends", label: "Friends", icon: UsersRound },
   { href: "/shop", label: "Shop", icon: ShoppingBag },
   { href: "/profile", label: "Profile", icon: UserRound },
 ];
@@ -29,6 +31,22 @@ export function SiteHeader() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [toast, setToast] = useState("");
+  const [socialBadge, setSocialBadge] = useState(0);
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase || !user) return;
+    const refreshBadge = async () => {
+      const { data } = await supabase.rpc("get_social_inbox");
+      setSocialBadge((data || []).length);
+    };
+    void refreshBadge();
+    const channel = supabase.channel(`social-badge:${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "friend_requests", filter: `receiver_id=eq.${user.id}` }, refreshBadge)
+      .on("postgres_changes", { event: "*", schema: "public", table: "game_invites", filter: `receiver_id=eq.${user.id}` }, refreshBadge)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   async function handleSignOut() {
     await signOut();
@@ -73,7 +91,7 @@ export function SiteHeader() {
                     : "text-slate-500 hover:bg-slate-100 hover:text-slate-950"
                 }`}
               >
-                <Icon size={16} /> {label}
+                <Icon size={16} /> {label}{href === "/friends" && socialBadge > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] text-white">{socialBadge}</span>}
               </Link>
             ))}
           </nav>
@@ -179,7 +197,7 @@ export function SiteHeader() {
                   : "text-slate-400 hover:bg-white/10 hover:text-white"
               }`}
             >
-              <Icon size={20} />
+              <span className="relative"><Icon size={20} />{href === "/friends" && socialBadge > 0 && <span className="absolute -right-2 -top-2 h-2 w-2 rounded-full bg-red-500"/>}</span>
             </Link>
           );
         })}
