@@ -100,11 +100,14 @@ export async function POST(request: Request) {
           }
           }
         }
-      } else if (gameType === "mini_golf") {
-        const shots = state.shots || {};
-        if (!Object.prototype.hasOwnProperty.call(shots, String(botSeat))) {
+    } else if (gameType === "mini_golf") {
+        const ball = state.balls?.[String(botSeat)];
+        const cup = state.cup;
+        if (state.turn === botSeat && ball && cup && !ball.finished) {
           action = "shot";
-          value = String(1 + Math.floor(Math.random() * 6));
+          const angle = Math.atan2(Number(cup.y) - Number(ball.y), Number(cup.x) - Number(ball.x)) * 180 / Math.PI;
+          const power = Math.min(100, Math.max(14, Math.hypot(Number(cup.x) - Number(ball.x), Number(cup.y) - Number(ball.y)) / .46));
+          value = JSON.stringify({ angle, power });
         }
     } else if (gameType === "number_guess") {
       // Normalize types and handle string-keyed guess objects safely so the bot can act reliably

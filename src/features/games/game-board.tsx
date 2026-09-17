@@ -90,7 +90,7 @@ export function GameBoard({
     } else if (room.game_type === "memory_match") {
       isBotTurn = s.turn === botSeat;
     } else if (room.game_type === "mini_golf") {
-      isBotTurn = !Object.prototype.hasOwnProperty.call(s.shots || {}, String(botSeat));
+      isBotTurn = s.turn === botSeat && Boolean(s.balls?.[String(botSeat)]) && !s.balls?.[String(botSeat)]?.finished;
     }
 
     if (!isBotTurn) return;
