@@ -552,6 +552,19 @@ function Result({
         <p className="mt-3 text-slate-600">{summary}</p>
       </div>
       <div className="p-6">
+        {room.game_type === "battleship" && (
+          <div className="mb-6 grid gap-2 sm:grid-cols-2">
+            {players.map((player) => {
+              const stat = (room.public_state as { stats?: Record<string, { hits?: number; misses?: number; sunk?: number }> }).stats?.[String(player.seat)] || {};
+              return (
+                <div key={player.id} className="rounded-xl border-2 border-slate-950 bg-sky-50 p-3 text-left text-xs font-bold">
+                  <p className="font-black">{player.profile?.display_name || `Player ${player.seat}`}</p>
+                  <p className="mt-1">{stat.hits || 0} hits · {stat.misses || 0} misses · {stat.sunk || 0} ships sunk · {(stat.hits || 0) + (stat.misses || 0)} turns</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div className="mb-6 flex justify-center gap-3">
           {players.map((p) => (
             <div

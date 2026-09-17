@@ -1,65 +1,31 @@
 "use client";
 
+import { RotateCw, Shuffle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-type Shot = { row: number; col: number; hit: boolean };
-type BattleshipState = { turn?: number; shots?: Record<string, Shot[]>; message?: string };
+const SHIPS = [{ id:"carrier", name:"Carrier", size:5 }, { id:"battleship", name:"Battleship", size:4 }, { id:"cruiser", name:"Cruiser", size:3 }, { id:"submarine", name:"Submarine", size:3 }, { id:"destroyer", name:"Destroyer", size:2 }] as const;
+type Shot = { row:number; col:number; hit:boolean; sunk?:string|null };
+type Ship = { id:string; size:number; cells:number[] };
+type State = { phase?:"placing"|"playing"|"finished"; turn?:number; shots?:Record<string,Shot[]>; stats?:Record<string,{hits?:number;misses?:number;sunk?:number}>; placements?:Record<string,boolean>; remaining?:Record<string,number>; message?:string };
+const k=(r:number,c:number)=>`${r},${c}`; const cell=(r:number,c:number)=>r*10+c;
 
-export function Battleship({
-  room,
-  players,
-  meSeat,
-  onAct,
-  busy,
-}: {
-  room: Room;
-  players: RoomPlayer[];
-  meSeat: number;
-  onAct: (action: string, value?: string) => Promise<void>;
-  busy?: boolean;
-}) {
-  const state = (room.public_state || {}) as BattleshipState;
-  const shots = state.shots?.[String(meSeat)] || [];
-  const shotMap = new Map(shots.map((shot) => [`${shot.row},${shot.col}`, shot]));
-  const isMyTurn = state.turn === meSeat;
-
-  return (
-    <div className="mx-auto max-w-xl space-y-5">
-      <div className="flex items-center justify-between border-b-2 border-slate-200 pb-3">
-        <div>
-          <p className="text-xs font-black uppercase tracking-widest text-blue-700">Battleship</p>
-          <h3 className="text-2xl font-black">Find their fleet</h3>
-        </div>
-        <div className="text-xs font-black">
-          {players.map((player) => <span key={player.seat} className="ml-2 rounded-full bg-slate-100 px-3 py-1">P{player.seat}: {state.shots?.[String(player.seat)]?.filter((shot) => shot.hit).length || 0} hits</span>)}
-        </div>
-      </div>
-      <p className="text-center text-sm font-bold text-slate-500">
-        {isMyTurn ? "Your turn: fire at a coordinate." : state.message || "Waiting for the other captain…"}
-      </p>
-      <div className="mx-auto grid max-w-sm grid-cols-5 gap-2 rounded-2xl border-2 border-slate-950 bg-[#bde3ff] p-3 shadow-[4px_4px_0_#171821]">
-        {Array.from({ length: 25 }, (_, index) => {
-          const row = Math.floor(index / 5);
-          const col = index % 5;
-          const shot = shotMap.get(`${row},${col}`);
-          return (
-            <button
-              key={index}
-              disabled={!isMyTurn || busy || Boolean(shot)}
-              onClick={() => void onAct("fire", `${row},${col}`)}
-              className={`aspect-square rounded-xl border-2 border-slate-950 text-xl font-black transition ${
-                shot ? (shot.hit ? "bg-red-400" : "bg-white") : "bg-blue-500 text-white hover:bg-blue-400"
-              } disabled:cursor-not-allowed`}
-              aria-label={`Fire at row ${row + 1}, column ${col + 1}`}
-            >
-              {shot ? (shot.hit ? "💥" : "🌊") : "?"}
-            </button>
-          );
-        })}
-      </div>
-      <div className="grid grid-cols-2 gap-2 text-center text-xs font-bold text-slate-500">
-        <span>💥 Hit</span><span>🌊 Miss</span>
-      </div>
-    </div>
-  );
+export function Battleship({room,players,meSeat,onAct,busy}:{room:Room;players:RoomPlayer[];meSeat:number;onAct:(action:string,value?:string)=>Promise<void>;busy?:boolean}) {
+  const state=(room.public_state||{}) as State; const [ships,setShips]=useState<Record<string,Ship>>({}); const [selected,setSelected]=useState("carrier"); const [horizontal,setHorizontal]=useState(true); const [loading,setLoading]=useState(true);
+  const refresh=useCallback(async()=>{const sb=getSupabaseBrowserClient();if(!sb)return;setLoading(true);const {data}=await sb.rpc("get_battleship_private_state",{p_room:room.id});if(data)setShips((data as {ships?:Record<string,Ship>}).ships||{});setLoading(false)},[room.id]);
+  useEffect(()=>{queueMicrotask(()=>void refresh())},[refresh,room.state_version]);
+  const phase=state.phase||"playing", opponent=players.find(p=>p.seat!==meSeat)?.seat||(meSeat===1?2:1), ownShots=state.shots?.[String(meSeat)]||[], incoming=state.shots?.[String(opponent)]||[];
+  const ownShotMap=useMemo(()=>new Map(ownShots.map(s=>[k(s.row,s.col),s])),[ownShots]); const incomingMap=useMemo(()=>new Map(incoming.map(s=>[k(s.row,s.col),s])),[incoming]); const ownCells=useMemo(()=>new Set(Object.values(ships).flatMap(s=>s.cells)),[ships]); const selectedShip=SHIPS.find(s=>s.id===selected)||SHIPS[0]; const locked=Boolean(state.placements?.[String(meSeat)]); const allPlaced=SHIPS.every(s=>ships[s.id]); const myTurn=phase==="playing"&&state.turn===meSeat;
+  async function place(row:number,col:number){if(phase!=="placing"||locked||busy)return;await onAct("place_ship",JSON.stringify({ship:selected,row,col,orientation:horizontal?"horizontal":"vertical"}));await refresh()}
+  async function randomize(){await onAct("randomize_fleet");await refresh()}
+  const labels=Array.from({length:10},(_,i)=>String.fromCharCode(65+i)), rows=Array.from({length:10},(_,i)=>i+1), mine=state.stats?.[String(meSeat)]||{}, theirs=state.stats?.[String(opponent)]||{};
+  return <div className="mx-auto max-w-6xl space-y-5">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-slate-950 bg-[#bde3ff] p-4 shadow-[4px_4px_0_#171821]"><div><p className="text-[10px] font-black uppercase tracking-widest text-blue-800">Battleship · 10 × 10</p><h3 className="text-xl font-black">{phase==="placing"?"Deploy your fleet":"Find their fleet"}</h3></div><p className="text-sm font-black">{phase==="placing"?(locked?"Fleet locked — waiting for opponent":"Place all five ships"):(myTurn?"Your turn — fire!":state.message||"Opponent’s turn")}</p></div>
+    {phase==="placing"?<div className="grid gap-5 lg:grid-cols-[280px_1fr]"><aside className="rounded-2xl border-2 border-slate-950 bg-white p-4 shadow-[3px_3px_0_#171821]"><p className="text-xs font-black uppercase tracking-widest text-slate-500">Fleet manifest</p><div className="mt-3 space-y-2">{SHIPS.map(s=><button key={s.id} disabled={locked} onClick={()=>setSelected(s.id)} className={`flex w-full items-center justify-between rounded-xl border-2 px-3 py-2 text-left text-sm font-black ${selected===s.id?"border-slate-950 bg-[#7357ff] text-white":"border-slate-200 bg-slate-50"}`}><span>{s.name}</span><span>{ships[s.id]?"✓":`${s.size} cells`}</span></button>)}</div><div className="mt-4 grid grid-cols-2 gap-2"><button onClick={()=>setHorizontal(x=>!x)} disabled={locked} className="arcade-button justify-center bg-white text-slate-950"><RotateCw size={15}/>{horizontal?"Horizontal":"Vertical"}</button><button onClick={()=>void randomize()} disabled={busy||locked} className="arcade-button justify-center bg-[#f4dc69] text-slate-950"><Shuffle size={15}/>Randomize</button></div><button onClick={()=>void onAct("ready")} disabled={!allPlaced||busy||locked} className="arcade-button mt-3 w-full justify-center bg-[#7357ff] text-white">{locked?"FLEET READY":"READY FOR BATTLE"}</button><p className="mt-3 text-xs font-bold text-slate-500">Selected: {selectedShip.name} ({selectedShip.size}). Click a square for its bow.</p></aside><Fleet title="My Fleet" labels={labels} rows={rows} cells={ownCells} shots={incomingMap} onCell={place} disabled={locked||loading} placement/></div>:<><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[["Your shots",`${mine.hits||0} hits · ${mine.misses||0} misses`],["Enemy shots",`${theirs.hits||0} hits · ${theirs.misses||0} misses`],["Enemy ships",`${state.remaining?.[String(opponent)]??5} remaining`],["Your ships",`${state.remaining?.[String(meSeat)]??5} remaining`]].map(([a,b])=><div key={a} className="rounded-xl border-2 border-slate-950 bg-white px-3 py-2 text-center shadow-[2px_2px_0_#171821]"><p className="text-[10px] font-black uppercase text-slate-500">{a}</p><p className="text-sm font-black">{b}</p></div>)}</div><div className="grid gap-6 lg:grid-cols-2"><Fleet title="My Fleet" labels={labels} rows={rows} cells={ownCells} shots={incomingMap}/><Enemy labels={labels} rows={rows} shots={ownShotMap} canFire={myTurn&&!busy} fire={(r,c)=>void onAct("fire",`${r},${c}`)}/></div></>}
+    <div className="flex justify-center gap-5 text-xs font-bold text-slate-600"><span>🚢 Ship</span><span>💥 Hit</span><span>🌊 Miss</span><span>🔥 Sunk</span></div></div>;
 }
+
+function Grid({title,labels,rows,render}:{title:string;labels:string[];rows:number[];render:(r:number,c:number)=>React.ReactNode}){return <section className="min-w-0 rounded-2xl border-2 border-slate-950 bg-white p-3 shadow-[4px_4px_0_#171821]"><h4 className="mb-2 text-center font-black">{title}</h4><div className="grid grid-cols-[18px_repeat(10,minmax(0,1fr))] gap-0.5 text-center text-[9px] font-black"><span/>{labels.map(x=><span key={x}>{x}</span>)}{rows.map(r=><div key={r} className="contents"><span className="grid place-items-center">{r}</span>{labels.map((_,c)=>render(r-1,c))}</div>)}</div></section>}
+function Fleet({title,labels,rows,cells,shots,onCell,disabled,placement=false}:{title:string;labels:string[];rows:number[];cells:Set<number>;shots:Map<string,Shot>;onCell?:(r:number,c:number)=>void;disabled?:boolean;placement?:boolean}){return <Grid title={title} labels={labels} rows={rows} render={(r,c)=>{const s=shots.get(k(r,c)), ship=cells.has(cell(r,c));return <button key={k(r,c)} disabled={disabled} onClick={()=>onCell?.(r,c)} className={`aspect-square min-w-0 rounded-[3px] border border-blue-200 text-[clamp(8px,1.5vw,16px)] ${s?(s.hit?"bg-red-500":"bg-sky-100"):ship?"bg-slate-700":"bg-[#bde3ff]"} ${placement&&!disabled?"hover:ring-2 hover:ring-[#7357ff]":""}`}>{s?(s.hit?"💥":"•"):ship?"🚢":""}</button>}}/>}
+function Enemy({labels,rows,shots,canFire,fire}:{labels:string[];rows:number[];shots:Map<string,Shot>;canFire:boolean;fire:(r:number,c:number)=>void}){return <Grid title={canFire?"Enemy Waters — choose a target":"Enemy Waters"} labels={labels} rows={rows} render={(r,c)=>{const s=shots.get(k(r,c));return <button key={k(r,c)} disabled={!canFire||Boolean(s)} onClick={()=>fire(r,c)} className={`aspect-square min-w-0 rounded-[3px] border border-blue-200 text-[clamp(8px,1.5vw,16px)] ${s?(s.hit?"bg-red-500":"bg-sky-100"):"bg-blue-500 hover:bg-blue-400"}`}>{s?(s.sunk?"🔥":s.hit?"💥":"•"):""}</button>}}/>}

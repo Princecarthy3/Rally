@@ -100,7 +100,7 @@ export async function POST(request: Request) {
     } else if (gameType === "battleship") {
       const fired: Array<{ row: number; col: number }> = state.shots?.[String(botSeat)] || [];
       const used = new Set(fired.map((shot) => `${shot.row},${shot.col}`));
-      const available = Array.from({ length: 25 }, (_, index) => ({ row: Math.floor(index / 5), col: index % 5 }))
+      const available = Array.from({ length: 100 }, (_, index) => ({ row: Math.floor(index / 10), col: index % 10 }))
         .filter((shot) => !used.has(`${shot.row},${shot.col}`));
       if (state.turn === botSeat && available.length > 0) {
         const shot = available[Math.floor(Math.random() * available.length)];
