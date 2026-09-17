@@ -10,6 +10,11 @@ export interface EmojiPuzzle {
   answer: number;
 }
 
+// A room can have several clients (and possibly a bot) request the next
+// question at once. Share the OpenRouter request while it is in progress so
+// only one candidate is generated for that round.
+const pendingTriviaQuestions = new Map<string, Promise<TriviaQuestion>>();
+
 const FALLBACK_SKRIBBL_WORDS = [
   ["Apple", "Banana", "House"],
   ["Cat", "Dog", "Sun"],
@@ -110,8 +115,8 @@ export async function generateSkribblWordsAI(seed?: string, excludedWords: strin
 }
 
 export async function generateTriviaQuestionAI(seed?: string): Promise<TriviaQuestion> {
-  const prompt = `Generate 1 interesting, family-friendly trivia question with exactly 4 distinct answer options. Use a different topic or angle for nonce ${seed || crypto.randomUUID()}. Return only JSON in this format: {"question":"Question text?","options":["Option 0","Option 1","Option 2","Option 3"],"answer":1}. The answer must be the zero-based index of the correct option.`;
-  const responseText = await callOpenRouter(prompt, 5000);
+  const prompt = `Generate one short, family-friendly trivia question for a fast multiplayer game. Use exactly 4 concise, distinct options and one unambiguous correct answer. Vary the topic for nonce ${seed || crypto.randomUUID()}. Return only JSON: {"question":"Question text?","options":["Option 0","Option 1","Option 2","Option 3"],"answer":1}. Answer is the zero-based correct-option index.`;
+  const responseText = await callOpenRouter(prompt, 3500);
   if (responseText) {
     try {
       const parsed = JSON.parse(responseText);
@@ -126,6 +131,16 @@ export async function generateTriviaQuestionAI(seed?: string): Promise<TriviaQue
   }
 
   throw new Error("Trivia AI could not generate a valid question");
+}
+
+export function generateSharedTriviaQuestion(roomId: string, round: number): Promise<TriviaQuestion> {
+  const key = `${roomId}:${round}`;
+  const pending = pendingTriviaQuestions.get(key);
+  if (pending) return pending;
+
+  const request = generateTriviaQuestionAI(key).finally(() => pendingTriviaQuestions.delete(key));
+  pendingTriviaQuestions.set(key, request);
+  return request;
 }
 
 export async function generateEmojiPuzzleAI(): Promise<EmojiPuzzle> {

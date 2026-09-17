@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { generateTriviaQuestionAI } from "@/lib/ai/gemini";
+import { generateSharedTriviaQuestion } from "@/lib/ai/gemini";
 
 export async function POST(request: Request) {
   try {
@@ -15,7 +15,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Supabase environment variables missing" }, { status: 500 });
     }
 
-    const question = await generateTriviaQuestionAI(`${roomId}:${round || 1}`);
+    // The first generated question is persisted by play_trivia_action. Every
+    // player then receives that one room-state question through Realtime.
+    const question = await generateSharedTriviaQuestion(roomId, Number(round) || 1);
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: `Bearer ${accessToken}` } },
     });

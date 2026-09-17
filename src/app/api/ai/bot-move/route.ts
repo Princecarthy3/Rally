@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { generateSkribblWordsAI, generateTriviaQuestionAI } from "@/lib/ai/gemini";
+import { generateSkribblWordsAI, generateSharedTriviaQuestion } from "@/lib/ai/gemini";
 
 export async function POST(request: Request) {
   try {
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
         action = "next_question";
       } else if (!state.question) {
         action = "load_question";
-        const question = await generateTriviaQuestionAI(`${roomId}:${state.round || 1}`);
+        const question = await generateSharedTriviaQuestion(roomId, Number(state.round) || 1);
         value = JSON.stringify(question);
       } else if (!Object.prototype.hasOwnProperty.call(answers, String(botSeat))) {
         action = "answer";
