@@ -13,6 +13,7 @@ import { ConnectFour } from "./connect-four";
 import { MemoryMatch } from "./memory-match";
 import { MiniGolf } from "./mini-golf";
 import { Battleship } from "./battleship";
+import { PongBoard } from "./pong-board";
 
 import { sounds } from "@/lib/audio";
 
@@ -185,6 +186,9 @@ export function GameBoard({
           )}
           {room.game_type === "battleship" && (
             <Battleship room={room} players={players} meSeat={me?.seat || 1} onAct={act} busy={busy} />
+          )}
+          {room.game_type === "ping_pong" && me && (
+            <PongBoard room={room} players={players} me={me} />
           )}
           {room.game_type === "tic_tac_toe" && (
             <TicTacToe state={state} mySeat={me?.seat} place={(i) => act("place", String(i))} busy={busy} />
