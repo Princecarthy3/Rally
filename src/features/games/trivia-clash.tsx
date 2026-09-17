@@ -3,6 +3,7 @@
 import { Check, LoaderCircle, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type TriviaState = {
   round?: number;
@@ -24,13 +25,37 @@ export function TriviaClash({ room, players, meSeat, onAct, busy }: {
 }) {
   const state = (room.public_state || {}) as TriviaState;
   const [selected, setSelected] = useState<number | null>(null);
+  const [loadingQuestion, setLoadingQuestion] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const answers = state.answers || {};
   const hasAnswered = Object.prototype.hasOwnProperty.call(answers, String(meSeat));
   const scores = state.scores || {};
 
   useEffect(() => {
-    if (!state.question && !busy) void onAct("load_question");
-  }, [busy, onAct, state.question]);
+    if (state.question || busy || loadingQuestion) return;
+    let cancelled = false;
+    void (async () => {
+      const supabase = getSupabaseBrowserClient();
+      const { data } = await supabase?.auth.getSession() || { data: { session: null } };
+      if (!data.session) {
+        if (!cancelled) setLoadError("Your session expired. Please sign in again.");
+        return;
+      }
+      setLoadingQuestion(true);
+      setLoadError("");
+      const response = await fetch("/api/ai/trivia-question", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId: room.id, round: state.round || 1, accessToken: data.session.access_token }),
+      });
+      if (!response.ok && !cancelled) {
+        const result = await response.json().catch(() => ({}));
+        setLoadError(result.error || "Could not generate a trivia question.");
+      }
+      if (!cancelled) setLoadingQuestion(false);
+    })();
+    return () => { cancelled = true; };
+  }, [busy, loadingQuestion, room.id, state.question, state.round]);
 
   async function submit() {
     if (selected === null || hasAnswered || state.revealed) return;
@@ -50,7 +75,7 @@ export function TriviaClash({ room, players, meSeat, onAct, busy }: {
       </div>
       {state.message && <p role="status" className="rounded-xl border-2 border-violet-200 bg-violet-50 px-4 py-2 text-center text-sm font-black text-violet-900">{state.message}</p>}
       {!state.question ? (
-        <div className="py-16 text-center font-black"><LoaderCircle className="mx-auto animate-spin text-violet-600" /> Loading question…</div>
+        <div className="py-16 text-center font-black"><LoaderCircle className="mx-auto animate-spin text-violet-600" /> {loadError || "Generating a fresh question…"}</div>
       ) : (
         <>
           <h4 className="text-center text-xl font-black">{state.question}</h4>

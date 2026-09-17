@@ -30,14 +30,6 @@ const FALLBACK_SKRIBBL_WORDS = [
   ["Hamburger", "Pyramid", "Spaghetti"],
 ];
 
-const FALLBACK_TRIVIA: TriviaQuestion[] = [
-  { question: "Which planet has the shortest day in our solar system?", options: ["Mercury", "Jupiter", "Mars", "Neptune"], answer: 1 },
-  { question: "What element has the chemical symbol 'Au'?", options: ["Silver", "Aluminum", "Gold", "Copper"], answer: 2 },
-  { question: "How many hearts does an octopus have?", options: ["1", "2", "3", "4"], answer: 2 },
-  { question: "Which country gifted the Statue of Liberty to the USA?", options: ["Great Britain", "France", "Germany", "Spain"], answer: 1 },
-  { question: "What is the hardest natural substance on Earth?", options: ["Quartz", "Titanium", "Diamond", "Corundum"], answer: 2 },
-];
-
 const FALLBACK_EMOJI: EmojiPuzzle[] = [
   { question: "🦁 👑", options: ["Jungle Book", "Madagascar", "The Lion King", "Tarzan"], answer: 2 },
   { question: "🕷️ 👨", options: ["Spider-Man", "Ant-Man", "Batman", "Venom"], answer: 0 },
@@ -96,23 +88,23 @@ export async function generateSkribblWordsAI(seed?: string, excludedWords: strin
   return randomSet;
 }
 
-export async function generateTriviaQuestionAI(): Promise<TriviaQuestion> {
-  const prompt = `Generate 1 interesting fun trivia question with 4 options and the index (0, 1, 2, or 3) of the correct answer. Return JSON object format: {"question": "Question text?", "options": ["Opt0", "Opt1", "Opt2", "Opt3"], "answer": 1}`;
+export async function generateTriviaQuestionAI(seed?: string): Promise<TriviaQuestion> {
+  const prompt = `Generate 1 interesting, family-friendly trivia question with exactly 4 distinct answer options. Use a different topic or angle for nonce ${seed || crypto.randomUUID()}. Return only JSON in this format: {"question":"Question text?","options":["Option 0","Option 1","Option 2","Option 3"],"answer":1}. The answer must be the zero-based index of the correct option.`;
   const responseText = await callGemini(prompt);
   if (responseText) {
     try {
       const parsed = JSON.parse(responseText);
-      if (parsed.question && Array.isArray(parsed.options) && typeof parsed.answer === "number") {
+      if (parsed.question && Array.isArray(parsed.options) && parsed.options.length === 4 && typeof parsed.answer === "number" && parsed.answer >= 0 && parsed.answer < 4) {
         return {
           question: String(parsed.question),
-          options: parsed.options.map((o: any) => String(o)),
-          answer: Number(parsed.answer) % 4,
+          options: parsed.options.map((o: unknown) => String(o)),
+          answer: Number(parsed.answer),
         };
       }
     } catch {}
   }
 
-  return FALLBACK_TRIVIA[Math.floor(Math.random() * FALLBACK_TRIVIA.length)];
+  throw new Error("Trivia AI could not generate a valid question");
 }
 
 export async function generateEmojiPuzzleAI(): Promise<EmojiPuzzle> {
