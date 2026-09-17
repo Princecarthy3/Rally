@@ -1,19 +1,8 @@
-export interface TriviaQuestion {
-  question: string;
-  options: string[];
-  answer: number;
-}
-
 export interface EmojiPuzzle {
   question: string;
   options: string[];
   answer: number;
 }
-
-// A room can have several clients (and possibly a bot) request the next
-// question at once. Share the OpenRouter request while it is in progress so
-// only one candidate is generated for that round.
-const pendingTriviaQuestions = new Map<string, Promise<TriviaQuestion>>();
 
 const FALLBACK_SKRIBBL_WORDS = [
   ["Apple", "Banana", "House"],
@@ -112,39 +101,6 @@ export async function generateSkribblWordsAI(seed?: string, excludedWords: strin
   const index = [...(seed || crypto.randomUUID())].reduce((total, char) => total + char.charCodeAt(0), 0) % FALLBACK_SKRIBBL_WORDS.length;
   const randomSet = FALLBACK_SKRIBBL_WORDS[index];
   return randomSet;
-}
-
-export async function generateTriviaQuestionAI(seed?: string): Promise<TriviaQuestion> {
-  if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error("Trivia AI is not configured. Add OPENROUTER_API_KEY to the server environment.");
-  }
-
-  const prompt = `Generate one short, family-friendly trivia question for a fast multiplayer game. Use exactly 4 concise, distinct options and one unambiguous correct answer. Vary the topic for nonce ${seed || crypto.randomUUID()}. Return only JSON: {"question":"Question text?","options":["Option 0","Option 1","Option 2","Option 3"],"answer":1}. Answer is the zero-based correct-option index.`;
-  const responseText = await callOpenRouter(prompt, 10000);
-  if (responseText) {
-    try {
-      const parsed = JSON.parse(responseText);
-      if (parsed.question && Array.isArray(parsed.options) && parsed.options.length === 4 && typeof parsed.answer === "number" && parsed.answer >= 0 && parsed.answer < 4) {
-        return {
-          question: String(parsed.question),
-          options: parsed.options.map((o: unknown) => String(o)),
-          answer: Number(parsed.answer),
-        };
-      }
-    } catch {}
-  }
-
-  throw new Error("OpenRouter could not generate a valid trivia question. Please try again.");
-}
-
-export function generateSharedTriviaQuestion(roomId: string, round: number): Promise<TriviaQuestion> {
-  const key = `${roomId}:${round}`;
-  const pending = pendingTriviaQuestions.get(key);
-  if (pending) return pending;
-
-  const request = generateTriviaQuestionAI(key).finally(() => pendingTriviaQuestions.delete(key));
-  pendingTriviaQuestions.set(key, request);
-  return request;
 }
 
 export async function generateEmojiPuzzleAI(): Promise<EmojiPuzzle> {
