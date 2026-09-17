@@ -63,7 +63,7 @@ export function GameRoom() {
     if (!room) return;
     setBusy(true);
     setNotice("");
-    const startRpc = room.game_type === "ludo" ? "start_ludo_game" : room.game_type === "memory_match" ? "start_memory_match" : room.game_type === "mini_golf" ? "start_mini_golf" : "start_game";
+    const startRpc = room.game_type === "ludo" ? "start_ludo_game" : room.game_type === "memory_match" ? "start_memory_match" : room.game_type === "mini_golf" ? "start_mini_golf" : room.game_type === "battleship" ? "start_battleship" : "start_game";
     const { error } = await supabase!.rpc(startRpc, { p_room: room.id });
     if (error) setNotice(error.message);
     setBusy(false);

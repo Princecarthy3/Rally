@@ -8,6 +8,7 @@ const games = [
   { icon: "🧠", title: "Trivia Clash", text: "Race to the right answer", color: "bg-[#f0e1ff]", tilt: "rotate-1" },
   { icon: "🃏", title: "Memory Match", text: "Find pairs and build your score", color: "bg-[#ffe8cc]", tilt: "-rotate-1" },
   { icon: "⛳", title: "Mini Golf", text: "Pick your power and sink the lowest score", color: "bg-[#e5f8df]", tilt: "rotate-2" },
+  { icon: "🚢", title: "Battleship", text: "Fire, find, and sink the hidden fleet", color: "bg-[#dff2ff]", tilt: "-rotate-2" },
   { icon: "⭕", title: "Tic-Tac-Toe", text: "Three in a row", color: "bg-[#ffe7eb]", tilt: "rotate-1" },
   { icon: "🔴", title: "Connect Four", text: "Line up four before they do", color: "bg-[#ffe0ef]", tilt: "-rotate-1" },
   { icon: "🔲", title: "Dots & Boxes", text: "Claim the grid", color: "bg-[#e4f8ef]", tilt: "rotate-2" },

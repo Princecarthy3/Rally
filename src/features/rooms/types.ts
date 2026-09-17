@@ -6,11 +6,12 @@ export type PublicGameState = {
   turn?: number; round?: number; message?: string; winnerSeat?: number | null; winners?: number[];
   scores?: Record<string, number>; shots?: Record<string, number>; choices?: Record<string, string>;
   guesses?: Array<{ seat:number; value:number; hint:string }>; board?: string[]; positions?: Record<string, number>;
-  question?: string; options?: string[]; answers?: Record<string, number>; correctAnswer?: number; revealed?: boolean;
+  revealed?: boolean;
   history?: Array<any>; tries?: Record<string, number>; drawerSeat?: number; targetPicked?: boolean; wordSelected?: string | null;
   ludoPositions?: Record<string, number[]>; lastRoll?: number; awaitingMove?: boolean;
   connectFourBoard?: string[]; roundWins?: Record<string, number>;
   hole?: number; par?: number; target?: number; cup?: { x:number; y:number }; start?: { x:number; y:number }; balls?: Record<string, { x:number; y:number; strokes:number; finished?:boolean }>; holeResults?: Array<Record<string, number>>;
+  battleshipShots?: Record<string, Array<{ row: number; col: number; hit: boolean }>>;
 };
 export type Room = { id:string; code:string; game_type:GameKey; host_id:string; status:RoomStatus; max_players:number; public_state:PublicGameState; state_version:number; match_number:number; created_at:string; updated_at:string };
 export type RoomPlayer = {

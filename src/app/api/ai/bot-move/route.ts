@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { generateSkribblWordsAI, generateSharedTriviaQuestion } from "@/lib/ai/gemini";
+import { generateSkribblWordsAI } from "@/lib/ai/gemini";
 
 export async function POST(request: Request) {
   try {
@@ -74,18 +74,6 @@ export async function POST(request: Request) {
       if (availableColumns.length > 0) {
         value = String(availableColumns[Math.floor(Math.random() * availableColumns.length)]);
       }
-    } else if (gameType === "trivia_clash") {
-      const answers = state.answers || {};
-      if (state.revealed && Number(state.round || 1) < 5) {
-        action = "next_question";
-      } else if (!state.question) {
-        action = "load_question";
-        const question = await generateSharedTriviaQuestion(roomId, Number(state.round) || 1);
-        value = JSON.stringify(question);
-      } else if (!Object.prototype.hasOwnProperty.call(answers, String(botSeat))) {
-        action = "answer";
-        value = String(Math.floor(Math.random() * 4));
-      }
     } else if (gameType === "memory_match") {
       const matched = state.matched || [];
       const flipped = state.flipped || [];
@@ -109,6 +97,16 @@ export async function POST(request: Request) {
           const power = Math.min(100, Math.max(14, Math.hypot(Number(cup.x) - Number(ball.x), Number(cup.y) - Number(ball.y)) / .46));
           value = JSON.stringify({ angle, power });
         }
+    } else if (gameType === "battleship") {
+      const fired: Array<{ row: number; col: number }> = state.shots?.[String(botSeat)] || [];
+      const used = new Set(fired.map((shot) => `${shot.row},${shot.col}`));
+      const available = Array.from({ length: 25 }, (_, index) => ({ row: Math.floor(index / 5), col: index % 5 }))
+        .filter((shot) => !used.has(`${shot.row},${shot.col}`));
+      if (state.turn === botSeat && available.length > 0) {
+        const shot = available[Math.floor(Math.random() * available.length)];
+        action = "fire";
+        value = `${shot.row},${shot.col}`;
+      }
     } else if (gameType === "number_guess") {
       // Normalize types and handle string-keyed guess objects safely so the bot can act reliably
       const pickerSeat = Number(state.pickerSeat ?? 1);
@@ -173,7 +171,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "No action required" });
     }
 
-    const rpc = gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_rps_action" : gameType === "number_guess" ? "play_number_hunt_action" : gameType === "trivia_clash" ? "play_trivia_action" : gameType === "memory_match" ? "play_memory_match_action" : gameType === "mini_golf" ? "play_mini_golf_action" : gameType === "skribbl" ? "play_skribbl_action" : "play_room_action";
+    const rpc = gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_rps_action" : gameType === "number_guess" ? "play_number_hunt_action" : gameType === "memory_match" ? "play_memory_match_action" : gameType === "mini_golf" ? "play_mini_golf_action" : gameType === "battleship" ? "play_battleship_action" : gameType === "skribbl" ? "play_skribbl_action" : "play_room_action";
     const params = { p_room: roomId, p_action: action, p_value: value, p_actor_seat: botSeat };
     const { data, error } = await supabase.rpc(rpc, params);
 
