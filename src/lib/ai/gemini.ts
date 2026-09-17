@@ -38,32 +38,48 @@ const FALLBACK_EMOJI: EmojiPuzzle[] = [
   { question: "🦇 👨 🏙️", options: ["Daredevil", "Batman", "Iron Man", "Superman"], answer: 1 },
 ];
 
-async function callGemini(prompt: string, timeoutMs = 8000): Promise<string | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
+async function callOpenRouter(prompt: string, timeoutMs = 8000): Promise<string | null> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
 
-  const models = ["gemini-2.0-flash-lite", "gemini-2.0-flash"];
+  const models = [
+    process.env.OPENROUTER_MODEL || "google/gemini-2.0-flash-lite-001",
+    "openai/gpt-4o-mini",
+  ];
   for (const model of models) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "HTTP-Referer": process.env.APP_URL || "http://localhost:3000",
+          "X-Title": "Rally",
+        },
         signal: controller.signal,
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json", maxOutputTokens: 256, temperature: 0.7 },
+          model,
+          messages: [
+            { role: "system", content: "Return only valid JSON. Do not use markdown fences." },
+            { role: "user", content: prompt },
+          ],
+          response_format: { type: "json_object" },
+          max_tokens: 256,
+          temperature: 0.7,
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const text = data?.choices?.[0]?.message?.content;
         if (text) return text;
+      } else {
+        console.error(`OpenRouter API Error (${model}): ${res.status} ${await res.text()}`);
       }
     } catch (err) {
-      console.error(`Gemini API Error (${model}):`, err instanceof Error ? err.message : err);
+      console.error(`OpenRouter API Error (${model}):`, err instanceof Error ? err.message : err);
     } finally {
       clearTimeout(timeout);
     }
@@ -76,7 +92,7 @@ async function callGemini(prompt: string, timeoutMs = 8000): Promise<string | nu
 export async function generateSkribblWordsAI(seed?: string, excludedWords: string[] = []): Promise<string[]> {
   const excluded = excludedWords.slice(-30).join(", ") || "none";
   const prompt = `Generate exactly 3 fun, creative, distinct single-word or short two-word nouns suitable for a drawing game like Skribbl. This is a fresh game prompt with nonce ${seed || crypto.randomUUID()}. Do not use any of these recently used words: ${excluded}. Return only a JSON array: ["Word1", "Word2", "Word3"]`;
-  const responseText = await callGemini(prompt);
+  const responseText = await callOpenRouter(prompt);
   if (responseText) {
     try {
       const parsed = JSON.parse(responseText);
@@ -95,7 +111,7 @@ export async function generateSkribblWordsAI(seed?: string, excludedWords: strin
 
 export async function generateTriviaQuestionAI(seed?: string): Promise<TriviaQuestion> {
   const prompt = `Generate 1 interesting, family-friendly trivia question with exactly 4 distinct answer options. Use a different topic or angle for nonce ${seed || crypto.randomUUID()}. Return only JSON in this format: {"question":"Question text?","options":["Option 0","Option 1","Option 2","Option 3"],"answer":1}. The answer must be the zero-based index of the correct option.`;
-  const responseText = await callGemini(prompt, 5000);
+  const responseText = await callOpenRouter(prompt, 5000);
   if (responseText) {
     try {
       const parsed = JSON.parse(responseText);
@@ -114,7 +130,7 @@ export async function generateTriviaQuestionAI(seed?: string): Promise<TriviaQue
 
 export async function generateEmojiPuzzleAI(): Promise<EmojiPuzzle> {
   const prompt = `Generate 1 fun emoji trivia puzzle representing a famous movie, song, celebrity, pop culture item, or video game. Provide emojis as 'question', 4 multiple choice options, and the correct 0-indexed answer. Return JSON object format: {"question": "🦁 👑", "options": ["Movie A", "Movie B", "The Lion King", "Movie D"], "answer": 2}`;
-  const responseText = await callGemini(prompt);
+  const responseText = await callOpenRouter(prompt);
   if (responseText) {
     try {
       const parsed = JSON.parse(responseText);
