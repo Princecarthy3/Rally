@@ -120,7 +120,7 @@ export async function generateTriviaQuestionAI(seed?: string): Promise<TriviaQue
   }
 
   const prompt = `Generate one short, family-friendly trivia question for a fast multiplayer game. Use exactly 4 concise, distinct options and one unambiguous correct answer. Vary the topic for nonce ${seed || crypto.randomUUID()}. Return only JSON: {"question":"Question text?","options":["Option 0","Option 1","Option 2","Option 3"],"answer":1}. Answer is the zero-based correct-option index.`;
-  const responseText = await callOpenRouter(prompt, 7000);
+  const responseText = await callOpenRouter(prompt, 10000);
   if (responseText) {
     try {
       const parsed = JSON.parse(responseText);

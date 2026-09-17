@@ -478,7 +478,13 @@ function DiceDash({ state, players, mySeat, roll, busy }: { state: Room["public_
 function deriveWinners(room: Room, players: RoomPlayer[]) {
   const state = room.public_state;
   if (typeof state.winnerSeat === "number") return [state.winnerSeat];
-  if (["dots_boxes", "skribbl", "mini_golf"].includes(room.game_type)) {
+  if (room.game_type === "mini_golf") {
+    const values = players.map((p) => Number(state.scores?.[p.seat] || 0));
+    const lowest = Math.min(...values);
+    const seats = players.filter((_, i) => values[i] === lowest).map((p) => p.seat);
+    return seats.length === players.length ? [] : seats;
+  }
+  if (["dots_boxes", "skribbl"].includes(room.game_type)) {
     const values = players.map((p) => Number(state.scores?.[p.seat] || 0));
     const top = Math.max(...values);
     const seats = players.filter((_, i) => values[i] === top).map((p) => p.seat);
