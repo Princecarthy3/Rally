@@ -48,7 +48,7 @@ async function callOpenRouter(prompt: string, timeoutMs = 8000): Promise<string 
   if (!apiKey) return null;
 
   const models = [
-    process.env.OPENROUTER_MODEL || "google/gemini-2.0-flash-lite-001",
+    process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash-lite",
     "openai/gpt-4o-mini",
   ];
   for (const model of models) {
@@ -71,8 +71,8 @@ async function callOpenRouter(prompt: string, timeoutMs = 8000): Promise<string 
             { role: "user", content: prompt },
           ],
           response_format: { type: "json_object" },
-          max_tokens: 256,
-          temperature: 0.7,
+          max_tokens: 160,
+          temperature: 0.35,
         }),
       });
 
@@ -115,8 +115,12 @@ export async function generateSkribblWordsAI(seed?: string, excludedWords: strin
 }
 
 export async function generateTriviaQuestionAI(seed?: string): Promise<TriviaQuestion> {
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error("Trivia AI is not configured. Add OPENROUTER_API_KEY to the server environment.");
+  }
+
   const prompt = `Generate one short, family-friendly trivia question for a fast multiplayer game. Use exactly 4 concise, distinct options and one unambiguous correct answer. Vary the topic for nonce ${seed || crypto.randomUUID()}. Return only JSON: {"question":"Question text?","options":["Option 0","Option 1","Option 2","Option 3"],"answer":1}. Answer is the zero-based correct-option index.`;
-  const responseText = await callOpenRouter(prompt, 3500);
+  const responseText = await callOpenRouter(prompt, 7000);
   if (responseText) {
     try {
       const parsed = JSON.parse(responseText);
@@ -130,7 +134,7 @@ export async function generateTriviaQuestionAI(seed?: string): Promise<TriviaQue
     } catch {}
   }
 
-  throw new Error("Trivia AI could not generate a valid question");
+  throw new Error("OpenRouter could not generate a valid trivia question. Please try again.");
 }
 
 export function generateSharedTriviaQuestion(roomId: string, round: number): Promise<TriviaQuestion> {
