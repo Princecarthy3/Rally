@@ -92,7 +92,7 @@ export async function POST(request: Request) {
         const ball = state.balls?.[String(botSeat)];
         const cup = state.cup;
         if (state.turn === botSeat && ball && cup && !ball.finished) {
-          action = "shot";
+          action = "shoot";
           const angle = Math.atan2(Number(cup.y) - Number(ball.y), Number(cup.x) - Number(ball.x)) * 180 / Math.PI;
           const power = Math.min(100, Math.max(14, Math.hypot(Number(cup.x) - Number(ball.x), Number(cup.y) - Number(ball.y)) / .46));
           value = JSON.stringify({ angle, power });
