@@ -38,19 +38,22 @@ const FALLBACK_EMOJI: EmojiPuzzle[] = [
   { question: "🦇 👨 🏙️", options: ["Daredevil", "Batman", "Iron Man", "Superman"], answer: 1 },
 ];
 
-async function callGemini(prompt: string): Promise<string | null> {
+async function callGemini(prompt: string, timeoutMs = 8000): Promise<string | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  const models = ["gemini-2.0-flash-lite", "gemini-2.0-flash"];
   for (const model of models) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" },
+          generationConfig: { responseMimeType: "application/json", maxOutputTokens: 256, temperature: 0.7 },
         }),
       });
 
@@ -60,7 +63,9 @@ async function callGemini(prompt: string): Promise<string | null> {
         if (text) return text;
       }
     } catch (err) {
-      console.error(`Gemini API Error (${model}):`, err);
+      console.error(`Gemini API Error (${model}):`, err instanceof Error ? err.message : err);
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
@@ -90,7 +95,7 @@ export async function generateSkribblWordsAI(seed?: string, excludedWords: strin
 
 export async function generateTriviaQuestionAI(seed?: string): Promise<TriviaQuestion> {
   const prompt = `Generate 1 interesting, family-friendly trivia question with exactly 4 distinct answer options. Use a different topic or angle for nonce ${seed || crypto.randomUUID()}. Return only JSON in this format: {"question":"Question text?","options":["Option 0","Option 1","Option 2","Option 3"],"answer":1}. The answer must be the zero-based index of the correct option.`;
-  const responseText = await callGemini(prompt);
+  const responseText = await callGemini(prompt, 5000);
   if (responseText) {
     try {
       const parsed = JSON.parse(responseText);
