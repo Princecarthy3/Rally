@@ -12,6 +12,7 @@ import { LudoGame } from "./ludo-game";
 import { ConnectFour } from "./connect-four";
 import { TriviaClash } from "./trivia-clash";
 import { MemoryMatch } from "./memory-match";
+import { MiniGolf } from "./mini-golf";
 
 import { sounds } from "@/lib/audio";
 
@@ -48,7 +49,7 @@ export function GameBoard({
     if (!supabase) return;
     setBusy(true);
     setError("");
-    const rpc = room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "trivia_clash" ? "play_trivia_action" : room.game_type === "memory_match" ? "play_memory_match_action" : room.game_type === "skribbl" ? "play_skribbl_action" : "play_room_action";
+    const rpc = room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "trivia_clash" ? "play_trivia_action" : room.game_type === "memory_match" ? "play_memory_match_action" : room.game_type === "mini_golf" ? "play_mini_golf_action" : room.game_type === "skribbl" ? "play_skribbl_action" : "play_room_action";
     const params = { p_room: room.id, p_action: action, p_value: value ?? null };
     const { error } = await supabase.rpc(rpc, params);
     if (error) setError(error.message);
@@ -88,6 +89,8 @@ export function GameBoard({
         || !Object.prototype.hasOwnProperty.call(s.answers || {}, String(botSeat));
     } else if (room.game_type === "memory_match") {
       isBotTurn = s.turn === botSeat;
+    } else if (room.game_type === "mini_golf") {
+      isBotTurn = !Object.prototype.hasOwnProperty.call(s.shots || {}, String(botSeat));
     }
 
     if (!isBotTurn) return;
@@ -181,6 +184,9 @@ export function GameBoard({
           )}
           {room.game_type === "memory_match" && (
             <MemoryMatch room={room} players={players} meSeat={me?.seat || 1} onAct={act} busy={busy} />
+          )}
+          {room.game_type === "mini_golf" && (
+            <MiniGolf room={room} players={players} meSeat={me?.seat || 1} onAct={act} busy={busy} />
           )}
           {room.game_type === "tic_tac_toe" && (
             <TicTacToe state={state} mySeat={me?.seat} place={(i) => act("place", String(i))} busy={busy} />
@@ -472,7 +478,7 @@ function DiceDash({ state, players, mySeat, roll, busy }: { state: Room["public_
 function deriveWinners(room: Room, players: RoomPlayer[]) {
   const state = room.public_state;
   if (typeof state.winnerSeat === "number") return [state.winnerSeat];
-  if (["dots_boxes", "skribbl"].includes(room.game_type)) {
+  if (["dots_boxes", "skribbl", "mini_golf"].includes(room.game_type)) {
     const values = players.map((p) => Number(state.scores?.[p.seat] || 0));
     const top = Math.max(...values);
     const seats = players.filter((_, i) => values[i] === top).map((p) => p.seat);

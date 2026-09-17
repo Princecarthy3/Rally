@@ -98,8 +98,14 @@ export async function POST(request: Request) {
             action = "flip";
             value = String(available[Math.floor(Math.random() * available.length)]);
           }
+          }
         }
-      }
+      } else if (gameType === "mini_golf") {
+        const shots = state.shots || {};
+        if (!Object.prototype.hasOwnProperty.call(shots, String(botSeat))) {
+          action = "shot";
+          value = String(1 + Math.floor(Math.random() * 6));
+        }
     } else if (gameType === "number_guess") {
       // Normalize types and handle string-keyed guess objects safely so the bot can act reliably
       const pickerSeat = Number(state.pickerSeat ?? 1);
@@ -164,7 +170,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "No action required" });
     }
 
-    const rpc = gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_rps_action" : gameType === "number_guess" ? "play_number_hunt_action" : gameType === "trivia_clash" ? "play_trivia_action" : gameType === "memory_match" ? "play_memory_match_action" : gameType === "skribbl" ? "play_skribbl_action" : "play_room_action";
+    const rpc = gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_rps_action" : gameType === "number_guess" ? "play_number_hunt_action" : gameType === "trivia_clash" ? "play_trivia_action" : gameType === "memory_match" ? "play_memory_match_action" : gameType === "mini_golf" ? "play_mini_golf_action" : gameType === "skribbl" ? "play_skribbl_action" : "play_room_action";
     const params = { p_room: roomId, p_action: action, p_value: value, p_actor_seat: botSeat };
     const { data, error } = await supabase.rpc(rpc, params);
 
