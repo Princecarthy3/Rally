@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
 
 type Ball = { x: number; y: number; strokes: number; finished?: boolean; lost?: boolean };
-type MiniGolfState = { hole?: number; par?: number; turn?: number; obstacle?: string; cup?: { x: number; y: number }; balls?: Record<string, Ball>; scores?: Record<string, number>; message?: string };
+type MiniGolfState = { hole?: number; par?: number; turn?: number; obstacle?: string; difficulty?: number; cup?: { x: number; y: number }; balls?: Record<string, Ball>; scores?: Record<string, number>; message?: string };
 
 const COURSE_ART: Record<number, { water?: string; sand?: string; wall?: string }> = {
   1: { sand: "left-[33%] top-[12%] h-[28%] w-[30%]", wall: "left-[12%] top-[52%] h-3 w-[52%]" },
@@ -48,7 +48,7 @@ export function MiniGolf({ room, players, meSeat, onAct, busy }: { room: Room; p
 
   return <div className="mx-auto max-w-2xl space-y-4">
     <div className="flex items-center justify-between border-b-2 border-slate-200 pb-3"><div><p className="text-xs font-black uppercase tracking-widest text-emerald-700">Live Mini Golf</p><h3 className="text-2xl font-black">Hole {hole} of 9 <span className="text-sm text-slate-400">PAR {state.par || 3}</span></h3></div><div className="flex gap-2 text-xs font-black">{players.map((player) => <span key={player.seat} className="rounded-full bg-slate-100 px-3 py-1">P{player.seat}: {scores[String(player.seat)] || 0}</span>)}</div></div>
-    <p className="text-center text-xs font-bold text-slate-500">Four strokes max · {state.obstacle || "obstacles"} · later holes are tougher</p>
+    <p className="text-center text-xs font-bold text-slate-500">Four strokes max · {state.obstacle || "Open fairway"} · <span className="text-amber-600">Difficulty {"★".repeat(Math.min(5, state.difficulty || Math.ceil(hole / 2)))}{"☆".repeat(Math.max(0, 5 - Math.min(5, state.difficulty || Math.ceil(hole / 2))))}</span></p>
     <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-950"><span>{state.message || "Line up your putt."}</span><span>{ball?.finished ? "Hole complete" : canShoot ? "YOUR TURN" : `Player ${state.turn || 1} is putting`}</span></div>
     <div ref={fieldRef} onPointerDown={(event) => { if (canShoot) { event.currentTarget.setPointerCapture(event.pointerId); setAimFromPointer(event); } }} onPointerMove={setAimFromPointer} onPointerUp={shoot} className={`relative aspect-[1.55] touch-none select-none overflow-hidden rounded-[28px] border-4 border-[#155434] bg-[#79d56d] shadow-[5px_5px_0_#171821] ${canShoot ? "cursor-crosshair" : "cursor-not-allowed"}`} aria-label={canShoot ? "Drag from your ball to aim and release to putt" : "Mini golf course"}>
       <div className="absolute inset-2 rounded-[20px] border-2 border-[#b7ef94]" /><div className="absolute inset-x-0 top-[21%] h-px bg-emerald-900/10" /><div className="absolute inset-x-0 top-[72%] h-px bg-emerald-900/10" />
