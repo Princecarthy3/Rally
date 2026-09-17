@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useSocialPresence } from "@/components/app-presence";
 
 type Player={id:string;display_name:string;avatar_url:string|null;room_status?:string};
 type Inbox={kind:"friend"|"invite";id:string;sender_id:string;sender_name:string;sender_avatar:string|null;room_code:string|null;created_at:string};
@@ -13,9 +14,9 @@ const statusDot=(status:string, online:boolean)=>!online?"bg-slate-400":status==
 
 export function SocialPage(){
  const {user}=useAuth(); const supabase=getSupabaseBrowserClient(); const router=useRouter();
- const [friends,setFriends]=useState<Player[]>([]),[inbox,setInbox]=useState<Inbox[]>([]),[relationships,setRelationships]=useState<Map<string,string>>(new Map()),[results,setResults]=useState<Player[]>([]),[query,setQuery]=useState(""),[online,setOnline]=useState<Set<string>>(new Set()),[message,setMessage]=useState("");
+ const online=useSocialPresence(); const [friends,setFriends]=useState<Player[]>([]),[inbox,setInbox]=useState<Inbox[]>([]),[relationships,setRelationships]=useState<Map<string,string>>(new Map()),[results,setResults]=useState<Player[]>([]),[query,setQuery]=useState(""),[message,setMessage]=useState("");
  const load=useCallback(async()=>{if(!supabase||!user)return;const [friendsRes,inboxRes,relationsRes]=await Promise.all([supabase.rpc("get_friends"),supabase.rpc("get_social_inbox"),supabase.rpc("get_social_relationships")]);setFriends((friendsRes.data||[]) as Player[]);setInbox((inboxRes.data||[]) as Inbox[]);setRelationships(new Map((relationsRes.data||[]).map((item:{player_id:string;relationship:string})=>[item.player_id,item.relationship])))},[supabase,user]);
- useEffect(()=>{if(!supabase||!user)return;const channel=supabase.channel("rally-social");channel.on("presence",{event:"sync"},()=>setOnline(new Set(Object.keys(channel.presenceState())))).on("postgres_changes",{event:"*",schema:"public",table:"friend_requests"},()=>void load()).on("postgres_changes",{event:"*",schema:"public",table:"friendships"},()=>void load()).on("postgres_changes",{event:"*",schema:"public",table:"game_invites"},()=>void load()).subscribe(state=>{if(state==="SUBSCRIBED")void load()});return()=>{supabase.removeChannel(channel)}},[load,supabase,user]);
+ useEffect(()=>{if(!supabase||!user)return;const channel=supabase.channel(`social-updates:${user.id}`);channel.on("postgres_changes",{event:"*",schema:"public",table:"friend_requests"},()=>void load()).on("postgres_changes",{event:"*",schema:"public",table:"friendships"},()=>void load()).on("postgres_changes",{event:"*",schema:"public",table:"game_invites"},()=>void load()).subscribe(state=>{if(state==="SUBSCRIBED")void load()});return()=>{supabase.removeChannel(channel)}},[load,supabase,user]);
  const search=async()=>{if(!supabase||query.trim().length<2)return setResults([]);const {data,error}=await supabase.rpc("social_search_players",{p_query:query.trim()});if(error)setMessage(error.message);else setResults((data||[]) as Player[])};
  const call=async(name:string,args:Record<string,unknown>)=>{if(!supabase)return;const {data,error}=await supabase.rpc(name,args);if(error){setMessage(error.message);return null}await load();return data};
  const friendIds=useMemo(()=>new Set(friends.map(friend=>friend.id)),[friends]);

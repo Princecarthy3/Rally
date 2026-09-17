@@ -19,10 +19,11 @@ export function ProtectedPage({ children }: { children: React.ReactNode }) {
   if (loading || !user) return <main className="grid min-h-screen place-items-center"><div className="text-center"><LoaderCircle className="mx-auto animate-spin text-violet-600" /><p className="mt-3 text-sm font-medium text-slate-500">Loading your Rally…</p></div></main>;
   return (
     <>
-      <SiteHeader />
-      <AppPresence />
-      {children}
-      <InstallPrompt />
+      <AppPresence>
+        <SiteHeader />
+        {children}
+        <InstallPrompt />
+      </AppPresence>
     </>
   );
 }
