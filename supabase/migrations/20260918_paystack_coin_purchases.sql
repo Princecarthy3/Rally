@@ -14,13 +14,15 @@ declare
   expected_amount integer;
   new_balance integer;
 begin
-  select * into coins, expected_amount from (values
+  select package_coins, package_amount
+  into coins, expected_amount
+  from (values
     ('starter', 1000, 200),
     ('popular', 4000, 500),
     ('pro', 9500, 1000),
     ('mega', 21500, 2000),
     ('ultimate', 37500, 3000)
-  ) as packages(id, coins, amount)
+  ) as packages(id, package_coins, package_amount)
   where id = p_package_id;
   if coins is null or expected_amount <> p_amount_pesewas then raise exception 'Invalid payment package'; end if;
   if exists (
