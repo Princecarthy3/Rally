@@ -83,7 +83,7 @@ export function SiteHeader() {
     const shareData = {
       title: "Rally - Multiplayer Mini Games",
       text: "Play fun multiplayer mini-games together on Rally!",
-      url: typeof window !== "undefined" ? window.location.origin : "https://rally.app",
+      url: typeof window !== "undefined" ? window.location.origin : "https://rallygames.vercel.app",
     };
 
     if (navigator.share) {
