@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     "Rally games",
   ],
   alternates: {
-    canonical: "/",
+    canonical: "https://rallygames.vercel.app/",
   },
   openGraph: {
     type: "website",
