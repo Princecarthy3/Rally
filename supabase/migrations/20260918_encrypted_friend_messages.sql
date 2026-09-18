@@ -44,7 +44,9 @@ create or replace function public.get_encrypted_friend_messages(p_friend uuid) r
 language plpgsql security definer set search_path='' as $$
 begin
   if not exists(select 1 from public.friendships where user_id=auth.uid() and friend_id=p_friend) then raise exception 'You can only view messages with friends'; end if;
-  update public.friend_messages set delivered_at=coalesce(delivered_at,now()) where sender_id=p_friend and receiver_id=auth.uid() and deleted_by_receiver_at is null;
+  update public.friend_messages as fm
+  set delivered_at=coalesce(fm.delivered_at,now())
+  where fm.sender_id=p_friend and fm.receiver_id=auth.uid() and fm.deleted_by_receiver_at is null;
   return query select m.id,m.sender_id,m.receiver_id,m.ciphertext,m.iv,m.created_at,m.delivered_at,m.read_at,m.deleted_by_sender_at,m.deleted_by_receiver_at from public.friend_messages m where ((m.sender_id=auth.uid() and m.receiver_id=p_friend and m.deleted_by_sender_at is null) or (m.sender_id=p_friend and m.receiver_id=auth.uid() and m.deleted_by_receiver_at is null) or (m.deleted_by_sender_at is not null and m.deleted_by_receiver_at is not null)) order by m.created_at;
 end $$;
 
@@ -52,8 +54,9 @@ create or replace function public.mark_friend_messages_read(p_friend uuid) retur
 language plpgsql security definer set search_path='' as $$
 begin
   if not exists(select 1 from public.friendships where user_id=auth.uid() and friend_id=p_friend) then raise exception 'You can only read messages with friends'; end if;
-  update public.friend_messages set delivered_at=coalesce(delivered_at,now()),read_at=coalesce(read_at,now())
-    where sender_id=p_friend and receiver_id=auth.uid() and deleted_by_receiver_at is null;
+  update public.friend_messages as fm
+  set delivered_at=coalesce(fm.delivered_at,now()),read_at=coalesce(fm.read_at,now())
+  where fm.sender_id=p_friend and fm.receiver_id=auth.uid() and fm.deleted_by_receiver_at is null;
 end $$;
 
 create or replace function public.delete_encrypted_friend_message(p_message uuid,p_everyone boolean default false) returns void
