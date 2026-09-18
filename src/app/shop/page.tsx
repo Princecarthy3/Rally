@@ -60,7 +60,7 @@ const cosmeticBundles = [
 ];
 
 export default function ShopPage() {
-  const { user, profile, customization, balance, streak, claimDaily, equipItem, unequipCategory, refreshCustomization } = useAuth();
+  const { user, profile, customization, balance, streak, claimDaily, equipItem, unequipCategory, refreshCustomization, refreshProfile } = useAuth();
   const [items, setItems] = useState<ShopItem[]>([]);
   const [owned, setOwned] = useState<string[]>([]);
   const [category, setCategory] = useState("all");
@@ -106,6 +106,37 @@ export default function ShopPage() {
       active = false;
     };
   }, [user]);
+
+  useEffect(() => {
+    const reference = new URLSearchParams(window.location.search).get("paystack_reference");
+    if (!reference) return;
+    let active = true;
+    async function verifyPayment() {
+      const sb = getSupabaseBrowserClient();
+      if (!sb) return;
+      setNotice("Verifying your Paystack payment…");
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session?.access_token) {
+        if (active) setNotice("Please sign in again to verify your payment.");
+        return;
+      }
+      const response = await fetch("/api/payments/paystack/verify", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ reference }),
+      });
+      const result = await response.json() as { balance?: number; coins?: number; error?: string };
+      if (!active) return;
+      setNotice(response.ok ? `${result.coins?.toLocaleString() || "Your"} Rally Coins added successfully.` : result.error || "Payment verification failed.");
+      if (response.ok) {
+        await refreshProfile();
+        await loadShop();
+      }
+      window.history.replaceState({}, "", "/shop");
+    }
+    void verifyPayment();
+    return () => { active = false; };
+  }, [loadShop, refreshProfile]);
 
   const shown = useMemo(() => {
     return items.filter((item) => {
