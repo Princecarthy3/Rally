@@ -10,6 +10,7 @@ create index if not exists friend_messages_conversation_idx on public.friend_mes
 alter table public.friend_messages enable row level security;
 revoke all on public.friend_messages from authenticated;
 grant select on public.friend_messages to authenticated;
+drop policy if exists "participants read friend messages" on public.friend_messages;
 create policy "participants read friend messages" on public.friend_messages for select to authenticated using (sender_id=auth.uid() or receiver_id=auth.uid());
 
 create or replace function public.send_friend_message(p_receiver uuid,p_body text) returns uuid

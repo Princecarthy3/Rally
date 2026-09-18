@@ -259,6 +259,41 @@ function Lobby({
   const host = room.host_id === userId;
   const everyoneReady = players.length >= game.minPlayers && players.every((p) => p.is_ready);
   const invite = typeof window !== "undefined" ? window.location.href : "";
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [invitedFriends, setInvitedFriends] = useState<Set<string>>(new Set());
+  const [inviteNotice, setInviteNotice] = useState("");
+  const [friendsList, setFriendsList] = useState<Array<{ id: string; display_name: string; avatar_url: string | null }>>([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+
+  const supabase = getSupabaseBrowserClient();
+
+  const loadFriends = useCallback(async () => {
+    if (!supabase) return;
+    setLoadingFriends(true);
+    const { data } = await supabase.rpc("get_friends");
+    setFriendsList((data || []) as Array<{ id: string; display_name: string; avatar_url: string | null }>);
+    setLoadingFriends(false);
+  }, [supabase]);
+
+  useEffect(() => {
+    if (isInviteOpen) void loadFriends();
+  }, [isInviteOpen, loadFriends]);
+
+  async function handleInviteFriend(friendId: string, friendName: string) {
+    if (!supabase) return;
+    const { error } = await supabase.rpc("send_game_invite_to_room", { p_receiver: friendId, p_room: room.id });
+    if (error) {
+      // Fallback to send_game_invite
+      const { error: err2 } = await supabase.rpc("send_game_invite", { p_receiver: friendId });
+      if (err2) {
+        setInviteNotice(err2.message);
+        return;
+      }
+    }
+    setInvitedFriends((prev) => new Set(prev).add(friendId));
+    setInviteNotice(`Invite sent to ${friendName}!`);
+    setTimeout(() => setInviteNotice(""), 3000);
+  }
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -278,7 +313,10 @@ function Lobby({
                 {room.code}
               </button>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => setIsInviteOpen(true)} className="arcade-button bg-[#7357ff] text-white shadow-[2px_2px_0_#171821]">
+                <UsersRound size={15} /> Invite friends
+              </button>
               <button onClick={() => copy(invite, "Invite link")} className="arcade-button bg-white text-slate-950">
                 <Copy size={15} /> Copy link
               </button>
@@ -354,13 +392,17 @@ function Lobby({
                   </span>
                 </article>
               ) : (
-                <article key={i} className="grid min-h-20 place-items-center rounded-2xl border-2 border-dashed border-slate-300 text-center">
-                  <span className="text-xs font-black text-slate-400">
-                    OPEN SEAT {i + 1}
+                <button
+                  key={i}
+                  onClick={() => setIsInviteOpen(true)}
+                  className="grid min-h-20 place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-white p-4 text-center transition hover:border-slate-950 hover:bg-slate-50 cursor-pointer group"
+                >
+                  <span className="text-xs font-black text-slate-500 group-hover:text-slate-950">
+                    ➕ INVITE FRIEND (SEAT {i + 1})
                     <br />
-                    <span className="font-normal">send the invite</span>
+                    <span className="font-normal text-slate-400">click to choose from squad</span>
                   </span>
-                </article>
+                </button>
               );
             })}
           </div>
@@ -409,6 +451,77 @@ function Lobby({
           </div>
         </div>
       </section>
+
+      {/* Invite Friends Modal */}
+      {isInviteOpen && (
+        <div className="fixed inset-0 z-[90] grid place-items-center bg-slate-950/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-[28px] border-2 border-slate-950 bg-[#fffdf7] p-6 shadow-[8px_8px_0_#171821]">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="eyebrow">Squad Invite</p>
+                <h3 className="mt-1 text-2xl font-black">Invite to Lobby</h3>
+              </div>
+              <button onClick={() => setIsInviteOpen(false)} className="grid h-9 w-9 place-items-center rounded-full border-2 border-slate-950 bg-white font-black hover:bg-slate-100">
+                ✕
+              </button>
+            </div>
+
+            {inviteNotice && (
+              <p className="mt-4 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-800 animate-in fade-in">
+                {inviteNotice}
+              </p>
+            )}
+
+            <div className="mt-5 max-h-72 space-y-2 overflow-y-auto pr-1">
+              {loadingFriends ? (
+                <div className="py-8 text-center text-sm font-bold text-slate-500">Loading your squad...</div>
+              ) : friendsList.length ? (
+                friendsList.map((friend) => {
+                  const isOnline = onlineIds.includes(friend.id);
+                  const isAlreadyInRoom = players.some((p) => p.player_id === friend.id);
+                  const hasInvited = invitedFriends.has(friend.id);
+
+                  return (
+                    <div key={friend.id} className="flex items-center gap-3 rounded-2xl border-2 border-slate-950 bg-white p-3 shadow-[2px_2px_0_#171821]">
+                      <div className="relative">
+                        <span className="grid h-9 w-9 place-items-center rounded-full border border-slate-950 bg-[#f4dc69] text-xs font-black">
+                          {friend.display_name[0]?.toUpperCase()}
+                        </span>
+                        <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${isOnline ? "bg-emerald-500" : "bg-slate-400"}`} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <strong className="block truncate text-sm">{friend.display_name}</strong>
+                        <span className="text-[10px] font-bold text-slate-500">{isOnline ? "Online" : "Offline"}</span>
+                      </div>
+                      {isAlreadyInRoom ? (
+                        <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">In Room</span>
+                      ) : hasInvited ? (
+                        <span className="text-xs font-black text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">Sent ✓</span>
+                      ) : (
+                        <button
+                          onClick={() => void handleInviteFriend(friend.id, friend.display_name)}
+                          className="arcade-button bg-[#7357ff] px-3 py-1.5 text-xs text-white shadow-[2px_2px_0_#171821]"
+                        >
+                          Invite
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="py-8 text-center text-xs font-bold text-slate-500">
+                  No friends found in your squad. Add friends from the Social tab first!
+                </p>
+              )}
+            </div>
+
+            <button onClick={() => setIsInviteOpen(false)} className="arcade-button mt-6 w-full justify-center bg-slate-950 text-white">
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

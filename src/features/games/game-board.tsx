@@ -334,13 +334,13 @@ function RPS({
             </div>
           </div>
 
-          {curRound < 3 && (
+          {(state.winnerSeat === null || state.winnerSeat === undefined) && (
             <button
               disabled={busy}
               onClick={() => act("next_round")}
               className="arcade-button bg-purple-600 text-white px-8 py-3 text-sm font-black shadow-[4px_4px_0_#171821] hover:bg-purple-700"
             >
-              NEXT ROUND ({curRound + 1}/3) ➡️
+              NEXT ROUND {curRound >= 3 ? "(SUDDEN DEATH ⚡)" : `(${curRound + 1}/3)`} ➡️
             </button>
           )}
         </div>

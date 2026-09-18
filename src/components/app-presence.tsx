@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { publishMessageKey } from "@/lib/message-crypto";
 
 const PresenceContext = createContext<Set<string>>(new Set());
 
@@ -12,6 +13,7 @@ export function AppPresence({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     if (!supabase || !user) return;
+    void publishMessageKey(supabase, user.id).catch(() => {});
     const channel = supabase.channel("rally-social", { config: { presence: { key: user.id } } });
     channel.on("presence", { event: "sync" }, () => setOnlineIds(new Set(Object.keys(channel.presenceState()))));
     channel.subscribe(async (state) => {
@@ -24,3 +26,4 @@ export function AppPresence({ children }: { children: React.ReactNode }) {
 }
 
 export function useSocialPresence() { return useContext(PresenceContext); }
+
