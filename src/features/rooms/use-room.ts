@@ -6,7 +6,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Room, RoomPlayer } from "./types";
 import type { ShopItem } from "@/lib/customization";
 
-export function useRoom(code: string, userId?: string) {
+export function useRoom(code: string, userId?: string, isSpectatorRequested: boolean = false) {
   const [room, setRoom] = useState<Room | null>(null);
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -14,16 +14,39 @@ export function useRoom(code: string, userId?: string) {
   const [onlineIds, setOnlineIds] = useState<string[]>([]);
   const [connection, setConnection] = useState<"connecting" | "online" | "reconnecting">("connecting");
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+  const [isSpectator, setIsSpectator] = useState(isSpectatorRequested);
+  const [spectatorCount, setSpectatorCount] = useState(0);
+
   const supabase = getSupabaseBrowserClient();
 
   const refresh = useCallback(async () => {
     if (!supabase || !userId) return;
 
-    const join = await supabase.rpc("join_game_room", { p_code: code.toUpperCase() });
-    if (join.error && !join.error.message.includes("already started")) {
-      setError(join.error.message);
-      setLoading(false);
-      return;
+    if (isSpectatorRequested) {
+      const specRes = await supabase.rpc("spectate_game_room", { p_code: code.toUpperCase() });
+      if (specRes.error) {
+        setError(specRes.error.message);
+        setLoading(false);
+        return;
+      }
+      setIsSpectator(true);
+    } else {
+      const join = await supabase.rpc("join_game_room", { p_code: code.toUpperCase() });
+      if (join.error && (join.error.message.includes("already started") || join.error.message.includes("full"))) {
+        // Fallback to spectator mode if room is full or playing
+        const specRes = await supabase.rpc("spectate_game_room", { p_code: code.toUpperCase() });
+        if (!specRes.error) {
+          setIsSpectator(true);
+        } else {
+          setError(join.error.message);
+          setLoading(false);
+          return;
+        }
+      } else if (join.error) {
+        setError(join.error.message);
+        setLoading(false);
+        return;
+      }
     }
 
     const { data: roomData, error: roomError } = await supabase
@@ -40,11 +63,20 @@ export function useRoom(code: string, userId?: string) {
 
     setRoom(roomData as Room);
 
+    // Fetch players
     const { data: playerData } = await supabase
       .from("game_players")
       .select("*, profile:profiles(display_name, avatar_url)")
       .eq("room_id", roomData.id)
       .order("seat");
+
+    // Fetch spectators count
+    const { count: specCount } = await supabase
+      .from("game_spectators")
+      .select("*", { count: "exact", head: true })
+      .eq("room_id", roomData.id);
+
+    setSpectatorCount(specCount || 0);
 
     if (playerData) {
       const pIds = playerData.map((p) => p.player_id);
@@ -95,7 +127,7 @@ export function useRoom(code: string, userId?: string) {
 
     setError("");
     setLoading(false);
-  }, [code, supabase, userId]);
+  }, [code, isSpectatorRequested, supabase, userId]);
 
   useEffect(() => {
     if (!supabase || !userId) return;
@@ -111,6 +143,12 @@ export function useRoom(code: string, userId?: string) {
       if (payload.eventType !== "DELETE") setRoom(payload.new as Room);
     })
       .on("postgres_changes", { event: "*", schema: "public", table: "game_players", filter: `room_id=eq.${roomId}` }, () => {
+        void refresh();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "game_spectators", filter: `room_id=eq.${roomId}` }, () => {
+        void refresh();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_customization" }, () => {
         void refresh();
       })
       .on("presence", { event: "sync" }, () => {
@@ -137,9 +175,7 @@ export function useRoom(code: string, userId?: string) {
       supabase.removeChannel(ch);
       setChannel(null);
     };
-  // Do not recreate the Realtime channel after every state update. Rejoining on
-  // each move was dropping presence and adding visible turn-to-turn latency.
   }, [refresh, room?.id, supabase, userId]);
 
-  return { room, players, loading, error, onlineIds, connection, refresh, channel };
+  return { room, players, loading, error, onlineIds, connection, refresh, channel, isSpectator, spectatorCount };
 }

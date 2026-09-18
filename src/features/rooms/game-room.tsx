@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowLeft, Check, Copy, LoaderCircle, Radio, Share2, ShieldCheck, UsersRound, WifiOff } from "lucide-react";
+import { ArrowLeft, Check, Copy, Eye, LoaderCircle, Radio, Share2, ShieldCheck, UsersRound, WifiOff } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/components/auth-provider";
@@ -15,6 +15,7 @@ import { UserAvatar } from "@/components/customization/user-avatar";
 import { NameDisplay } from "@/components/customization/name-display";
 import { EmoteWheel } from "@/components/customization/emote-wheel";
 import { VictoryAnimationOverlay } from "@/components/customization/victory-animation-overlay";
+import { PlayerCardModal } from "@/components/customization/player-card-modal";
 import { getRoomThemeStyle } from "@/lib/customization";
 import { sounds } from "@/lib/audio";
 
@@ -23,12 +24,24 @@ const BOT_ID = "11111111-1111-1111-1111-111111111111";
 
 export function GameRoom() {
   const params = useParams<{ code: string }>();
+  const searchParams = useSearchParams();
+  const isSpectatorRequested = searchParams?.get("spectate") === "true";
+
   const { user, profile } = useAuth();
-  const { room, players, loading, error, onlineIds, connection, channel } = useRoom(params.code, user?.id);
+  const { room, players, loading, error, onlineIds, connection, channel, isSpectator, spectatorCount } = useRoom(
+    params.code,
+    user?.id,
+    isSpectatorRequested
+  );
+
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [activeEmotes, setActiveEmotes] = useState<Array<{ seat: number; emote: string; senderName?: string; id: number }>>([]);
   const [showVictory, setShowVictory] = useState(true);
+
+  // Player Card Modal State
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
 
   const supabase = getSupabaseBrowserClient();
   const myName = profile?.display_name || user?.user_metadata?.display_name || "Player";
@@ -51,6 +64,17 @@ export function GameRoom() {
     });
   }, [channel]);
 
+  // Track daily missions on match completion
+  useEffect(() => {
+    if (room?.status === "completed" && user?.id && supabase) {
+      void supabase.rpc("track_mission_progress", { p_mission_type: "play_game", p_amount: 1 });
+      const myPlayer = players.find((p) => p.player_id === user.id);
+      if (myPlayer && room.public_state?.winnerSeat === myPlayer.seat) {
+        void supabase.rpc("track_mission_progress", { p_mission_type: "win_game", p_amount: 1 });
+      }
+    }
+  }, [room?.status, room?.public_state?.winnerSeat, players, user?.id, supabase]);
+
   async function ready(value: boolean) {
     if (!room) return;
     setBusy(true);
@@ -63,7 +87,16 @@ export function GameRoom() {
     if (!room) return;
     setBusy(true);
     setNotice("");
-    const startRpc = room.game_type === "ludo" ? "start_ludo_game" : room.game_type === "memory_match" ? "start_memory_match" : room.game_type === "mini_golf" ? "start_mini_golf" : room.game_type === "battleship" ? "start_battleship" : "start_game";
+    const startRpc =
+      room.game_type === "ludo"
+        ? "start_ludo_game"
+        : room.game_type === "memory_match"
+        ? "start_memory_match"
+        : room.game_type === "mini_golf"
+        ? "start_mini_golf"
+        : room.game_type === "battleship"
+        ? "start_battleship"
+        : "start_game";
     const { error } = await supabase!.rpc(startRpc, { p_room: room.id });
     if (error) setNotice(error.message);
     setBusy(false);
@@ -73,63 +106,66 @@ export function GameRoom() {
     if (!room) return;
     setBusy(true);
     setNotice("");
-    const { error } = await supabase!.rpc("add_ai_bot_to_room", { p_room: room.id });
+    const { error } = await supabase!.rpc("add_bot_to_room", { p_room: room.id });
     if (error) setNotice(error.message);
     setBusy(false);
   }
 
-  function flash(text: string) {
-    setNotice(text);
-    setTimeout(() => setNotice(""), 2400);
-  }
-
-  async function copy(value: string, label: string) {
-    await navigator.clipboard.writeText(value);
-    flash(`${label} copied!`);
-  }
-
-  async function share() {
-    if (!room) return;
-    const data = {
-      title: `Join my ${gameByKey[room.game_type].name} room`,
-      text: `Room ${room.code} on Rally`,
-      url: window.location.href,
-    };
-    if (navigator.share) await navigator.share(data);
-    else copy(window.location.href, "Invite link");
-  }
-
   function handleSendEmote(emote: string) {
     const me = players.find((p) => p.player_id === user?.id);
-    const item = { seat: me?.seat || 1, emote, senderName: myName, id: Date.now() + Math.random() };
-    setActiveEmotes((prev) => [...prev, item]);
-    setTimeout(() => {
-      setActiveEmotes((prev) => prev.filter((e) => e.id !== item.id));
-    }, 3500);
-
-    if (channel) {
-      void channel.send({
-        type: "broadcast",
-        event: "emote",
-        payload: item,
-      });
-    }
+    if (!me || !channel) return;
+    const payload = { seat: me.seat, emote, senderName: myName, id: Date.now() };
+    channel.send({ type: "broadcast", event: "emote", payload });
   }
 
-  // Determine winner for victory animation
-  const winnerSeat = room?.public_state?.winnerSeat;
-  const winningPlayer = players.find((p) => p.seat === winnerSeat);
+  function copy(value: string, label: string) {
+    void navigator.clipboard.writeText(value);
+    setNotice(`${label} copied to clipboard!`);
+    setTimeout(() => setNotice(""), 3000);
+  }
+
+  function share() {
+    if (typeof window === "undefined" || !navigator.share || !room) return;
+    void navigator.share({
+      title: "Join my Rally game",
+      text: `Jump into room ${room.code} to play!`,
+      url: window.location.href,
+    });
+  }
+
+  const winningPlayer = players.find((p) => p.seat === room?.public_state?.winnerSeat);
 
   return (
     <ProtectedPage>
-      <main className={`min-h-[calc(100vh-72px)] pb-28 ${roomThemeStyle.containerClass}`} style={roomThemeStyle.bgStyle}>
-        <div className="mx-auto max-w-6xl px-5 py-6 lg:px-8">
+      <div className={`min-h-[calc(100vh-80px)] p-4 sm:p-6 lg:p-8 transition-colors duration-500 ${roomThemeStyle.containerClass}`} style={roomThemeStyle.bgStyle}>
+        <div className="mx-auto max-w-6xl">
+
+          {/* Spectator Mode Banner */}
+          {isSpectator && (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-slate-950 bg-amber-400 p-4 shadow-[3px_3px_0_#171821] animate-fadeIn">
+              <div className="flex items-center gap-2 font-black text-slate-950 text-sm">
+                <Eye className="animate-pulse text-slate-950" size={20} />
+                <span>SPECTATOR MODE — You are watching this match live!</span>
+              </div>
+              <Link href="/dashboard" className="rounded-xl border-2 border-slate-950 bg-white px-3.5 py-1.5 text-xs font-black shadow-[2px_2px_0_#171821] hover:bg-slate-100 transition-all">
+                Exit Spectator
+              </Link>
+            </div>
+          )}
+
           <div className="mb-6 flex items-center justify-between">
-            <Link href="/dashboard" className="arcade-button bg-white text-slate-950">
-              <ArrowLeft size={16} /> Arcade
+            <Link href="/dashboard" className="flex items-center gap-2 text-sm font-black text-slate-700 hover:text-slate-950 dark:text-slate-200">
+              <ArrowLeft size={16} /> Exit Room
             </Link>
 
             <div className="flex items-center gap-3">
+              {spectatorCount > 0 && (
+                <div className="flex items-center gap-1.5 rounded-full border-2 border-slate-950 bg-purple-100 px-3 py-1 text-xs font-black text-purple-900 shadow-sm">
+                  <Eye size={14} className="text-purple-700 animate-pulse" />
+                  <span>{spectatorCount} Spectating</span>
+                </div>
+              )}
+
               <EmoteWheel onSendEmote={handleSendEmote} />
 
               <div
@@ -172,6 +208,10 @@ export function GameRoom() {
               copy={copy}
               share={share}
               activeEmotes={activeEmotes}
+              onSelectPlayer={(pId) => {
+                setSelectedPlayerId(pId);
+                setIsPlayerModalOpen(true);
+              }}
             />
           ) : (
             <GameBoard room={room} players={players} userId={user!.id} onlineIds={onlineIds} />
@@ -187,7 +227,18 @@ export function GameRoom() {
             />
           )}
 
-          {room && user && <RoomChat roomCode={room.code} userId={user.id} userName={myName} players={players} />}
+          {room && user && (
+            <RoomChat
+              roomCode={room.code}
+              userId={user.id}
+              userName={myName}
+              players={players}
+              onSelectPlayer={(pId) => {
+                setSelectedPlayerId(pId);
+                setIsPlayerModalOpen(true);
+              }}
+            />
+          )}
 
           {notice && room && room.status !== "waiting" && (
             <div className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-full border-2 border-slate-950 bg-[#f4dc69] px-5 py-3 text-sm font-black shadow-[4px_4px_0_#171821]">
@@ -198,31 +249,30 @@ export function GameRoom() {
           {/* Full-Screen Realtime Reaction Overlay for All Players */}
           {activeEmotes.length > 0 && (
             <div className="fixed inset-0 z-[100] pointer-events-none flex flex-col items-center justify-center overflow-hidden bg-slate-950/20 backdrop-blur-[2px] animate-in fade-in duration-200">
-              {activeEmotes.map((e) => (
-                <div key={e.id} className="relative flex flex-col items-center justify-center animate-in zoom-in-75 duration-300">
-                  {/* Massive Floating Emote */}
-                  <div className="text-8xl sm:text-[12rem] filter drop-shadow-[0_25px_25px_rgba(0,0,0,0.5)] animate-bounce">
-                    {e.emote}
-                  </div>
-                  {/* Floating background particles */}
-                  <div className="absolute inset-0 flex items-center justify-center gap-12 -z-10 opacity-80 pointer-events-none">
-                    <span className="text-6xl animate-ping">{e.emote}</span>
-                    <span className="text-7xl animate-pulse">{e.emote}</span>
-                    <span className="text-6xl animate-bounce">{e.emote}</span>
-                  </div>
-                  {/* Player Toast Banner */}
-                  <div className="mt-4 flex items-center gap-3 rounded-full border-4 border-slate-950 bg-[#f4dc69] px-6 py-2.5 shadow-[6px_6px_0_#171821]">
-                    <span className="text-2xl">{e.emote}</span>
-                    <span className="text-base sm:text-xl font-black text-slate-950">
-                      {e.senderName || `Player ${e.seat}`} sent a reaction!
+              {activeEmotes.map((item) => (
+                <div key={item.id} className="mb-4 flex flex-col items-center animate-bounce">
+                  <span className="text-8xl drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">{item.emote}</span>
+                  {item.senderName && (
+                    <span className="mt-2 rounded-full border-2 border-slate-950 bg-white px-4 py-1 text-xs font-black text-slate-950 shadow-md">
+                      {item.senderName}
                     </span>
-                  </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
+
+          {/* Player Profile Card Modal */}
+          <PlayerCardModal
+            userId={selectedPlayerId}
+            isOpen={isPlayerModalOpen}
+            onClose={() => {
+              setIsPlayerModalOpen(false);
+              setSelectedPlayerId(null);
+            }}
+          />
         </div>
-      </main>
+      </div>
     </ProtectedPage>
   );
 }
@@ -240,9 +290,10 @@ function Lobby({
   copy,
   share,
   activeEmotes,
+  onSelectPlayer,
 }: {
-  room: NonNullable<ReturnType<typeof useRoom>["room"]>;
-  players: ReturnType<typeof useRoom>["players"];
+  room: import("./types").Room;
+  players: import("./types").RoomPlayer[];
   userId: string;
   onlineIds: string[];
   busy: boolean;
@@ -253,6 +304,7 @@ function Lobby({
   copy: (v: string, l: string) => void;
   share: () => void;
   activeEmotes: Array<{ seat: number; emote: string; id: number }>;
+  onSelectPlayer: (pId: string) => void;
 }) {
   const supabase = getSupabaseBrowserClient();
   const game = gameByKey[room.game_type];
@@ -279,7 +331,6 @@ function Lobby({
     if (!supabase) return;
     const { error } = await supabase.rpc("send_game_invite_to_room", { p_receiver: friendId, p_room: room.id });
     if (error) {
-      // Fallback to send_game_invite
       const { error: err2 } = await supabase.rpc("send_game_invite", { p_receiver: friendId });
       if (err2) {
         setInviteNotice(err2.message);
@@ -289,6 +340,8 @@ function Lobby({
     setInvitedFriends((prev) => new Set(prev).add(friendId));
     setInviteNotice(`Invite sent to ${friendName}!`);
     setTimeout(() => setInviteNotice(""), 3000);
+    // Track invite daily mission
+    void supabase.rpc("track_mission_progress", { p_mission_type: "invite_friend", p_amount: 1 });
   }
 
   return (
@@ -333,7 +386,7 @@ function Lobby({
             </span>
           </div>
 
-          {/* Player Cards Grid with Frames, Avatars, Colors, Badges & Titles */}
+          {/* Player Cards Grid with Clickable Player Profiles */}
           <div className="grid gap-4 sm:grid-cols-2">
             {Array.from({ length: room.max_players }, (_, i) => {
               const player = players.find((p) => p.seat === i + 1);
@@ -343,7 +396,10 @@ function Lobby({
               return player ? (
                 <article
                   key={player.id}
-                  className="relative flex items-center gap-4 rounded-2xl border-2 border-slate-950 p-4 shadow-[3px_3px_0_#171821]"
+                  onClick={() => {
+                    if (!isBot) onSelectPlayer(player.player_id);
+                  }}
+                  className="relative flex cursor-pointer items-center gap-4 rounded-2xl border-2 border-slate-950 p-4 shadow-[3px_3px_0_#171821] transition hover:scale-[1.02]"
                   style={{ backgroundColor: colors[i] }}
                 >
                   {/* Floating Emote animation */}
@@ -419,105 +475,91 @@ function Lobby({
                 <button
                   onClick={() => ready(!me?.is_ready)}
                   disabled={busy}
-                  className={`arcade-button ${me?.is_ready ? "bg-white text-slate-950" : "bg-[#f4dc69] text-slate-950 shadow-[3px_3px_0_#171821]"}`}
+                  className={`arcade-button ${me?.is_ready ? "bg-emerald-400 text-slate-950" : "bg-[#f4dc69] text-slate-950"} shadow-[3px_3px_0_#171821]`}
                 >
-                  {me?.is_ready ? (
-                    <>
-                      <Check size={16} /> Ready!
-                    </>
-                  ) : (
-                    "I’M READY"
-                  )}
+                  {me?.is_ready ? <Check size={16} /> : null}
+                  {me?.is_ready ? "YOU ARE READY" : "I'M READY"}
                 </button>
 
                 {host && (
                   <button
                     onClick={start}
-                    disabled={!everyoneReady || busy}
-                    className="arcade-button bg-[#7357ff] text-white shadow-[3px_3px_0_#171821]"
+                    disabled={busy || !everyoneReady}
+                    className="arcade-button bg-[#ff9eaa] text-slate-950 shadow-[3px_3px_0_#171821] disabled:opacity-40"
                   >
-                    {busy ? <LoaderCircle className="animate-spin" size={16} /> : "START GAME"}
+                    START MATCH
                   </button>
                 )}
               </div>
             </div>
 
-            {!host && everyoneReady && <p className="mt-4 text-center text-sm font-black text-[#7357ff]">Everyone’s ready—waiting for the host.</p>}
-            {notice && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-center text-sm font-bold text-red-700">{notice}</p>}
+            {notice && <p className="mt-4 text-center text-xs font-black text-rose-600">{notice}</p>}
           </div>
         </div>
       </section>
 
       {/* Invite Friends Modal */}
       {isInviteOpen && (
-        <div className="fixed inset-0 z-[90] grid place-items-center bg-slate-950/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-[28px] border-2 border-slate-950 bg-[#fffdf7] p-6 shadow-[8px_8px_0_#171821]">
-            <div className="flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md rounded-3xl border-2 border-slate-950 bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b-2 border-slate-100 pb-4">
               <div>
-                <p className="eyebrow">Squad Invite</p>
-                <h3 className="mt-1 text-2xl font-black">Invite to Lobby</h3>
+                <h3 className="text-lg font-black">Invite Friends to Lobby</h3>
+                <p className="text-xs text-slate-500">Select friends to send a direct game invite</p>
               </div>
-              <button onClick={() => setIsInviteOpen(false)} className="grid h-9 w-9 place-items-center rounded-full border-2 border-slate-950 bg-white font-black hover:bg-slate-100">
+              <button
+                onClick={() => setIsInviteOpen(false)}
+                className="grid h-8 w-8 place-items-center rounded-full border-2 border-slate-950 bg-slate-100 text-sm font-black hover:bg-slate-200"
+              >
                 ✕
               </button>
             </div>
 
             {inviteNotice && (
-              <p className="mt-4 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-800 animate-in fade-in">
+              <div className="mt-3 rounded-xl border-2 border-slate-950 bg-emerald-100 p-2.5 text-center text-xs font-black text-emerald-900">
                 {inviteNotice}
-              </p>
+              </div>
             )}
 
-            <div className="mt-5 max-h-72 space-y-2 overflow-y-auto pr-1">
+            <div className="mt-4 max-h-72 overflow-y-auto space-y-2 pr-1">
               {loadingFriends ? (
-                <div className="py-8 text-center text-sm font-bold text-slate-500">Loading your squad...</div>
-              ) : friendsList.length ? (
+                <div className="flex h-32 items-center justify-center">
+                  <LoaderCircle className="animate-spin text-purple-600" />
+                </div>
+              ) : friendsList.length === 0 ? (
+                <div className="p-6 text-center text-xs font-bold text-slate-400">
+                  No friends online right now. Add friends from the Social page!
+                </div>
+              ) : (
                 friendsList.map((friend) => {
-                  const isOnline = onlineIds.includes(friend.id);
-                  const isAlreadyInRoom = players.some((p) => p.player_id === friend.id);
-                  const hasInvited = invitedFriends.has(friend.id);
-
+                  const isInvited = invitedFriends.has(friend.id);
                   return (
-                    <div key={friend.id} className="flex items-center gap-3 rounded-2xl border-2 border-slate-950 bg-white p-3 shadow-[2px_2px_0_#171821]">
-                      <div className="relative">
-                        <span className="grid h-9 w-9 place-items-center rounded-full border border-slate-950 bg-[#f4dc69] text-xs font-black">
-                          {friend.display_name[0]?.toUpperCase()}
-                        </span>
-                        <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${isOnline ? "bg-emerald-500" : "bg-slate-400"}`} />
+                    <div
+                      key={friend.id}
+                      className="flex items-center justify-between rounded-2xl border-2 border-slate-950 p-3 shadow-[2px_2px_0_#171821] bg-slate-50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <UserAvatar avatarUrl={friend.avatar_url} fallbackName={friend.display_name} size="sm" />
+                        <span className="text-sm font-black text-slate-950">{friend.display_name}</span>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <strong className="block truncate text-sm">{friend.display_name}</strong>
-                        <span className="text-[10px] font-bold text-slate-500">{isOnline ? "Online" : "Offline"}</span>
-                      </div>
-                      {isAlreadyInRoom ? (
-                        <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">In Room</span>
-                      ) : hasInvited ? (
-                        <span className="text-xs font-black text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">Sent ✓</span>
-                      ) : (
-                        <button
-                          onClick={() => void handleInviteFriend(friend.id, friend.display_name)}
-                          className="arcade-button bg-[#7357ff] px-3 py-1.5 text-xs text-white shadow-[2px_2px_0_#171821]"
-                        >
-                          Invite
-                        </button>
-                      )}
+
+                      <button
+                        onClick={() => void handleInviteFriend(friend.id, friend.display_name)}
+                        disabled={isInvited}
+                        className={`arcade-button text-xs py-1.5 px-3 ${
+                          isInvited ? "bg-emerald-400 text-slate-950" : "bg-[#7357ff] text-white"
+                        }`}
+                      >
+                        {isInvited ? "INVITED ✓" : "INVITE"}
+                      </button>
                     </div>
                   );
                 })
-              ) : (
-                <p className="py-8 text-center text-xs font-bold text-slate-500">
-                  No friends found in your squad. Add friends from the Social tab first!
-                </p>
               )}
             </div>
-
-            <button onClick={() => setIsInviteOpen(false)} className="arcade-button mt-6 w-full justify-center bg-slate-950 text-white">
-              Done
-            </button>
           </div>
         </div>
       )}
     </div>
   );
 }
-

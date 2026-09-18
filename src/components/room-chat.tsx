@@ -21,11 +21,13 @@ export function RoomChat({
   userId,
   userName,
   players,
+  onSelectPlayer,
 }: {
   roomCode: string;
   userId: string;
   userName: string;
   players: RoomPlayer[];
+  onSelectPlayer?: (pId: string) => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -100,6 +102,12 @@ export function RoomChat({
       payload: newMsg,
     });
 
+    // Track send_message daily mission progress
+    const supabase = getSupabaseBrowserClient();
+    if (supabase) {
+      void supabase.rpc("track_mission_progress", { p_mission_type: "send_message", p_amount: 1 });
+    }
+
     if (!textToSend) {
       setInput("");
     }
@@ -116,7 +124,7 @@ export function RoomChat({
       <button
         onClick={toggleChat}
         aria-label="Open room chat"
-        className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full border-2 border-slate-950 bg-[#7357ff] px-4 py-3 text-xs font-black text-white shadow-[4px_4px_0_#171821] transition hover:-translate-y-1 md:bottom-6 md:right-6"
+        className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full border-2 border-slate-950 bg-[#7357ff] px-4 py-3 text-xs font-black text-white shadow-[4px_4px_0_#171821] transition hover:-translate-y-1 md:bottom-6 md:right-6 cursor-pointer"
       >
         <MessageSquare size={16} />
         <span>Room Chat</span>
@@ -159,10 +167,14 @@ export function RoomChat({
                 const playerObj = players.find((p) => p.player_id === msg.senderId);
                 return (
                   <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
+                    <button
+                      type="button"
+                      onClick={() => onSelectPlayer?.(msg.senderId)}
+                      className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 hover:underline cursor-pointer"
+                    >
                       <span>{playerObj?.profile?.display_name || msg.senderName}</span>
                       <span>· {msg.timestamp}</span>
-                    </div>
+                    </button>
                     <div
                       className={`mt-1 max-w-[85%] rounded-2xl border-2 border-slate-950 px-3.5 py-2 text-xs font-bold ${
                         isMe

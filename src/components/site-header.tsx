@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleDollarSign, History, LayoutGrid, LogOut, MessageCircle, Settings, Share2, ShoppingBag, Trophy, UserRound, UsersRound } from "lucide-react";
+import { CircleDollarSign, History, LayoutGrid, LogOut, MessageCircle, Settings, Share2, ShoppingBag, Target, Trophy, UserRound, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -13,6 +13,7 @@ import { sounds } from "@/lib/audio";
 import { UserAvatar } from "@/components/customization/user-avatar";
 import { NameDisplay } from "@/components/customization/name-display";
 import { CoinWalletModal } from "@/components/customization/coin-wallet-modal";
+import { DailyMissionsModal } from "@/components/missions/daily-missions-modal";
 
 const links = [
   { href: "/dashboard", label: "Home", icon: LayoutGrid },
@@ -31,6 +32,7 @@ export function SiteHeader() {
   const name = profile?.display_name || user?.user_metadata?.display_name || "Player";
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
+  const [isMissionsOpen, setIsMissionsOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [socialBadge, setSocialBadge] = useState(0);
   const [messageBadge, setMessageBadge] = useState(0);
@@ -122,6 +124,21 @@ export function SiteHeader() {
           </nav>
 
           <div className="flex items-center gap-2">
+            {/* Daily Missions Button */}
+            {user && (
+              <button
+                onClick={() => {
+                  sounds.playClickSound();
+                  setIsMissionsOpen(true);
+                }}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-amber-100 px-3 text-xs font-black text-slate-900 shadow-sm transition hover:bg-amber-200 cursor-pointer"
+                title="Daily Missions & Monthly Pass"
+              >
+                <Target size={15} className="text-amber-600 animate-pulse" />
+                <span className="hidden sm:inline">Missions</span>
+              </button>
+            )}
+
             {/* Coin Balance Badge */}
             {user && (
               <button
@@ -200,13 +217,15 @@ export function SiteHeader() {
         onClaimDaily={claimDaily ? async () => { await claimDaily(); } : undefined}
       />
 
+      <DailyMissionsModal isOpen={isMissionsOpen} onClose={() => setIsMissionsOpen(false)} />
+
       {toast && (
         <div className="fixed top-20 right-6 z-50 rounded-full border-2 border-slate-950 bg-[#f4dc69] px-4 py-2 text-xs font-black shadow-[3px_3px_0_#171821] animate-in fade-in">
           {toast}
         </div>
       )}
 
-      {/* Mobile navigation (Symbols only for clean responsive layout) */}
+      {/* Mobile navigation */}
       <nav className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-xs -translate-x-1/2 items-center justify-around rounded-full border-2 border-slate-950 bg-slate-950/95 p-1.5 text-white shadow-[0_10px_30px_rgba(0,0,0,0.6)] backdrop-blur-md md:hidden">
         {links.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href;
