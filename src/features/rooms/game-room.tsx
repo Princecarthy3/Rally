@@ -265,19 +265,14 @@ function Lobby({
   const [friendsList, setFriendsList] = useState<Array<{ id: string; display_name: string; avatar_url: string | null }>>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
 
-  const supabase = getSupabaseBrowserClient();
-
-  const loadFriends = useCallback(async () => {
+  const openInviteModal = useCallback(async () => {
+    setIsInviteOpen(true);
     if (!supabase) return;
     setLoadingFriends(true);
     const { data } = await supabase.rpc("get_friends");
     setFriendsList((data || []) as Array<{ id: string; display_name: string; avatar_url: string | null }>);
     setLoadingFriends(false);
-  }, [supabase]);
-
-  useEffect(() => {
-    if (isInviteOpen) void loadFriends();
-  }, [isInviteOpen, loadFriends]);
+  }, []);
 
   async function handleInviteFriend(friendId: string, friendName: string) {
     if (!supabase) return;
@@ -314,7 +309,7 @@ function Lobby({
               </button>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => setIsInviteOpen(true)} className="arcade-button bg-[#7357ff] text-white shadow-[2px_2px_0_#171821]">
+              <button onClick={() => void openInviteModal()} className="arcade-button bg-[#7357ff] text-white shadow-[2px_2px_0_#171821]">
                 <UsersRound size={15} /> Invite friends
               </button>
               <button onClick={() => copy(invite, "Invite link")} className="arcade-button bg-white text-slate-950">
@@ -394,7 +389,7 @@ function Lobby({
               ) : (
                 <button
                   key={i}
-                  onClick={() => setIsInviteOpen(true)}
+                  onClick={() => void openInviteModal()}
                   className="grid min-h-20 place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-white p-4 text-center transition hover:border-slate-950 hover:bg-slate-50 cursor-pointer group"
                 >
                   <span className="text-xs font-black text-slate-500 group-hover:text-slate-950">
