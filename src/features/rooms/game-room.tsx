@@ -254,6 +254,7 @@ function Lobby({
   share: () => void;
   activeEmotes: Array<{ seat: number; emote: string; id: number }>;
 }) {
+  const supabase = getSupabaseBrowserClient();
   const game = gameByKey[room.game_type];
   const me = players.find((p) => p.player_id === userId);
   const host = room.host_id === userId;
@@ -272,7 +273,7 @@ function Lobby({
     const { data } = await supabase.rpc("get_friends");
     setFriendsList((data || []) as Array<{ id: string; display_name: string; avatar_url: string | null }>);
     setLoadingFriends(false);
-  }, []);
+  }, [supabase]);
 
   async function handleInviteFriend(friendId: string, friendName: string) {
     if (!supabase) return;
