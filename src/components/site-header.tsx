@@ -112,13 +112,18 @@ export function SiteHeader() {
               <Link
                 key={href}
                 href={href}
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                title={label}
+                aria-label={label}
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold transition 2xl:px-4 ${
                   pathname === href
                     ? "bg-slate-950 text-white"
                     : "text-slate-500 hover:bg-slate-100 hover:text-slate-950"
                 }`}
               >
-                <Icon size={16} /> {label}{href === "/friends" && socialBadge > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] text-white">{socialBadge}</span>}{href === "/messages" && messageBadge > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] text-white">{messageBadge}</span>}
+                <Icon size={16} />
+                <span className="hidden 2xl:inline">{label}</span>
+                {href === "/friends" && socialBadge > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] text-white">{socialBadge}</span>}
+                {href === "/messages" && messageBadge > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] text-white">{messageBadge}</span>}
               </Link>
             ))}
           </nav>
