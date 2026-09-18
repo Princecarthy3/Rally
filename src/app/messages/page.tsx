@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, CheckCheck, Lock, Send, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/components/auth-provider";
 import { decryptMessage, encryptMessage, publishMessageKey } from "@/lib/message-crypto";
@@ -31,6 +31,7 @@ export default function MessagesPage() {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
+  const loadingMessages = useRef(false);
 
   const loadFriends = useCallback(async () => {
     if (!sb) return;
@@ -40,32 +41,37 @@ export default function MessagesPage() {
   }, [sb]);
 
   const loadMessages = useCallback(async (friend: Friend) => {
-    if (!sb || !user) return;
-    const [{ data, error: loadError }, { data: key, error: keyError }] = await Promise.all([
-      sb.rpc("get_encrypted_friend_messages", { p_friend: friend.id }),
-      sb.from("friend_message_keys").select("public_key").eq("user_id", friend.id).maybeSingle(),
-    ]);
-    if (loadError || keyError) {
-      setError((loadError || keyError)?.message || "Unable to load messages.");
-      return;
+    if (!sb || !user || loadingMessages.current) return;
+    loadingMessages.current = true;
+    try {
+      const [{ data, error: loadError }, { data: key, error: keyError }] = await Promise.all([
+        sb.rpc("get_encrypted_friend_messages", { p_friend: friend.id }),
+        sb.from("friend_message_keys").select("public_key").eq("user_id", friend.id).maybeSingle(),
+      ]);
+      if (loadError || keyError) {
+        setError((loadError || keyError)?.message || "Unable to load messages.");
+        return;
+      }
+      const encrypted = (data || []) as EncryptedMessage[];
+      const decoded = await Promise.all(
+        encrypted.map(async (message) => {
+          if (!message.ciphertext || message.deleted_by_sender_at && message.deleted_by_receiver_at) {
+            return { ...message, body: "", deletedForEveryone: true };
+          }
+          if (!key?.public_key) return { ...message, body: "Unable to decrypt this message.", deletedForEveryone: false };
+          try {
+            return { ...message, body: await decryptMessage(message.ciphertext, message.iv, key.public_key), deletedForEveryone: false };
+          } catch {
+            return { ...message, body: "Unable to decrypt this message.", deletedForEveryone: false };
+          }
+        })
+      );
+      setMessages(decoded);
+      const { error: readError } = await sb.rpc("mark_friend_messages_read", { p_friend: friend.id });
+      if (readError) setError(readError.message);
+    } finally {
+      loadingMessages.current = false;
     }
-    const encrypted = (data || []) as EncryptedMessage[];
-    const decoded = await Promise.all(
-      encrypted.map(async (message) => {
-        if (!message.ciphertext || message.deleted_by_sender_at && message.deleted_by_receiver_at) {
-          return { ...message, body: "", deletedForEveryone: true };
-        }
-        if (!key?.public_key) return { ...message, body: "Unable to decrypt this message.", deletedForEveryone: false };
-        try {
-          return { ...message, body: await decryptMessage(message.ciphertext, message.iv, key.public_key), deletedForEveryone: false };
-        } catch {
-          return { ...message, body: "Unable to decrypt this message.", deletedForEveryone: false };
-        }
-      })
-    );
-    setMessages(decoded);
-    const { error: readError } = await sb.rpc("mark_friend_messages_read", { p_friend: friend.id });
-    if (readError) setError(readError.message);
   }, [sb, user]);
 
   useEffect(() => {
@@ -83,7 +89,7 @@ export default function MessagesPage() {
     if (!sb || !selected) return;
     const channel = sb
       .channel(`messages:${selected.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "friend_messages" }, () => void loadMessages(selected))
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "friend_messages" }, () => void loadMessages(selected))
       .subscribe();
     return () => {
       void sb.removeChannel(channel);
