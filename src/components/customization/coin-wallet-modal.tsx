@@ -62,31 +62,6 @@ export function CoinWalletModal({ isOpen, onClose, balance, userId, onClaimDaily
 
   if (!isOpen) return null;
 
-  async function startPurchase(packageId: string) {
-    const sb = getSupabaseBrowserClient();
-    if (!sb) return;
-    setLoading(true);
-    setNotice("Connecting to Paystack…");
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session?.access_token) {
-      setNotice("Please sign in again before purchasing.");
-      setLoading(false);
-      return;
-    }
-    const response = await fetch("/api/payments/paystack/initialize", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ packageId }),
-    });
-    const result = await response.json() as { authorizationUrl?: string; error?: string };
-    if (!response.ok || !result.authorizationUrl) {
-      setNotice(result.error || "Unable to start Paystack payment.");
-      setLoading(false);
-      return;
-    }
-    window.location.assign(result.authorizationUrl);
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-in fade-in">
       <div className="relative w-full max-w-xl overflow-hidden rounded-[28px] border-2 border-slate-950 bg-[#fffdf7] p-6 shadow-[8px_8px_0_#171821]">
@@ -157,7 +132,7 @@ export function CoinWalletModal({ isOpen, onClose, balance, userId, onClaimDaily
           {tab === "topup" && (
             <div className="space-y-3">
               <div className="rounded-xl border-2 border-slate-950 bg-amber-100 p-3 text-xs font-black text-amber-950 text-center">
-                Payments are securely processed by Paystack in Ghana cedis. Your coins are added only after Paystack confirms payment.
+                In-app Rally Coin purchases are coming soon while our payment service is being approved. Earn free Rally Coins by winning mini-games, maintaining daily streaks, and completing achievements.
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {coinPackages.map((pkg) => (
@@ -167,13 +142,13 @@ export function CoinWalletModal({ isOpen, onClose, balance, userId, onClaimDaily
                   >
                     <div className="flex items-center justify-between">
                       <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[10px] font-black uppercase text-violet-800">{pkg.tag}</span>
-                      <span className="rounded-full border border-slate-950 bg-emerald-300 px-2 py-0.5 text-[9px] font-black uppercase text-slate-950">PAYSTACK</span>
+                      <span className="rounded-full border border-slate-950 bg-amber-300 px-2 py-0.5 text-[9px] font-black uppercase text-slate-950">COMING SOON</span>
                     </div>
                     <strong className="mt-3 block text-xl font-black">{pkg.coins.toLocaleString()} RC</strong>
                     <div className="mt-3 flex items-center justify-between border-t-2 border-slate-100 pt-2">
                       <span className="text-xs font-bold text-slate-500">{pkg.price}</span>
-                      <button onClick={() => void startPurchase(pkg.id)} disabled={loading} className="arcade-button bg-[#7357ff] text-white text-xs py-1 px-3 disabled:opacity-50">
-                        {loading ? "LOADING…" : "BUY NOW"}
+                      <button disabled className="arcade-button bg-slate-200 text-slate-600 text-xs py-1 px-3 cursor-not-allowed">
+                        COMING SOON
                       </button>
                     </div>
                   </div>
