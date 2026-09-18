@@ -67,6 +67,7 @@ export function SiteHeader() {
     void refreshMessages();
     const channel = supabase.channel(`message-badge:${user.id}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "friend_messages", filter: `receiver_id=eq.${user.id}` }, () => void refreshMessages(true))
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "friend_messages", filter: `receiver_id=eq.${user.id}` }, () => void refreshMessages())
       .subscribe();
     if ("Notification" in window && Notification.permission === "default") void Notification.requestPermission();
     return () => { void supabase.removeChannel(channel); };

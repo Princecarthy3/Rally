@@ -77,6 +77,7 @@ export default function MessagesPage() {
       setMessages(decoded);
       const { error: readError } = await sb.rpc("mark_friend_messages_read", { p_friend: friend.id });
       if (readError) setError(`Connecting to server… ${readError.message}`);
+      else setUnreadByFriend((current) => ({ ...current, [friend.id]: 0 }));
     } finally {
       loadingMessages.current = false;
     }
