@@ -30,6 +30,7 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
 
   const loadFriends = useCallback(async () => {
     if (!sb) return;
@@ -95,14 +96,14 @@ export default function MessagesPage() {
   }, [sb, user]);
 
   async function send() {
-    if (!sb || !selected || !draft.trim()) return;
+    if (!sb || !user || !selected || !draft.trim() || sending) return;
     setError("");
-    const { data: key, error: keyError } = await sb.from("friend_message_keys").select("public_key").eq("user_id", selected.id).maybeSingle();
-    if (keyError || !key?.public_key) {
-      setError(keyError?.message || "This friend has not enabled secure messaging yet.");
-      return;
-    }
+    setSending(true);
     try {
+      await publishMessageKey(sb, user.id);
+      const { data: key, error: keyError } = await sb.from("friend_message_keys").select("public_key").eq("user_id", selected.id).maybeSingle();
+      if (keyError) throw keyError;
+      if (!key?.public_key) throw new Error("This friend must open the app once before secure messages can be sent.");
       const encrypted = await encryptMessage(draft.trim(), key.public_key);
       const { error: sendError } = await sb.rpc("send_encrypted_friend_message", {
         p_receiver: selected.id,
@@ -115,7 +116,10 @@ export default function MessagesPage() {
         await loadMessages(selected);
       }
     } catch (sendError) {
+      console.error("Unable to send encrypted friend message", sendError);
       setError(sendError instanceof Error ? sendError.message : "Unable to send encrypted message.");
+    } finally {
+      setSending(false);
     }
   }
 
@@ -173,7 +177,7 @@ export default function MessagesPage() {
               <p className="mb-2 flex items-center gap-1 text-xs text-slate-400"><Lock size={12} /> End-to-end encrypted</p>
               <div className="flex gap-2">
                 <input value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => event.key === "Enter" && void send()} placeholder="Type a message" className="flex-1 rounded-xl border-2 border-slate-950 px-3 py-2 outline-none" />
-                <button onClick={() => void send()} className="grid h-10 w-10 place-items-center rounded-xl bg-slate-950 text-white"><Send size={16} /></button>
+                <button disabled={sending} onClick={() => void send()} className="grid h-10 w-10 place-items-center rounded-xl bg-slate-950 text-white disabled:cursor-wait disabled:opacity-50"><Send size={16} /></button>
               </div>
             </div>}
           </section>
