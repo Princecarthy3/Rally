@@ -70,3 +70,19 @@ begin
   end if;
 end $$;
 grant execute on function public.send_encrypted_friend_message(uuid,text,text),public.get_encrypted_friend_messages(uuid),public.mark_friend_messages_read(uuid),public.delete_encrypted_friend_message(uuid,boolean) to authenticated;
+
+create or replace function public.get_unread_friend_message_counts()
+returns table(friend_id uuid, unread_count bigint)
+language sql
+security definer
+set search_path=''
+as $$
+  select sender_id, count(*)::bigint
+  from public.friend_messages
+  where receiver_id=auth.uid()
+    and read_at is null
+    and deleted_by_receiver_at is null
+  group by sender_id;
+$$;
+
+grant execute on function public.get_unread_friend_message_counts() to authenticated;

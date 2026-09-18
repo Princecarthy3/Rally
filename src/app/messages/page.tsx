@@ -32,12 +32,20 @@ export default function MessagesPage() {
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const loadingMessages = useRef(false);
+  const [unreadByFriend, setUnreadByFriend] = useState<Record<string, number>>({});
 
   const loadFriends = useCallback(async () => {
     if (!sb) return;
-    const { data, error: loadError } = await sb.rpc("get_friends");
+    const [{ data, error: loadError }, { data: unread, error: unreadError }] = await Promise.all([
+      sb.rpc("get_friends"),
+      sb.rpc("get_unread_friend_message_counts"),
+    ]);
     if (loadError) setError(loadError.message);
-    else setFriends((data || []) as Friend[]);
+    else if (unreadError) setError(`Connecting to server… ${unreadError.message}`);
+    else {
+      setFriends((data || []) as Friend[]);
+      setUnreadByFriend(Object.fromEntries(((unread || []) as { friend_id: string; unread_count: number }[]).map((row) => [row.friend_id, Number(row.unread_count)])));
+    }
   }, [sb]);
 
   const loadMessages = useCallback(async (friend: Friend) => {
@@ -49,7 +57,7 @@ export default function MessagesPage() {
         sb.from("friend_message_keys").select("public_key").eq("user_id", friend.id).maybeSingle(),
       ]);
       if (loadError || keyError) {
-        setError((loadError || keyError)?.message || "Unable to load messages.");
+        setError(`Connecting to server… ${((loadError || keyError)?.message || "Unable to load messages.")}`);
         return;
       }
       const encrypted = (data || []) as EncryptedMessage[];
@@ -68,7 +76,7 @@ export default function MessagesPage() {
       );
       setMessages(decoded);
       const { error: readError } = await sb.rpc("mark_friend_messages_read", { p_friend: friend.id });
-      if (readError) setError(readError.message);
+      if (readError) setError(`Connecting to server… ${readError.message}`);
     } finally {
       loadingMessages.current = false;
     }
@@ -108,7 +116,7 @@ export default function MessagesPage() {
     try {
       await publishMessageKey(sb, user.id);
       const { data: key, error: keyError } = await sb.from("friend_message_keys").select("public_key").eq("user_id", selected.id).maybeSingle();
-      if (keyError) throw keyError;
+      if (keyError) throw new Error(`Connecting to server… ${keyError.message}`);
       if (!key?.public_key) throw new Error("This friend must open the app once before secure messages can be sent.");
       const encrypted = await encryptMessage(draft.trim(), key.public_key);
       const { error: sendError } = await sb.rpc("send_encrypted_friend_message", {
@@ -116,7 +124,7 @@ export default function MessagesPage() {
         p_ciphertext: encrypted.ciphertext,
         p_iv: encrypted.iv,
       });
-      if (sendError) setError(sendError.message);
+      if (sendError) setError(`Connecting to server… ${sendError.message}`);
       else {
         setDraft("");
         await loadMessages(selected);
@@ -151,6 +159,7 @@ export default function MessagesPage() {
                 <button onClick={() => { setSelected(friend); setError(""); }} key={friend.id} className={`flex shrink-0 items-center gap-2 rounded-xl border-2 p-2 text-left ${selected?.id === friend.id ? "border-slate-950 bg-[#f0edff]" : "border-transparent hover:bg-slate-50"}`}>
                   <span className="grid h-9 w-9 place-items-center rounded-full bg-[#f4dc69] font-black">{friend.display_name[0]}</span>
                   <strong className="text-sm">{friend.display_name}</strong>
+                  {unreadByFriend[friend.id] > 0 && <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white">{unreadByFriend[friend.id]}</span>}
                 </button>
               ))}
               {!friends.length && <p className="mt-5 text-sm text-slate-500">Add friends to start chatting.</p>}
@@ -173,8 +182,8 @@ export default function MessagesPage() {
                         {own && (status === "sent" ? <Check size={13} /> : <CheckCheck size={13} className={status === "read" ? "text-sky-300" : ""} />)}
                       </div>
                     </div>
-                    {!message.deletedForEveryone && <button title="Delete for me" onClick={() => void deleteMessage(message, false)} className="rounded p-1 text-slate-400 opacity-0 transition group-hover:opacity-100 hover:text-red-600"><Trash2 size={14} /></button>}
-                    {own && !message.deletedForEveryone && <button title="Delete for everyone" onClick={() => void deleteMessage(message, true)} className="rounded p-1 text-slate-400 opacity-0 transition group-hover:opacity-100 hover:text-red-600"><Trash2 size={14} /></button>}
+                    {!message.deletedForEveryone && <button title="Delete for me" onClick={() => void deleteMessage(message, false)} className="rounded p-1 text-slate-400 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 hover:text-red-600"><Trash2 size={14} /></button>}
+                    {own && !message.deletedForEveryone && <button title="Delete for everyone" onClick={() => void deleteMessage(message, true)} className="rounded p-1 text-slate-400 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 hover:text-red-600"><Trash2 size={14} /></button>}
                   </div>
                 );
               })}

@@ -8,6 +8,7 @@ import { ConfigNotice } from "./config-notice";
 import { InstallPrompt } from "./install-prompt";
 import { SiteHeader } from "./site-header";
 import { AppPresence } from "./app-presence";
+import { NetworkStatus } from "./network-status";
 
 export function ProtectedPage({ children }: { children: React.ReactNode }) {
   const { configured, loading, user } = useAuth();
@@ -20,6 +21,7 @@ export function ProtectedPage({ children }: { children: React.ReactNode }) {
   return (
     <>
       <AppPresence>
+        <NetworkStatus />
         <SiteHeader />
         {children}
         <InstallPrompt />

@@ -33,6 +33,7 @@ export function SiteHeader() {
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [socialBadge, setSocialBadge] = useState(0);
+  const [messageBadge, setMessageBadge] = useState(0);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -47,6 +48,28 @@ export function SiteHeader() {
       .on("postgres_changes", { event: "*", schema: "public", table: "game_invites", filter: `receiver_id=eq.${user.id}` }, refreshBadge)
       .subscribe();
     return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase || !user) return;
+    let previousTotal = 0;
+    const refreshMessages = async (notify = false) => {
+      const { data } = await supabase.rpc("get_unread_friend_message_counts");
+      const total = ((data || []) as { unread_count: number }[]).reduce((sum, row) => sum + Number(row.unread_count), 0);
+      if (notify && total > previousTotal) {
+        sounds.playMessageSound();
+        if ("Notification" in window && Notification.permission === "granted") new Notification("New Rally message", { body: "You received a new message from a friend." });
+      }
+      previousTotal = total;
+      setMessageBadge(total);
+    };
+    void refreshMessages();
+    const channel = supabase.channel(`message-badge:${user.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "friend_messages", filter: `receiver_id=eq.${user.id}` }, () => void refreshMessages(true))
+      .subscribe();
+    if ("Notification" in window && Notification.permission === "default") void Notification.requestPermission();
+    return () => { void supabase.removeChannel(channel); };
   }, [user]);
 
   async function handleSignOut() {
@@ -92,7 +115,7 @@ export function SiteHeader() {
                     : "text-slate-500 hover:bg-slate-100 hover:text-slate-950"
                 }`}
               >
-                <Icon size={16} /> {label}{href === "/friends" && socialBadge > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] text-white">{socialBadge}</span>}
+                <Icon size={16} /> {label}{href === "/friends" && socialBadge > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] text-white">{socialBadge}</span>}{href === "/messages" && messageBadge > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] text-white">{messageBadge}</span>}
               </Link>
             ))}
           </nav>
@@ -198,7 +221,7 @@ export function SiteHeader() {
                   : "text-slate-400 hover:bg-white/10 hover:text-white"
               }`}
             >
-              <span className="relative"><Icon size={20} />{href === "/friends" && socialBadge > 0 && <span className="absolute -right-2 -top-2 h-2 w-2 rounded-full bg-red-500"/>}</span>
+              <span className="relative"><Icon size={20} />{href === "/friends" && socialBadge > 0 && <span className="absolute -right-2 -top-2 h-2 w-2 rounded-full bg-red-500"/>}{href === "/messages" && messageBadge > 0 && <span className="absolute -right-2 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[9px] text-white">{messageBadge}</span>}</span>
             </Link>
           );
         })}
