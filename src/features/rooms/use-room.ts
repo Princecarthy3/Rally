@@ -133,8 +133,14 @@ export function useRoom(code: string, userId?: string, options?: { spectate?: bo
         }
         return nextRoom;
       });
+      // Spectators (and anyone whose optimistic version raced ahead) re-fetch so the
+      // board always matches the committed public_state without a manual refresh.
+      void refresh();
     })
       .on("postgres_changes", { event: "*", schema: "public", table: "game_players", filter: `room_id=eq.${roomId}` }, () => {
+        void refresh();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "game_spectators", filter: `room_id=eq.${roomId}` }, () => {
         void refresh();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "user_customization" }, () => {
@@ -148,9 +154,11 @@ export function useRoom(code: string, userId?: string, options?: { spectate?: bo
         if (status === "SUBSCRIBED") {
           setChannel(ch);
           setConnection("online");
-          await ch.track({ online_at: new Date().toISOString() });
+          await ch.track({ online_at: new Date().toISOString(), spectate: spectate || isSpectator });
         } else if (status === "CLOSED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           setConnection("reconnecting");
+          // Realtime dropped — pull state so spectators are not stuck on a frozen board.
+          void refresh();
         }
       });
 
@@ -164,15 +172,23 @@ export function useRoom(code: string, userId?: string, options?: { spectate?: bo
       supabase.removeChannel(ch);
       setChannel(null);
     };
-  }, [refresh, room?.id, supabase, userId]);
+  }, [refresh, room?.id, supabase, userId, spectate, isSpectator]);
 
+  // Live poll while waiting, playing, or spectating so boards update even if Realtime lags.
   useEffect(() => {
-    if (!room || room.status !== "waiting" || !userId) return;
+    if (!room || !userId) return;
+    const live =
+      room.status === "waiting" ||
+      room.status === "playing" ||
+      spectate ||
+      isSpectator;
+    if (!live) return;
+    const intervalMs = spectate || isSpectator ? 1500 : room.status === "playing" ? 2000 : 3000;
     const interval = window.setInterval(() => {
       void refresh();
-    }, 3000);
+    }, intervalMs);
     return () => window.clearInterval(interval);
-  }, [refresh, room?.status, userId]);
+  }, [refresh, room?.status, userId, spectate, isSpectator]);
 
   const applyPublicState = useCallback((publicState: Room["public_state"], extras?: Partial<Room>) => {
     setRoom((current) => {
