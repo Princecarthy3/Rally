@@ -1,7 +1,7 @@
 "use client";
 
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Room, RoomPlayer } from "./types";
 import type { ShopItem } from "@/lib/customization";
@@ -14,16 +14,20 @@ export function useRoom(code: string, userId?: string) {
   const [onlineIds, setOnlineIds] = useState<string[]>([]);
   const [connection, setConnection] = useState<"connecting" | "online" | "reconnecting">("connecting");
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+  const joinedRef = useRef(false);
   const supabase = getSupabaseBrowserClient();
 
   const refresh = useCallback(async () => {
     if (!supabase || !userId) return;
 
-    const join = await supabase.rpc("join_game_room", { p_code: code.toUpperCase() });
-    if (join.error) {
-      setError(join.error.message);
-      setLoading(false);
-      return;
+    if (!joinedRef.current) {
+      const join = await supabase.rpc("join_game_room", { p_code: code.toUpperCase() });
+      if (join.error) {
+        setError(join.error.message);
+        setLoading(false);
+        return;
+      }
+      joinedRef.current = true;
     }
 
     const { data: roomData, error: roomError } = await supabase
