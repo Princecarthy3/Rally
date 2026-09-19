@@ -6,7 +6,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Room, RoomPlayer } from "./types";
 import type { ShopItem } from "@/lib/customization";
 
-export function useRoom(code: string, userId?: string, isSpectatorRequested: boolean = false) {
+export function useRoom(code: string, userId?: string) {
   const [room, setRoom] = useState<Room | null>(null);
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -14,39 +14,16 @@ export function useRoom(code: string, userId?: string, isSpectatorRequested: boo
   const [onlineIds, setOnlineIds] = useState<string[]>([]);
   const [connection, setConnection] = useState<"connecting" | "online" | "reconnecting">("connecting");
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
-  const [isSpectator, setIsSpectator] = useState(isSpectatorRequested);
-  const [spectatorCount, setSpectatorCount] = useState(0);
-
   const supabase = getSupabaseBrowserClient();
 
   const refresh = useCallback(async () => {
     if (!supabase || !userId) return;
 
-    if (isSpectatorRequested) {
-      const specRes = await supabase.rpc("spectate_game_room", { p_code: code.toUpperCase() });
-      if (specRes.error) {
-        setError(specRes.error.message);
-        setLoading(false);
-        return;
-      }
-      setIsSpectator(true);
-    } else {
-      const join = await supabase.rpc("join_game_room", { p_code: code.toUpperCase() });
-      if (join.error && (join.error.message.includes("already started") || join.error.message.includes("full"))) {
-        // Fallback to spectator mode if room is full or playing
-        const specRes = await supabase.rpc("spectate_game_room", { p_code: code.toUpperCase() });
-        if (!specRes.error) {
-          setIsSpectator(true);
-        } else {
-          setError(join.error.message);
-          setLoading(false);
-          return;
-        }
-      } else if (join.error) {
-        setError(join.error.message);
-        setLoading(false);
-        return;
-      }
+    const join = await supabase.rpc("join_game_room", { p_code: code.toUpperCase() });
+    if (join.error) {
+      setError(join.error.message);
+      setLoading(false);
+      return;
     }
 
     const { data: roomData, error: roomError } = await supabase
@@ -69,14 +46,6 @@ export function useRoom(code: string, userId?: string, isSpectatorRequested: boo
       .select("*, profile:profiles(display_name, avatar_url)")
       .eq("room_id", roomData.id)
       .order("seat");
-
-    // Fetch spectators count
-    const { count: specCount } = await supabase
-      .from("game_spectators")
-      .select("*", { count: "exact", head: true })
-      .eq("room_id", roomData.id);
-
-    setSpectatorCount(specCount || 0);
 
     if (playerData) {
       const pIds = playerData.map((p) => p.player_id);
@@ -127,7 +96,7 @@ export function useRoom(code: string, userId?: string, isSpectatorRequested: boo
 
     setError("");
     setLoading(false);
-  }, [code, isSpectatorRequested, supabase, userId]);
+  }, [code, supabase, userId]);
 
   useEffect(() => {
     if (!supabase || !userId) return;
@@ -143,9 +112,6 @@ export function useRoom(code: string, userId?: string, isSpectatorRequested: boo
       if (payload.eventType !== "DELETE") setRoom(payload.new as Room);
     })
       .on("postgres_changes", { event: "*", schema: "public", table: "game_players", filter: `room_id=eq.${roomId}` }, () => {
-        void refresh();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "game_spectators", filter: `room_id=eq.${roomId}` }, () => {
         void refresh();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "user_customization" }, () => {
@@ -178,27 +144,12 @@ export function useRoom(code: string, userId?: string, isSpectatorRequested: boo
   }, [refresh, room?.id, supabase, userId]);
 
   useEffect(() => {
-    if (!room || room.status !== "waiting" || isSpectator || !userId) return;
+    if (!room || room.status !== "waiting" || !userId) return;
     const interval = window.setInterval(() => {
       void refresh();
     }, 3000);
     return () => window.clearInterval(interval);
-  }, [isSpectator, refresh, room?.status, userId]);
+  }, [refresh, room?.status, userId]);
 
-  useEffect(() => {
-    if (!room || !isSpectator || !userId) return;
-    const interval = window.setInterval(() => {
-      void refresh();
-    }, 1000);
-    return () => window.clearInterval(interval);
-  }, [isSpectator, refresh, room?.id, userId]);
-
-  useEffect(() => {
-    if (!isSpectator || !code || !supabase) return;
-    return () => {
-      void supabase.rpc("leave_spectator_room", { p_code: code.toUpperCase() });
-    };
-  }, [code, isSpectator, supabase]);
-
-  return { room, players, loading, error, onlineIds, connection, refresh, channel, isSpectator, spectatorCount };
+  return { room, players, loading, error, onlineIds, connection, refresh, channel };
 }

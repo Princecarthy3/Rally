@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowLeft, Check, Copy, Eye, LoaderCircle, Radio, Share2, ShieldCheck, UsersRound, WifiOff } from "lucide-react";
+import { ArrowLeft, Check, Copy, LoaderCircle, Radio, Share2, ShieldCheck, UsersRound, WifiOff } from "lucide-react";
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/components/auth-provider";
@@ -24,15 +24,8 @@ const isBotId = (id: string) => id.startsWith("11111111-1111-1111-1111-");
 
 export function GameRoom() {
   const params = useParams<{ code: string }>();
-  const searchParams = useSearchParams();
-  const isSpectatorRequested = searchParams?.get("spectate") === "true";
-
   const { user, profile } = useAuth();
-  const { room, players, loading, error, onlineIds, connection, channel, isSpectator, spectatorCount, refresh } = useRoom(
-    params.code,
-    user?.id,
-    isSpectatorRequested
-  );
+  const { room, players, loading, error, onlineIds, connection, channel, refresh } = useRoom(params.code, user?.id);
 
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -142,32 +135,12 @@ export function GameRoom() {
       <div className={`min-h-[calc(100vh-80px)] p-3 pb-40 sm:p-6 lg:p-8 transition-colors duration-500 ${roomThemeStyle.containerClass}`} style={roomThemeStyle.bgStyle}>
         <div className="mx-auto max-w-6xl">
 
-          {/* Spectator Mode Banner */}
-          {isSpectator && (
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-slate-950 bg-amber-400 p-3 sm:p-4 shadow-[3px_3px_0_#171821] animate-fadeIn">
-              <div className="flex items-center gap-2 font-black text-slate-950 text-xs sm:text-sm">
-                <Eye className="animate-pulse text-slate-950 shrink-0" size={18} />
-                <span>SPECTATOR MODE — Watching match live!</span>
-              </div>
-              <Link href="/dashboard" className="rounded-xl border-2 border-slate-950 bg-white px-3 py-1 text-xs font-black shadow-[2px_2px_0_#171821] hover:bg-slate-100 transition-all">
-                Exit Spectator
-              </Link>
-            </div>
-          )}
-
           <div className="mb-4 sm:mb-6 flex items-center justify-between">
             <Link href="/dashboard" className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-slate-700 hover:text-slate-950 dark:text-slate-200">
               <ArrowLeft size={16} /> Exit Room
             </Link>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              {spectatorCount > 0 && (
-                <div className="flex items-center gap-1 rounded-full border-2 border-slate-950 bg-purple-100 px-2.5 py-0.5 text-[10px] sm:text-xs font-black text-purple-900 shadow-sm">
-                  <Eye size={13} className="text-purple-700 animate-pulse" />
-                  <span>{spectatorCount} Spectating</span>
-                </div>
-              )}
-
               <EmoteWheel onSendEmote={handleSendEmote} />
 
               <div
@@ -216,7 +189,7 @@ export function GameRoom() {
               }}
             />
           ) : (
-            <GameBoard room={room} players={players} userId={user!.id} onlineIds={onlineIds} isSpectator={isSpectator} />
+            <GameBoard room={room} players={players} userId={user!.id} onlineIds={onlineIds} />
           )}
 
           {/* Victory Overlay Trigger */}
