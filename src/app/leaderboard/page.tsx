@@ -7,7 +7,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { UserAvatar } from "@/components/customization/user-avatar";
 import { NameDisplay } from "@/components/customization/name-display";
 import { ShopItem } from "@/lib/customization";
-import { PlayerCard } from "@/components/customization/player-card";
+import { PlayerCardModal } from "@/components/customization/player-card-modal";
 import { Trophy, Gamepad2, Sparkles, LoaderCircle, Award, X, Eye } from "lucide-react";
 
 type LeaderboardUser = {
@@ -18,6 +18,7 @@ type LeaderboardUser = {
   level: number;
   wins: number;
   games_played: number;
+  balance?: number;
   customization?: {
     avatar?: ShopItem | null;
     frame?: ShopItem | null;
@@ -26,6 +27,8 @@ type LeaderboardUser = {
     title?: ShopItem | null;
     name_color?: ShopItem | null;
     name_effect?: ShopItem | null;
+    victory?: ShopItem | null;
+    room_theme?: ShopItem | null;
     badges?: ShopItem[];
     bio?: string;
     status_preset?: string;
@@ -260,48 +263,38 @@ export default function LeaderboardPage() {
 
       {/* Inspect Player Profile Card Modal */}
       {selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-md overflow-hidden rounded-[28px] border-2 border-slate-950 bg-[#fffdf7] p-6 shadow-[8px_8px_0_#171821]">
-            <div className="flex items-center justify-between border-b-2 border-slate-950 pb-4 mb-4">
-              <div>
-                <span className="text-[10px] font-black uppercase text-violet-600 tracking-wider">Player Profile Card</span>
-                <h2 className="text-xl font-black text-slate-950">{selectedUser.display_name}</h2>
+        <>
+          <PlayerCardModal
+            userId={selectedUser.user_id}
+            isOpen={Boolean(selectedUser)}
+            onClose={() => {
+              setSelectedUser(null);
+              setSocialNotice("");
+            }}
+            fallbackDisplayName={selectedUser.display_name}
+            fallbackAvatarUrl={selectedUser.avatar_url}
+          />
+          {selectedUser.user_id !== user?.id && (
+            <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[110] flex justify-center px-4">
+              <div className="pointer-events-auto flex max-w-md flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => void addFriend(selectedUser.user_id)}
+                  className="arcade-button w-full bg-[#a7efc8] text-xs font-black shadow-[4px_4px_0_#171821]"
+                >
+                  ADD FRIEND
+                </button>
+                {socialNotice && (
+                  <p className="rounded-xl border-2 border-slate-950 bg-white px-3 py-2 text-center text-xs font-bold text-slate-600">
+                    {socialNotice}
+                  </p>
+                )}
               </div>
-              <button onClick={() => setSelectedUser(null)} className="rounded-full border-2 border-slate-950 bg-white p-2 hover:bg-slate-100">
-                <X size={18} />
-              </button>
             </div>
-
-            <PlayerCard
-              displayName={selectedUser.display_name}
-              avatarUrl={selectedUser.avatar_url}
-              customization={
-                selectedUser.customization
-                  ? {
-                      ...selectedUser.customization,
-                      badges: selectedUser.customization.badges || [],
-                      bio: selectedUser.customization.bio || "",
-                      status_preset: selectedUser.customization.status_preset || "Online",
-                    }
-                  : null
-              }
-              levelState={{ xp: selectedUser.xp, level: selectedUser.level }}
-              wins={selectedUser.wins}
-              gamesPlayed={selectedUser.games_played}
-            />
-
-            <button onClick={() => setSelectedUser(null)} className="arcade-button mt-6 w-full bg-slate-950 text-white text-xs font-black">
-              CLOSE PROFILE
-            </button>
-            {selectedUser.user_id !== user?.id && (
-              <button onClick={() => void addFriend(selectedUser.user_id)} className="arcade-button mt-3 w-full bg-[#a7efc8] text-xs font-black">
-                ADD FRIEND
-              </button>
-            )}
-            {socialNotice && <p className="mt-3 text-center text-xs font-bold text-slate-600">{socialNotice}</p>}
-          </div>
-        </div>
+          )}
+        </>
       )}
+
     </ProtectedPage>
   );
 }
