@@ -1013,49 +1013,104 @@ begin
 end $$;
 
 -- 4. Number Hunt action handler
-create or replace function public.play_number_hunt_action(p_room uuid, p_value text, p_actor_seat int default null) returns jsonb
-language plpgsql security definer set search_path='' as $$
-declare r public.game_rooms; me public.game_players; state jsonb; n int; current_round int; guess int; target int; guesses jsonb; guessed_count int; score int; top_score int; count_tied int; winner int;
+drop function if exists public.play_number_hunt_action(uuid, text, int);
+drop function if exists public.play_number_hunt_action(uuid, text, text, int);
+
+create or replace function public.play_number_hunt_action(
+  p_room uuid, p_action text, p_value text default null, p_actor_seat int default null
+) returns jsonb language plpgsql security definer set search_path='' as $$
+declare
+  r public.game_rooms; me public.game_players; state jsonb; player_count int;
+  current_round int; picker int; guess int; target int; guesses jsonb; results jsonb;
+  guessed_count int; next_picker int; winner int; score int; top_score int; tied_count int;
 begin
   select * into r from public.game_rooms where id=p_room for update;
-  if r.status <> 'playing' or r.game_type <> 'number_guess' then raise exception 'Number Hunt is not active'; end if;
+  if r.status<>'playing' or r.game_type<>'number_guess' then raise exception 'Number Hunt is not active'; end if;
+
   if p_actor_seat is not null then
-    select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-%';
+    select * into me from public.game_players
+      where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-%';
   else
     select * into me from public.game_players where room_id=p_room and player_id=auth.uid();
   end if;
   if me.id is null then raise exception 'Not a player'; end if;
-  guess:=p_value::int; if guess not between 1 and 25 then raise exception 'Choose a tile from 1 to 25'; end if;
-  select count(*) into n from public.game_players where room_id=p_room;
-  state:=coalesce(r.public_state,'{}'::jsonb); current_round:=coalesce((state->>'round')::int,1);
-  insert into private.number_hunt_targets(room_id,round,target) values(p_room,current_round,1+floor(random()*25)::int) on conflict do nothing;
-  select t.target into target from private.number_hunt_targets t where t.room_id=p_room and t.round=current_round;
-  guesses:=case when jsonb_typeof(state->'guesses')='object' then state->'guesses' else '{}'::jsonb end; if guesses ? me.seat::text then raise exception 'You already chose a tile this round'; end if;
-  guesses:=jsonb_set(guesses,array[me.seat::text],to_jsonb(guess),true); state:=jsonb_set(state,'{guesses}',guesses,true);
-  if guess=target then
-    score:=coalesce((state->'scores'->>me.seat::text)::int,0)+100;
-    state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(score),true);
-    state:=jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' found the number! +100')::text),true);
-  else state:=jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' chose tile '||guess||'.')::text),true); end if;
-  select count(*) into guessed_count from jsonb_object_keys(guesses);
-  if guessed_count=n then
-    if current_round>=5 then
-      select max(coalesce((state->'scores'->>seat::text)::int,0)) into top_score from public.game_players where room_id=p_room;
-      select count(*) into count_tied from public.game_players where room_id=p_room and coalesce((state->'scores'->>seat::text)::int,0)=top_score;
-      if count_tied=1 then
-        select min(seat) into winner from public.game_players where room_id=p_room and coalesce((state->'scores'->>seat::text)::int,0)=top_score;
-        r.status:='completed'; state:=jsonb_set(state,'{winnerSeat}',to_jsonb(winner),true); state:=jsonb_set(state,'{message}',to_jsonb(('Number Hunt complete! Player '||winner||' wins!')::text),true);
+
+  select count(*) into player_count from public.game_players where room_id=p_room;
+  state:=coalesce(r.public_state,'{}'::jsonb);
+  current_round:=coalesce((state->>'round')::int,1);
+  picker:=coalesce((state->>'pickerSeat')::int,1);
+
+  if p_action='set_target' then
+    if me.seat<>picker then raise exception 'Only the picker can hide the number'; end if;
+    guess:=p_value::int;
+    if guess not between 1 and 25 then raise exception 'Choose a number from 1 to 25'; end if;
+    insert into private.number_hunt_targets(room_id,round,target) values(p_room,current_round,guess)
+      on conflict(room_id,round) do update set target=excluded.target;
+    state:=state-'targetNumber'-'lastGuess'-'attemptsLeft';
+    state:=jsonb_set(state,'{targetPicked}','true'::jsonb,true);
+    state:=jsonb_set(state,'{guesses}','{}'::jsonb,true);
+    state:=jsonb_set(state,'{guessResults}','{}'::jsonb,true);
+    state:=jsonb_set(state,'{message}',to_jsonb('The number is hidden. Every hunter gets one guess!'::text),true);
+
+  elsif p_action='guess' then
+    if not coalesce((state->>'targetPicked')::boolean,false) then raise exception 'Wait for the picker to hide a number'; end if;
+    if me.seat=picker then raise exception 'The picker cannot guess'; end if;
+    guess:=p_value::int;
+    if guess not between 1 and 25 then raise exception 'Choose a number from 1 to 25'; end if;
+    guesses:=case when jsonb_typeof(state->'guesses')='object' then state->'guesses' else '{}'::jsonb end;
+    if guesses ? me.seat::text then raise exception 'You already guessed this round'; end if;
+    select t.target into target from private.number_hunt_targets t where t.room_id=p_room and t.round=current_round;
+    if target is null then raise exception 'Secret number is missing'; end if;
+
+    guesses:=jsonb_set(guesses,array[me.seat::text],to_jsonb(guess),true);
+    results:=case when jsonb_typeof(state->'guessResults')='object' then state->'guessResults' else '{}'::jsonb end;
+    results:=jsonb_set(results,array[me.seat::text],jsonb_build_object('guess',guess,'correct',guess=target),true);
+    state:=jsonb_set(state,'{guesses}',guesses,true);
+    state:=jsonb_set(state,'{guessResults}',results,true);
+    if guess=target then
+      score:=coalesce((state->'scores'->>me.seat::text)::int,0)+100;
+      state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(score),true);
+      state:=jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' found it! +100 points.')::text),true);
+    else
+      state:=jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' locked a guess.')::text),true);
+    end if;
+
+    select count(*) into guessed_count from jsonb_object_keys(guesses);
+    if guessed_count=player_count-1 then
+      select min(seat) into next_picker from public.game_players where room_id=p_room and seat>picker;
+      if next_picker is null then select min(seat) into next_picker from public.game_players where room_id=p_room; end if;
+      if current_round>=5 then
+        select max(coalesce((state->'scores'->>seat::text)::int,0)) into top_score from public.game_players where room_id=p_room;
+        select count(*) into tied_count from public.game_players where room_id=p_room and coalesce((state->'scores'->>seat::text)::int,0)=top_score;
+        if tied_count=1 then
+          select min(seat) into winner from public.game_players where room_id=p_room and coalesce((state->'scores'->>seat::text)::int,0)=top_score;
+          r.status:='completed';
+          state:=jsonb_set(state,'{winnerSeat}',to_jsonb(winner),true);
+          state:=jsonb_set(state,'{message}',to_jsonb(('Number Hunt complete! Player '||winner||' wins!')::text),true);
+        else
+          state:=jsonb_set(state,'{round}',to_jsonb(current_round+1),true);
+          state:=jsonb_set(state,'{pickerSeat}',to_jsonb(next_picker),true);
+          state:=jsonb_set(state,'{targetPicked}','false'::jsonb,true);
+          state:=jsonb_set(state,'{guesses}','{}'::jsonb,true);
+          state:=jsonb_set(state,'{guessResults}','{}'::jsonb,true);
+          state:=jsonb_set(state,'{message}',to_jsonb(('Tiebreaker round: Player '||next_picker||' hides a number.')::text),true);
+        end if;
       else
         state:=jsonb_set(state,'{round}',to_jsonb(current_round+1),true);
+        state:=jsonb_set(state,'{pickerSeat}',to_jsonb(next_picker),true);
+        state:=jsonb_set(state,'{targetPicked}','false'::jsonb,true);
         state:=jsonb_set(state,'{guesses}','{}'::jsonb,true);
-        state:=jsonb_set(state,'{message}',to_jsonb(('Tiebreaker Round '||(current_round+1)||'! Tied for 1st place!')::text),true);
+        state:=jsonb_set(state,'{guessResults}','{}'::jsonb,true);
+        state:=jsonb_set(state,'{message}',to_jsonb(('Round '||(current_round+1)||': Player '||next_picker||' hides a number.')::text),true);
       end if;
-    else
-      state:=jsonb_set(state,'{round}',to_jsonb(current_round+1),true); state:=jsonb_set(state,'{guesses}','{}'::jsonb,true); state:=jsonb_set(state,'{message}',to_jsonb(('Round '||(current_round+1)||' of 5: choose a tile.')::text),true);
     end if;
+  else
+    raise exception 'Invalid Number Hunt action';
   end if;
+
   update public.game_rooms set public_state=state,status=r.status,state_version=state_version+1,updated_at=now() where id=p_room;
-  if r.status='completed' then perform public.finalize_room(p_room,state,r.game_type); end if; return state;
+  if r.status='completed' then perform public.finalize_room(p_room,state,r.game_type); end if;
+  return state;
 end $$;
 
 -- 5. Skribbl action handler
@@ -1482,4 +1537,66 @@ begin
   update public.game_rooms set updated_at = now() where id = p_room;
 end $$;
 
-grant execute on function public.add_bot_to_room(uuid) to authenticated;
+-- Ping Pong helper
+create or replace function public.play_ping_pong_point(p_room uuid, p_scorer integer) returns jsonb
+language plpgsql security definer set search_path='' as $$
+declare r public.game_rooms; state jsonb; score integer;
+begin
+  select * into r from public.game_rooms where id=p_room for update;
+  if r.id is null or r.game_type<>'ping_pong' or r.status<>'playing' then raise exception 'Mini Tennis is not active'; end if;
+  if not exists(select 1 from public.game_players where room_id=p_room and player_id=auth.uid()) and r.host_id<>auth.uid() then
+    raise exception 'Only a player in the room can record a point';
+  end if;
+  if p_scorer not in (1,2) or not exists(select 1 from public.game_players where room_id=p_room and seat=p_scorer) then raise exception 'Invalid scorer'; end if;
+  state:=coalesce(r.public_state,'{}'::jsonb); score:=coalesce((state->'scores'->>p_scorer::text)::integer,0)+1;
+  state:=jsonb_set(state,array['scores',p_scorer::text],to_jsonb(score),true);
+  if score>=5 then
+    state:=jsonb_set(state,'{winnerSeat}',to_jsonb(p_scorer),true);
+    state:=jsonb_set(state,'{message}',to_jsonb(('Player '||p_scorer||' wins Mini Tennis!')::text),true);
+    update public.game_rooms set public_state=state,status='completed',state_version=state_version+1,updated_at=now() where id=p_room;
+    perform public.finalize_room(p_room,state,'ping_pong');
+  else
+    state:=jsonb_set(state,'{message}',to_jsonb(('Point to Player '||p_scorer||'!')::text),true);
+    update public.game_rooms set public_state=state,state_version=state_version+1,updated_at=now() where id=p_room;
+  end if;
+  return state;
+end $$;
+
+-- Battleship helpers
+create or replace function public.get_battleship_private_state(p_room uuid) returns jsonb language plpgsql security definer set search_path='' as $$
+declare me public.game_players; board private.battleship_boards;
+begin
+ select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); if me.id is null then raise exception 'Not a player'; end if;
+ select * into board from private.battleship_boards where room_id=p_room and seat=me.seat;
+ return jsonb_build_object('ships',coalesce(board.ships,'{}'::jsonb),'hits',coalesce(board.hits,'[]'::jsonb));
+end $$;
+
+create or replace function public.start_battleship(p_room uuid) returns void language plpgsql security definer set search_path='' as $$
+declare r public.game_rooms; n int; bot_seat int;
+begin
+ select * into r from public.game_rooms where id=p_room for update;
+ if r.id is null or r.host_id<>auth.uid() then raise exception 'Only the host can start'; end if;
+ if r.status<>'waiting' then raise exception 'Game already started'; end if;
+ select count(*) into n from public.game_players where room_id=p_room;
+ if n<>2 or exists(select 1 from public.game_players where room_id=p_room and not is_ready) then raise exception 'Battleship needs two ready players'; end if;
+ delete from private.battleship_boards where room_id=p_room;
+ insert into private.battleship_boards(room_id,seat,ships,hits) select p_room,seat,'{}'::jsonb,'[]'::jsonb from public.game_players where room_id=p_room;
+ update public.game_rooms set status='playing',public_state=jsonb_build_object('phase','placing','placements','{}'::jsonb,'shots','{}'::jsonb,'stats',jsonb_build_object('1',jsonb_build_object('hits',0,'misses',0,'sunk',0),'2',jsonb_build_object('hits',0,'misses',0,'sunk',0)),'remaining',jsonb_build_object('1',5,'2',5),'message','Place your fleet, then lock it in.'),state_version=state_version+1,updated_at=now() where id=p_room;
+ select seat into bot_seat from public.game_players where room_id=p_room and player_id::text like '11111111-1111-1111-1111-%';
+ if bot_seat is not null then perform public.play_battleship_action(p_room,'randomize_fleet',null,bot_seat); perform public.play_battleship_action(p_room,'ready',null,bot_seat); end if;
+end $$;
+
+-- Execution permissions
+grant execute on function public.play_room_action(uuid,text,text,int) to authenticated, anon;
+grant execute on function public.play_ludo_action(uuid,text,text,int) to authenticated, anon;
+grant execute on function public.play_rps_action(uuid,text,text,int) to authenticated, anon;
+grant execute on function public.play_number_hunt_action(uuid,text,text,int) to authenticated, anon;
+grant execute on function public.play_skribbl_action(uuid,text,text,int) to authenticated, anon;
+grant execute on function public.play_mini_golf_action(uuid,text,text,int) to authenticated, anon;
+grant execute on function public.play_battleship_action(uuid,text,text,int) to authenticated, anon;
+grant execute on function public.play_memory_match_action(uuid,text,text,int) to authenticated, anon;
+grant execute on function public.play_trivia_clash_action(uuid,text,text,int) to authenticated, anon;
+grant execute on function public.play_ping_pong_point(uuid,int) to authenticated, anon;
+grant execute on function public.get_battleship_private_state(uuid) to authenticated, anon;
+grant execute on function public.start_battleship(uuid) to authenticated, anon;
+grant execute on function public.add_bot_to_room(uuid) to authenticated, anon;
