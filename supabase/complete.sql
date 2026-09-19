@@ -188,7 +188,16 @@ begin
   player_score:=coalesce((p_state->'scores'->>p.seat::text)::int,case when p_type='dice_dash' then coalesce((p_state->'positions'->>p.seat::text)::int,0) else 0 end);
   result:=case when cardinality(winning_seats)=0 or cardinality(winning_seats)=(select count(*) from public.game_players where room_id=p_room) then 'draw' when p.seat=any(winning_seats) then 'win' else 'loss' end;
   insert into public.game_results(room_id,player_id,opponent_names,game_type,match_number,outcome,score,top_score)
-  select p_room,p.player_id,coalesce(array_agg(pr.display_name order by gp.seat),'{}'::text[]),p_type,current_match,result,player_score,top_score from public.game_players gp join public.profiles pr on pr.id=gp.player_id where gp.room_id=p_room and gp.player_id<>p.player_id
+  values (
+    p_room,
+    p.player_id,
+    coalesce((select array_agg(pr.display_name order by gp.seat) from public.game_players gp join public.profiles pr on pr.id=gp.player_id where gp.room_id=p_room and gp.player_id<>p.player_id),'{}'::text[]),
+    p_type,
+    current_match,
+    result,
+    player_score,
+    top_score
+  )
   on conflict(room_id,match_number,player_id) do nothing; get diagnostics inserted=row_count;
   if inserted=1 then update public.profiles set games_played=games_played+1,wins=wins+(result='win')::int,losses=losses+(result='loss')::int,draws=draws+(result='draw')::int,updated_at=now() where id=p.player_id; end if;
  end loop;
