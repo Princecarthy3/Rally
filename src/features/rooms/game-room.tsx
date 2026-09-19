@@ -137,31 +137,31 @@ export function GameRoom() {
 
   return (
     <ProtectedPage>
-      <div className={`min-h-[calc(100vh-80px)] p-4 sm:p-6 lg:p-8 transition-colors duration-500 ${roomThemeStyle.containerClass}`} style={roomThemeStyle.bgStyle}>
+      <div className={`min-h-[calc(100vh-80px)] p-3 pb-40 sm:p-6 lg:p-8 transition-colors duration-500 ${roomThemeStyle.containerClass}`} style={roomThemeStyle.bgStyle}>
         <div className="mx-auto max-w-6xl">
 
           {/* Spectator Mode Banner */}
           {isSpectator && (
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-slate-950 bg-amber-400 p-4 shadow-[3px_3px_0_#171821] animate-fadeIn">
-              <div className="flex items-center gap-2 font-black text-slate-950 text-sm">
-                <Eye className="animate-pulse text-slate-950" size={20} />
-                <span>SPECTATOR MODE — You are watching this match live!</span>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-slate-950 bg-amber-400 p-3 sm:p-4 shadow-[3px_3px_0_#171821] animate-fadeIn">
+              <div className="flex items-center gap-2 font-black text-slate-950 text-xs sm:text-sm">
+                <Eye className="animate-pulse text-slate-950 shrink-0" size={18} />
+                <span>SPECTATOR MODE — Watching match live!</span>
               </div>
-              <Link href="/dashboard" className="rounded-xl border-2 border-slate-950 bg-white px-3.5 py-1.5 text-xs font-black shadow-[2px_2px_0_#171821] hover:bg-slate-100 transition-all">
+              <Link href="/dashboard" className="rounded-xl border-2 border-slate-950 bg-white px-3 py-1 text-xs font-black shadow-[2px_2px_0_#171821] hover:bg-slate-100 transition-all">
                 Exit Spectator
               </Link>
             </div>
           )}
 
-          <div className="mb-6 flex items-center justify-between">
-            <Link href="/dashboard" className="flex items-center gap-2 text-sm font-black text-slate-700 hover:text-slate-950 dark:text-slate-200">
+          <div className="mb-4 sm:mb-6 flex items-center justify-between">
+            <Link href="/dashboard" className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-slate-700 hover:text-slate-950 dark:text-slate-200">
               <ArrowLeft size={16} /> Exit Room
             </Link>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               {spectatorCount > 0 && (
-                <div className="flex items-center gap-1.5 rounded-full border-2 border-slate-950 bg-purple-100 px-3 py-1 text-xs font-black text-purple-900 shadow-sm">
-                  <Eye size={14} className="text-purple-700 animate-pulse" />
+                <div className="flex items-center gap-1 rounded-full border-2 border-slate-950 bg-purple-100 px-2.5 py-0.5 text-[10px] sm:text-xs font-black text-purple-900 shadow-sm">
+                  <Eye size={13} className="text-purple-700 animate-pulse" />
                   <span>{spectatorCount} Spectating</span>
                 </div>
               )}
@@ -169,7 +169,7 @@ export function GameRoom() {
               <EmoteWheel onSendEmote={handleSendEmote} />
 
               <div
-                className={`flex items-center gap-2 rounded-full border-2 border-slate-950 px-3 py-1.5 text-[10px] font-black ${
+                className={`flex items-center gap-1.5 rounded-full border-2 border-slate-950 px-2.5 py-1 text-[10px] font-black ${
                   connection === "online" ? "bg-[#a7efc8] text-slate-950" : "bg-[#f4dc69] text-slate-950"
                 }`}
               >
@@ -186,11 +186,11 @@ export function GameRoom() {
               </div>
             </div>
           ) : error || !room ? (
-            <div className="paper-card mx-auto max-w-lg p-8 text-center">
-              <span className="text-6xl">🚪</span>
-              <h1 className="mt-5 text-3xl font-black">Couldn’t enter the room</h1>
-              <p className="mt-3 text-slate-600">{error || "This invite is no longer available."}</p>
-              <Link href="/dashboard" className="arcade-button mt-6 bg-slate-950 text-white">
+            <div className="paper-card mx-auto max-w-lg p-6 sm:p-8 text-center">
+              <span className="text-5xl sm:text-6xl">🚪</span>
+              <h1 className="mt-4 text-2xl sm:text-3xl font-black">Couldn’t enter the room</h1>
+              <p className="mt-2 text-sm text-slate-600">{error || "This invite is no longer available."}</p>
+              <Link href="/dashboard" className="arcade-button mt-5 bg-slate-950 text-white text-xs sm:text-sm">
                 Find another game
               </Link>
             </div>
@@ -241,7 +241,7 @@ export function GameRoom() {
           )}
 
           {notice && room && room.status !== "waiting" && (
-            <div className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-full border-2 border-slate-950 bg-[#f4dc69] px-5 py-3 text-sm font-black shadow-[4px_4px_0_#171821]">
+            <div className="fixed bottom-28 left-1/2 z-50 -translate-x-1/2 rounded-full border-2 border-slate-950 bg-[#f4dc69] px-4 py-2.5 text-xs font-black shadow-[4px_4px_0_#171821]">
               {notice}
             </div>
           )}
@@ -251,9 +251,9 @@ export function GameRoom() {
             <div className="fixed inset-0 z-[100] pointer-events-none flex flex-col items-center justify-center overflow-hidden bg-slate-950/20 backdrop-blur-[2px] animate-in fade-in duration-200">
               {activeEmotes.map((item) => (
                 <div key={item.id} className="mb-4 flex flex-col items-center animate-bounce">
-                  <span className="text-8xl drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">{item.emote}</span>
+                  <span className="text-7xl sm:text-8xl drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">{item.emote}</span>
                   {item.senderName && (
-                    <span className="mt-2 rounded-full border-2 border-slate-950 bg-white px-4 py-1 text-xs font-black text-slate-950 shadow-md">
+                    <span className="mt-2 rounded-full border-2 border-slate-950 bg-white px-3 py-0.5 text-xs font-black text-slate-950 shadow-md">
                       {item.senderName}
                     </span>
                   )}
@@ -345,49 +345,64 @@ function Lobby({
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-4xl pb-16 sm:pb-8">
       <section className="paper-card overflow-hidden">
-        <header className="relative border-b-2 border-slate-950 p-6 sm:p-8" style={{ backgroundColor: game.color }}>
-          <div className="absolute right-4 top-1 text-8xl opacity-15">{game.icon}</div>
+        {/* Compact Header for mobile */}
+        <header className="relative border-b-2 border-slate-950 p-4 sm:p-7" style={{ backgroundColor: game.color }}>
+          <div className="absolute right-3 top-1 text-6xl sm:text-8xl opacity-15">{game.icon}</div>
           <p className="eyebrow !text-slate-950/50">Private game room</p>
-          <h1 className="relative mt-2 text-4xl font-black tracking-[-.05em] sm:text-5xl">{game.name}</h1>
-          <p className="relative mt-3 max-w-lg text-sm font-medium opacity-65">{game.description}</p>
+          <h1 className="relative mt-1 text-2xl font-black tracking-[-.05em] sm:text-5xl">{game.name}</h1>
+          <p className="relative mt-1 max-w-lg text-xs font-medium opacity-70 sm:mt-2 sm:text-sm">{game.description}</p>
         </header>
 
-        <div className="p-5 sm:p-8">
-          <div className="flex flex-col gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-[#faf9f3] p-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between sm:p-4">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Room code</p>
-              <button onClick={() => copy(room.code, "Room code")} className="mt-0.5 cursor-pointer font-mono text-2xl font-black tracking-[.2em] sm:mt-1 sm:text-3xl">
+        <div className="p-4 sm:p-7">
+          {/* Super Compact Room Code & Invite Buttons Box */}
+          <div className="flex flex-col gap-2.5 rounded-2xl border-2 border-dashed border-slate-300 bg-[#faf9f3] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+            <div className="flex items-center justify-between sm:block">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Room Code</span>
+              <button
+                onClick={() => copy(room.code, "Room code")}
+                className="cursor-pointer font-mono text-xl font-black tracking-[.2em] text-slate-950 hover:text-[#7357ff] transition sm:text-3xl"
+              >
                 {room.code}
               </button>
             </div>
-            <div className="flex flex-wrap gap-1.5 sm:gap-2">
-              <button onClick={() => void openInviteModal()} className="arcade-button gap-1.5 px-2.5 py-2 text-xs bg-[#7357ff] text-white shadow-[2px_2px_0_#171821] sm:gap-2 sm:px-[1.15rem] sm:py-[.7rem] sm:text-sm">
-                <UsersRound size={14} className="sm:h-[15px] sm:w-[15px]" /> Invite friends
+
+            <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
+              <button
+                onClick={() => void openInviteModal()}
+                className="arcade-button justify-center gap-1 px-2 py-2 text-[11px] bg-[#7357ff] text-white shadow-[2px_2px_0_#171821] sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs"
+              >
+                <UsersRound size={13} /> <span className="truncate">Invite</span>
               </button>
-              <button onClick={() => copy(invite, "Invite link")} className="arcade-button gap-1.5 px-2.5 py-2 text-xs bg-white text-slate-950 sm:gap-2 sm:px-[1.15rem] sm:py-[.7rem] sm:text-sm">
-                <Copy size={14} className="sm:h-[15px] sm:w-[15px]" /> Copy link
+              <button
+                onClick={() => copy(invite, "Invite link")}
+                className="arcade-button justify-center gap-1 px-2 py-2 text-[11px] bg-white text-slate-950 shadow-[2px_2px_0_#171821] sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs"
+              >
+                <Copy size={13} /> <span className="truncate">Copy</span>
               </button>
-              <button onClick={share} className="arcade-button gap-1.5 px-2.5 py-2 text-xs bg-slate-950 text-white sm:gap-2 sm:px-[1.15rem] sm:py-[.7rem] sm:text-sm">
-                <Share2 size={14} className="sm:h-[15px] sm:w-[15px]" /> Share
+              <button
+                onClick={share}
+                className="arcade-button justify-center gap-1 px-2 py-2 text-[11px] bg-slate-950 text-white shadow-[2px_2px_0_#171821] sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs"
+              >
+                <Share2 size={13} /> <span className="truncate">Share</span>
               </button>
             </div>
           </div>
 
-          <div className="my-8 flex items-center justify-between">
+          <div className="my-5 flex items-center justify-between sm:my-8">
             <div>
               <p className="eyebrow">Players</p>
-              <h2 className="mt-2 text-xl font-black">The starting lineup</h2>
+              <h2 className="mt-1 text-lg font-black sm:text-xl">The starting lineup</h2>
             </div>
-            <span className="flex items-center gap-2 text-xs font-black text-slate-500">
-              <UsersRound size={16} />
+            <span className="flex items-center gap-1.5 text-xs font-black text-slate-500">
+              <UsersRound size={15} />
               {players.length}/{room.max_players}
             </span>
           </div>
 
-          {/* Player Cards Grid with Clickable Player Profiles */}
-          <div className="grid gap-4 sm:grid-cols-2">
+          {/* Player Cards Grid */}
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
             {Array.from({ length: room.max_players }, (_, i) => {
               const player = players.find((p) => p.seat === i + 1);
               const isBot = player?.player_id === BOT_ID;
@@ -399,12 +414,12 @@ function Lobby({
                   onClick={() => {
                     if (!isBot) onSelectPlayer(player.player_id);
                   }}
-                  className="relative flex cursor-pointer items-center gap-4 rounded-2xl border-2 border-slate-950 p-4 shadow-[3px_3px_0_#171821] transition hover:scale-[1.02]"
+                  className="relative flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-slate-950 p-3 sm:p-4 shadow-[3px_3px_0_#171821] transition hover:scale-[1.02]"
                   style={{ backgroundColor: colors[i] }}
                 >
                   {/* Floating Emote animation */}
                   {emotesForSeat.map((e) => (
-                    <div key={e.id} className="absolute -top-6 left-1/2 z-50 -translate-x-1/2 text-4xl animate-bounce">
+                    <div key={e.id} className="absolute -top-6 left-1/2 z-50 -translate-x-1/2 text-3xl animate-bounce">
                       {e.emote}
                     </div>
                   ))}
@@ -414,7 +429,7 @@ function Lobby({
                     equippedAvatar={player.customization?.avatar}
                     equippedFrame={player.customization?.frame}
                     fallbackName={player.profile?.display_name}
-                    size="md"
+                    size="sm"
                   />
 
                   <div className="min-w-0 flex-1">
@@ -422,7 +437,7 @@ function Lobby({
                       name={player.profile?.display_name || `Player ${player.seat}`}
                       nameColor={player.customization?.name_color}
                       nameEffect={player.customization?.name_effect}
-                      className="block truncate text-base font-black"
+                      className="block truncate text-sm sm:text-base font-black"
                     />
                     <span className="block text-[10px] font-bold text-slate-700">
                       [{player.customization?.title?.asset_value || "Newcomer"}]
@@ -430,7 +445,7 @@ function Lobby({
                       {isBot ? " (AI)" : ""}
                     </span>
 
-                    <div className="mt-1 flex items-center gap-1.5">
+                    <div className="mt-0.5 flex items-center gap-1">
                       <span className={`h-2 w-2 rounded-full ${onlineIds.includes(player.player_id) || isBot ? "bg-emerald-700" : "bg-slate-500"}`} />
                       <span className="text-[10px] font-black uppercase opacity-60">
                         {isBot ? "AI ACTIVE" : onlineIds.includes(player.player_id) ? "Connected" : "Reconnecting"}
@@ -439,7 +454,7 @@ function Lobby({
                     </div>
                   </div>
 
-                  <span className={`rounded-full border-2 border-slate-950 px-2.5 py-1 text-[10px] font-black ${player.is_ready ? "bg-white text-slate-950" : "bg-white/40 text-slate-700"}`}>
+                  <span className={`rounded-full border-2 border-slate-950 px-2 py-0.5 text-[9px] sm:text-[10px] font-black ${player.is_ready ? "bg-white text-slate-950" : "bg-white/40 text-slate-700"}`}>
                     {player.is_ready ? "READY" : "NOT READY"}
                   </span>
                 </article>
@@ -447,27 +462,27 @@ function Lobby({
                 <button
                   key={i}
                   onClick={() => void openInviteModal()}
-                  className="grid min-h-20 place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-white p-4 text-center transition hover:border-slate-950 hover:bg-slate-50 cursor-pointer group"
+                  className="grid min-h-16 place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-white p-3 text-center transition hover:border-slate-950 hover:bg-slate-50 cursor-pointer group"
                 >
                   <span className="text-xs font-black text-slate-500 group-hover:text-slate-950">
                     ➕ INVITE FRIEND (SEAT {i + 1})
-                    <br />
-                    <span className="font-normal text-slate-400">click to choose from squad</span>
                   </span>
                 </button>
               );
             })}
           </div>
 
-          <div className="mt-8 border-t-2 border-slate-100 pt-6">
-            <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+          {/* Bottom Action Bar */}
+          <div className="mt-6 border-t-2 border-slate-100 pt-5 pb-4 sm:mt-8 sm:pt-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                <ShieldCheck size={17} className="text-emerald-600" /> Game starts when everyone is ready.
+                <ShieldCheck size={16} className="text-emerald-600 shrink-0" /> Game starts when everyone is ready.
               </div>
 
-              <div className="flex flex-wrap gap-3">
+              {/* Action Buttons: Full width on mobile for easy single-thumb tapping */}
+              <div className="grid grid-cols-1 w-full gap-2.5 sm:w-auto sm:flex sm:flex-wrap sm:gap-3">
                 {host && players.length < room.max_players && (
-                  <button onClick={addBot} disabled={busy} className="arcade-button bg-[#77dce7] text-slate-950 shadow-[3px_3px_0_#171821]">
+                  <button onClick={addBot} disabled={busy} className="arcade-button justify-center bg-[#77dce7] text-slate-950 text-xs py-3 sm:py-2.5 shadow-[3px_3px_0_#171821]">
                     🤖 ADD AI BOT
                   </button>
                 )}
@@ -475,7 +490,7 @@ function Lobby({
                 <button
                   onClick={() => ready(!me?.is_ready)}
                   disabled={busy}
-                  className={`arcade-button ${me?.is_ready ? "bg-emerald-400 text-slate-950" : "bg-[#f4dc69] text-slate-950"} shadow-[3px_3px_0_#171821]`}
+                  className={`arcade-button justify-center text-xs py-3 sm:py-2.5 ${me?.is_ready ? "bg-emerald-400 text-slate-950" : "bg-[#f4dc69] text-slate-950"} shadow-[3px_3px_0_#171821]`}
                 >
                   {me?.is_ready ? <Check size={16} /> : null}
                   {me?.is_ready ? "YOU ARE READY" : "I'M READY"}
@@ -485,7 +500,7 @@ function Lobby({
                   <button
                     onClick={start}
                     disabled={busy || !everyoneReady}
-                    className="arcade-button bg-[#ff9eaa] text-slate-950 shadow-[3px_3px_0_#171821] disabled:opacity-40"
+                    className="arcade-button justify-center bg-[#ff9eaa] text-slate-950 text-xs py-3 sm:py-2.5 shadow-[3px_3px_0_#171821] disabled:opacity-40"
                   >
                     START MATCH
                   </button>
@@ -493,7 +508,7 @@ function Lobby({
               </div>
             </div>
 
-            {notice && <p className="mt-4 text-center text-xs font-black text-rose-600">{notice}</p>}
+            {notice && <p className="mt-3 text-center text-xs font-black text-rose-600">{notice}</p>}
           </div>
         </div>
       </section>
@@ -501,22 +516,22 @@ function Lobby({
       {/* Invite Friends Modal */}
       {isInviteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-md rounded-3xl border-2 border-slate-950 bg-white p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b-2 border-slate-100 pb-4">
+          <div className="w-full max-w-md rounded-3xl border-2 border-slate-950 bg-white p-5 sm:p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b-2 border-slate-100 pb-3">
               <div>
-                <h3 className="text-lg font-black">Invite Friends to Lobby</h3>
+                <h3 className="text-base sm:text-lg font-black">Invite Friends to Lobby</h3>
                 <p className="text-xs text-slate-500">Select friends to send a direct game invite</p>
               </div>
               <button
                 onClick={() => setIsInviteOpen(false)}
-                className="grid h-8 w-8 place-items-center rounded-full border-2 border-slate-950 bg-slate-100 text-sm font-black hover:bg-slate-200"
+                className="grid h-8 w-8 place-items-center rounded-full border-2 border-slate-950 bg-slate-100 text-sm font-black hover:bg-slate-200 cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             {inviteNotice && (
-              <div className="mt-3 rounded-xl border-2 border-slate-950 bg-emerald-100 p-2.5 text-center text-xs font-black text-emerald-900">
+              <div className="mt-3 rounded-xl border-2 border-slate-950 bg-emerald-100 p-2 text-center text-xs font-black text-emerald-900">
                 {inviteNotice}
               </div>
             )}
@@ -536,11 +551,11 @@ function Lobby({
                   return (
                     <div
                       key={friend.id}
-                      className="flex items-center justify-between rounded-2xl border-2 border-slate-950 p-3 shadow-[2px_2px_0_#171821] bg-slate-50"
+                      className="flex items-center justify-between rounded-2xl border-2 border-slate-950 p-2.5 sm:p-3 shadow-[2px_2px_0_#171821] bg-slate-50"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5">
                         <UserAvatar avatarUrl={friend.avatar_url} fallbackName={friend.display_name} size="sm" />
-                        <span className="text-sm font-black text-slate-950">{friend.display_name}</span>
+                        <span className="text-xs sm:text-sm font-black text-slate-950">{friend.display_name}</span>
                       </div>
 
                       <button
