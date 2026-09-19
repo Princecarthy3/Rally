@@ -33,7 +33,7 @@ begin
   strokes:=coalesce((ball->>'strokes')::int,0)+1;
   ball:=jsonb_build_object('x',next_x,'y',next_y,'strokes',strokes,'finished',(sqrt(power(next_x-cup_x,2)+power(next_y-cup_y,2))<=6 or strokes>=8),'water',water);
   balls:=jsonb_set(balls,array[me.seat::text],ball,true); scores:=jsonb_set(scores,array[me.seat::text],to_jsonb(coalesce((scores->>me.seat::text)::int,0)+1),true); state:=jsonb_set(state,'{balls}',balls,true); state:=jsonb_set(state,'{scores}',scores,true);
-  select count(*) into active_count from jsonb_each(balls) item where not coalesce((item.value->>'finished')::boolean,false);
+  select count(*) into active_count from jsonb_each(balls) as ball_row where not coalesce((ball_row.value->>'finished')::boolean,false);
   if active_count=0 then
     if hole>=9 then
       select min(coalesce((scores->>seat::text)::int,0)) into lowest from public.game_players where room_id=p_room;
