@@ -33,6 +33,7 @@ export default function ProfilePage() {
   const [avatar, setAvatar] = useState("");
   const [bio, setBio] = useState("");
   const [statusPreset, setStatusPreset] = useState("Online");
+  const [allowFriendsSpectate, setAllowFriendsSpectate] = useState(true);
 
   const [ownedItems, setOwnedItems] = useState<InventoryItem[]>([]);
   const [activeTab, setActiveTab] = useState("all");
@@ -59,6 +60,21 @@ export default function ProfilePage() {
       setStatusPreset(customization?.status_preset || "Online");
     });
   }, [profile, user, customization]);
+
+  useEffect(() => {
+    const sb = getSupabaseBrowserClient();
+    if (!sb || !user) return;
+    void sb
+      .from("profiles")
+      .select("allow_friends_spectate")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data && typeof (data as { allow_friends_spectate?: boolean }).allow_friends_spectate === "boolean") {
+          setAllowFriendsSpectate((data as { allow_friends_spectate: boolean }).allow_friends_spectate);
+        }
+      });
+  }, [user]);
 
   const loadInventory = useCallback(async () => {
     const sb = getSupabaseBrowserClient();
@@ -321,6 +337,29 @@ export default function ProfilePage() {
             />
             <span className="mt-1 block text-right text-[10px] font-bold text-slate-400">{bio.length}/120</span>
           </label>
+
+          <div className="mt-6 flex items-center justify-between gap-4 rounded-2xl border-2 border-slate-950 bg-slate-50 px-4 py-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider text-slate-700">Allow friends to spectate</p>
+              <p className="text-[11px] font-bold text-slate-500">When on, friends can watch your live games from the Friends tab.</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={allowFriendsSpectate}
+              onClick={() => {
+                const next = !allowFriendsSpectate;
+                setAllowFriendsSpectate(next);
+                const sb = getSupabaseBrowserClient();
+                if (sb) void sb.rpc("set_allow_friends_spectate", { p_allow: next });
+              }}
+              className={`relative h-8 w-14 shrink-0 rounded-full border-2 border-slate-950 transition ${allowFriendsSpectate ? "bg-emerald-400" : "bg-slate-300"}`}
+            >
+              <span
+                className={`absolute top-0.5 h-6 w-6 rounded-full border-2 border-slate-950 bg-white transition ${allowFriendsSpectate ? "left-6" : "left-0.5"}`}
+              />
+            </button>
+          </div>
 
           {/* Photo Avatar Upload */}
           <div className="mt-6 border-t-2 border-slate-100 pt-5">

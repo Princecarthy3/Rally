@@ -6,7 +6,8 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Room, RoomPlayer } from "./types";
 import type { ShopItem } from "@/lib/customization";
 
-export function useRoom(code: string, userId?: string) {
+export function useRoom(code: string, userId?: string, options?: { spectate?: boolean }) {
+  const spectate = Boolean(options?.spectate);
   const [room, setRoom] = useState<Room | null>(null);
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -14,6 +15,7 @@ export function useRoom(code: string, userId?: string) {
   const [onlineIds, setOnlineIds] = useState<string[]>([]);
   const [connection, setConnection] = useState<"connecting" | "online" | "reconnecting">("connecting");
   const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+  const [isSpectator, setIsSpectator] = useState(spectate);
   const joinedRef = useRef(false);
   const supabase = getSupabaseBrowserClient();
 
@@ -21,11 +23,21 @@ export function useRoom(code: string, userId?: string) {
     if (!supabase || !userId) return;
 
     if (!joinedRef.current) {
-      const join = await supabase.rpc("join_game_room", { p_code: code.toUpperCase() });
-      if (join.error) {
-        setError(join.error.message);
-        setLoading(false);
-        return;
+      if (spectate) {
+        const spec = await supabase.rpc("spectate_game_room", { p_code: code.toUpperCase() });
+        if (spec.error) {
+          setError(spec.error.message);
+          setLoading(false);
+          return;
+        }
+        setIsSpectator(true);
+      } else {
+        const join = await supabase.rpc("join_game_room", { p_code: code.toUpperCase() });
+        if (join.error) {
+          setError(join.error.message);
+          setLoading(false);
+          return;
+        }
       }
       joinedRef.current = true;
     }
@@ -100,7 +112,7 @@ export function useRoom(code: string, userId?: string) {
 
     setError("");
     setLoading(false);
-  }, [code, supabase, userId]);
+  }, [code, supabase, userId, spectate]);
 
   useEffect(() => {
     if (!supabase || !userId) return;
@@ -176,5 +188,5 @@ export function useRoom(code: string, userId?: string) {
     });
   }, []);
 
-  return { room, players, loading, error, onlineIds, connection, refresh, channel, applyPublicState };
+  return { room, players, loading, error, onlineIds, connection, refresh, channel, applyPublicState, isSpectator };
 }

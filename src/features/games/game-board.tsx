@@ -28,6 +28,7 @@ export function GameBoard({
   onlineIds,
   refresh,
   applyPublicState,
+  isSpectator = false,
 }: {
   room: Room;
   players: RoomPlayer[];
@@ -35,6 +36,7 @@ export function GameBoard({
   onlineIds: string[];
   refresh: () => Promise<void>;
   applyPublicState?: (publicState: Room["public_state"], extras?: Partial<Room>) => void;
+  isSpectator?: boolean;
 }) {
   const me = players.find((p) => p.player_id === userId);
   const state = room.public_state || {};
@@ -48,7 +50,7 @@ export function GameBoard({
 
 
   async function act(action: string, value?: string) {
-    if (busy) return;
+    if (busy || isSpectator) return;
     // Browsers only permit AudioContext playback after a real user gesture.
     // Starting here makes the music begin with the player's first game action.
     sounds.startBgm();

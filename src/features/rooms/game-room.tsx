@@ -2,7 +2,7 @@
 
 import { ArrowLeft, Check, Copy, LoaderCircle, Radio, Share2, ShieldCheck, UsersRound, WifiOff } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/components/auth-provider";
@@ -24,8 +24,15 @@ const isBotId = (id: string) => id.startsWith("11111111-1111-1111-1111-");
 
 export function GameRoom() {
   const params = useParams<{ code: string }>();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const spectateMode = searchParams.get("spectate") === "1" || searchParams.get("spectate") === "true";
   const { user, profile } = useAuth();
-  const { room, players, loading, error, onlineIds, connection, channel, refresh, applyPublicState } = useRoom(params.code, user?.id);
+  const { room, players, loading, error, onlineIds, connection, channel, refresh, applyPublicState, isSpectator } = useRoom(
+    params.code,
+    user?.id,
+    { spectate: spectateMode }
+  );
 
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -106,6 +113,15 @@ export function GameRoom() {
     setBusy(false);
   }
 
+
+  async function leaveSpectator() {
+    if (!room || !supabase) return;
+    setBusy(true);
+    await supabase.rpc("leave_spectator_room", { p_code: room.code });
+    setBusy(false);
+    router.push("/friends");
+  }
+
   function handleSendEmote(emote: string) {
     const me = players.find((p) => p.player_id === user?.id);
     if (!me || !channel) return;
@@ -153,6 +169,24 @@ export function GameRoom() {
             </div>
           </div>
 
+
+          {(isSpectator || spectateMode) && room && room.status !== "waiting" && (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-slate-950 bg-[#f4dc69] px-4 py-3 shadow-[4px_4px_0_#171821]">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-700">Spectator mode</p>
+                <p className="text-sm font-black text-slate-950">SPECTATING — read only. You cannot make moves.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void leaveSpectator()}
+                disabled={busy}
+                className="arcade-button bg-slate-950 px-4 py-2 text-xs text-white"
+              >
+                Leave Spectator Mode
+              </button>
+            </div>
+          )}
+
           {loading ? (
             <div className="grid min-h-[60vh] place-items-center">
               <div className="text-center">
@@ -189,7 +223,7 @@ export function GameRoom() {
               }}
             />
           ) : (
-            <GameBoard room={room} players={players} userId={user!.id} onlineIds={onlineIds} refresh={refresh} applyPublicState={applyPublicState} />
+            <GameBoard room={room} players={players} userId={user!.id} onlineIds={onlineIds} refresh={refresh} applyPublicState={applyPublicState} isSpectator={isSpectator || spectateMode} />
           )}
 
           {/* Victory Overlay Trigger */}

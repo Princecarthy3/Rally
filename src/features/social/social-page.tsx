@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, MessageCircle, Search, UserMinus, UserPlus, UsersRound, X } from "lucide-react";
+import { Bell, Eye, MessageCircle, Search, UserMinus, UserPlus, UsersRound, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
@@ -8,11 +8,46 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useSocialPresence } from "@/components/app-presence";
 import { PlayerCardModal } from "@/components/customization/player-card-modal";
 
-type Player = { id: string; display_name: string; avatar_url: string | null; room_status?: string };
+type Player = {
+  id: string;
+  display_name: string;
+  avatar_url: string | null;
+  room_status?: string;
+  game_type?: string | null;
+  room_code?: string | null;
+  allow_spectate?: boolean | null;
+};
 type Inbox = { kind: "friend" | "invite"; id: string; sender_id: string; sender_name: string; sender_avatar: string | null; room_code: string | null; created_at: string };
 
-const statusLabel = (status: string, online: boolean) => (online ? (status === "playing" ? "Playing" : status === "lobby" ? "In Lobby" : "Online") : "Offline");
-const statusDot = (status: string, online: boolean) => (!online ? "bg-slate-400" : status === "playing" ? "bg-sky-500" : status === "lobby" ? "bg-amber-400" : "bg-emerald-500");
+const GAME_LABELS: Record<string, string> = {
+  ludo: "Ludo",
+  memory_match: "Memory Match",
+  mini_golf: "Mini Golf",
+  tic_tac_toe: "Tic-Tac-Toe",
+  connect_four: "Connect Four",
+  rps: "Rock Paper Scissors",
+  number_guess: "Number Hunt",
+  dots_boxes: "Dots & Boxes",
+  battleship: "Battleship",
+  skribbl: "Skribbl",
+};
+
+const statusLabel = (friend: Player, online: boolean) => {
+  if (friend.room_status === "playing") {
+    const game = friend.game_type ? GAME_LABELS[friend.game_type] || friend.game_type : "a game";
+    return `Playing ${game}`;
+  }
+  if (friend.room_status === "lobby") return "In Lobby";
+  return online ? "Online" : "Offline";
+};
+const statusDot = (status: string, online: boolean) =>
+  status === "playing"
+    ? "bg-emerald-500"
+    : status === "lobby"
+      ? "bg-amber-400"
+      : online
+        ? "bg-emerald-500"
+        : "bg-slate-400";
 
 export function SocialPage() {
   const { user } = useAuth();
@@ -52,6 +87,8 @@ export function SocialPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "friendships" }, () => void load())
       .on("postgres_changes", { event: "*", schema: "public", table: "game_invites" }, () => void load())
       .on("postgres_changes", { event: "*", schema: "public", table: "game_rooms" }, () => void load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "game_players" }, () => void load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => void load())
       .subscribe((state) => {
         if (state === "SUBSCRIBED") void load();
       });
@@ -130,7 +167,7 @@ export function SocialPage() {
                       </button>
                       <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
                         <i className={`h-2 w-2 rounded-full ${statusDot(friend.room_status || "offline", isOnline)}`} />
-                        {statusLabel(friend.room_status || "offline", isOnline)}
+                        {statusLabel(friend, isOnline)}
                       </span>
                     </div>
 
@@ -141,7 +178,16 @@ export function SocialPage() {
                       <MessageCircle size={14} /> Chat
                     </button>
 
-                    {isOnline && (
+                    {friend.room_status === "playing" && friend.room_code && friend.allow_spectate !== false && (
+                      <button
+                        onClick={() => router.push(`/room/${friend.room_code}?spectate=1`)}
+                        className="arcade-button bg-emerald-500 px-2.5 sm:px-3 py-2 text-xs text-white flex items-center gap-1 shadow-[2px_2px_0_#171821]"
+                      >
+                        <Eye size={14} /> Spectate
+                      </button>
+                    )}
+
+                    {isOnline && friend.room_status !== "playing" && (
                       <button
                         onClick={() =>
                           void call("send_game_invite", { p_receiver: friend.id }).then(() => setMessage(`Invite sent to ${friend.display_name}!`))
