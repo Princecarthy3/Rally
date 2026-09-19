@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Brand } from "./brand";
 import { useAuth } from "./auth-provider";
-import { SoundToggle } from "./sound-toggle";
 import { SettingsModal } from "./settings-modal";
 import { sounds } from "@/lib/audio";
 import { UserAvatar } from "@/components/customization/user-avatar";
@@ -179,8 +178,6 @@ export function SiteHeader() {
             >
               <Settings size={17} />
             </button>
-
-            <SoundToggle />
 
             {user && (
               <Link href="/profile" className="hidden items-center gap-2.5 rounded-full border border-slate-200 bg-white p-1 pl-2.5 shadow-sm transition hover:bg-slate-50 sm:flex">
