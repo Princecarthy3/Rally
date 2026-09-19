@@ -446,7 +446,7 @@ begin
    else
      select coalesce(min(seat),1) into next_seat from public.game_players where room_id=p_room and seat>me.seat; if next_seat=1 then select coalesce(min(seat),1) into next_seat from public.game_players where room_id=p_room; end if;
      state:=jsonb_set(state,array['turn'],to_jsonb(next_seat::int),true);
-     state:=jsonb_set(state,array['message'],to_jsonb(('Player '||next_seat||'’s turn')::text),true);
+     state:=jsonb_set(state,array['message'],to_jsonb(('Player '||next_seat||'''s turn')::text),true);
    end if;
    if (select count(*) from jsonb_object_keys(state->'boxes')) >= (grid_size * grid_size) then
      round_ended:=true;

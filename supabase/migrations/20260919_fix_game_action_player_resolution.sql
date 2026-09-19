@@ -77,7 +77,7 @@ begin
     for c_idx in 0..grid_size-1 loop
       key_b:=r_idx||'_'||c_idx;
       if not state->'boxes' ? key_b then
-        if (state->'hLines' ? (r_idx||'_'||c_idx)) and (state->'hLines' ? ((r_idx+1)||_'||c_idx)) and (state->'vLines' ? (r_idx||'_'||c_idx)) and (state->'vLines' ? (r_idx||'_'||(c_idx+1))) then
+        if (state->'hLines' ? (r_idx||'_'||c_idx)) and (state->'hLines' ? ((r_idx+1)||'_'||c_idx)) and (state->'vLines' ? (r_idx||'_'||c_idx)) and (state->'vLines' ? (r_idx||'_'||(c_idx+1))) then
           state:=jsonb_set(state,array['boxes',key_b],to_jsonb(me.seat),true);
           new_boxes:=new_boxes+1;
           score:=coalesce((state->'scores'->>me.seat::text)::int,0)+1;
