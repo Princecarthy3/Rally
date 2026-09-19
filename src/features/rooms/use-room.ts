@@ -185,5 +185,20 @@ export function useRoom(code: string, userId?: string, isSpectatorRequested: boo
     return () => window.clearInterval(interval);
   }, [isSpectator, refresh, room?.status, userId]);
 
+  useEffect(() => {
+    if (!room || !isSpectator || !userId) return;
+    const interval = window.setInterval(() => {
+      void refresh();
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [isSpectator, refresh, room?.id, userId]);
+
+  useEffect(() => {
+    if (!isSpectator || !code || !supabase) return;
+    return () => {
+      void supabase.rpc("leave_spectator_room", { p_code: code.toUpperCase() });
+    };
+  }, [code, isSpectator, supabase]);
+
   return { room, players, loading, error, onlineIds, connection, refresh, channel, isSpectator, spectatorCount };
 }

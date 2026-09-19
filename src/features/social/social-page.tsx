@@ -10,7 +10,7 @@ import { PlayerCardModal } from "@/components/customization/player-card-modal";
 
 type Player = { id: string; display_name: string; avatar_url: string | null; room_status?: string };
 type Inbox = { kind: "friend" | "invite"; id: string; sender_id: string; sender_name: string; sender_avatar: string | null; room_code: string | null; created_at: string };
-type ActiveFriendRoom = { room_code: string; game_type: string; status: string; host_id: string; host_name: string; host_avatar: string | null; player_count: number; max_players: number };
+type ActiveFriendRoom = { room_code: string; game_type: string; status: string; host_id: string; friend_id: string; host_name: string; host_avatar: string | null; player_count: number; max_players: number };
 
 const statusLabel = (status: string, online: boolean) => (online ? (status === "playing" ? "Playing" : status === "lobby" ? "In Lobby" : "Online") : "Offline");
 const statusDot = (status: string, online: boolean) => (!online ? "bg-slate-400" : status === "playing" ? "bg-sky-500" : status === "lobby" ? "bg-amber-400" : "bg-emerald-500");
@@ -84,7 +84,7 @@ export function SocialPage() {
 
   const friendIds = useMemo(() => new Set(friends.map((friend) => friend.id)), [friends]);
   const incomingByPlayer = useMemo(() => new Map(inbox.filter((item) => item.kind === "friend").map((item) => [item.sender_id, item])), [inbox]);
-  const activeRoomMap = useMemo(() => new Map(activeRooms.map((r) => [r.host_id, r])), [activeRooms]);
+  const activeRoomMap = useMemo(() => new Map(activeRooms.map((r) => [r.friend_id, r])), [activeRooms]);
 
   const visibleFriends = [...friends].sort((a, b) => Number(online.has(b.id)) - Number(online.has(a.id)) || a.display_name.localeCompare(b.display_name));
 

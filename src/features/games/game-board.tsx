@@ -26,11 +26,13 @@ export function GameBoard({
   players,
   userId,
   onlineIds,
+  isSpectator = false,
 }: {
   room: Room;
   players: RoomPlayer[];
   userId: string;
   onlineIds: string[];
+  isSpectator?: boolean;
 }) {
   const me = players.find((p) => p.player_id === userId);
   const state = room.public_state || {};
@@ -41,7 +43,7 @@ export function GameBoard({
 
 
   async function act(action: string, value?: string) {
-    if (busy) return;
+    if (busy || isSpectator) return;
     // Browsers only permit AudioContext playback after a real user gesture.
     // Starting here makes the music begin with the player's first game action.
     sounds.startBgm();
@@ -62,6 +64,7 @@ export function GameBoard({
 
   useEffect(() => {
     if (room.status !== "playing") return;
+    if (isSpectator) return;
     const botPlayers = players.filter((p) => isBotId(p.player_id));
     if (botPlayers.length === 0) return;
 
@@ -173,7 +176,12 @@ export function GameBoard({
           {busy && <LoaderCircle className="animate-spin" size={20} />}
         </header>
 
-        <div className="min-h-[430px] p-5 sm:p-8">
+        <div className={`relative min-h-[430px] p-5 sm:p-8 ${isSpectator ? "pointer-events-none" : ""}`}>
+          {isSpectator && (
+            <div className="mb-4 flex items-center justify-center gap-2 rounded-full border-2 border-slate-950 bg-amber-100 px-4 py-2 text-center text-xs font-black text-slate-950">
+              Watching live — player controls are disabled
+            </div>
+          )}
           {room.game_type === "rps" && (
             <RPS state={state} mySeat={me?.seat} choose={(v) => act("choose", v)} busy={busy} act={act} />
           )}
