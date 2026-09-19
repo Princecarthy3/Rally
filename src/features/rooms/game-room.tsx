@@ -45,6 +45,7 @@ export function GameRoom() {
 
   const supabase = getSupabaseBrowserClient();
   const myName = profile?.display_name || user?.user_metadata?.display_name || "Player";
+  const isPlayer = !isSpectator && !spectateMode && players.some((p) => p.player_id === user?.id);
 
   // Host room theme
   const hostPlayer = players.find((p) => p.player_id === room?.host_id);
@@ -238,7 +239,7 @@ export function GameRoom() {
             />
           )}
 
-          {room && user && (
+          {room && user && isPlayer && (
             <RoomChat
               roomCode={room.code}
               userId={user.id}

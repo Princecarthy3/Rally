@@ -36,9 +36,11 @@ export function RoomChat({
   const chatEndRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<ReturnType<NonNullable<ReturnType<typeof getSupabaseBrowserClient>>["channel"]> | null>(null);
 
+  const isPlayer = players.some((p) => p.player_id === userId);
+
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
-    if (!supabase || !roomCode) return;
+    if (!supabase || !roomCode || !isPlayer) return;
 
     const channel = supabase.channel(`room_chat_${roomCode.toLowerCase()}`, {
       config: { broadcast: { self: true } },
@@ -62,7 +64,7 @@ export function RoomChat({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [roomCode, isOpen, userId]);
+  }, [roomCode, isOpen, userId, isPlayer]);
 
   useEffect(() => {
     if (isOpen) {
@@ -117,6 +119,8 @@ export function RoomChat({
     e.preventDefault();
     sendMessage();
   };
+
+  if (!isPlayer) return null;
 
   return (
     <>
