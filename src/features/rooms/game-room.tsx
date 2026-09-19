@@ -20,7 +20,7 @@ import { getRoomThemeStyle } from "@/lib/customization";
 import { sounds } from "@/lib/audio";
 
 const colors = ["#ff9eaa", "#77dce7", "#f4dc69", "#8de2bd"];
-const BOT_ID = "11111111-1111-1111-1111-111111111111";
+const isBotId = (id: string) => id.startsWith("11111111-1111-1111-1111-");
 
 export function GameRoom() {
   const params = useParams<{ code: string }>();
@@ -405,7 +405,7 @@ function Lobby({
           <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
             {Array.from({ length: room.max_players }, (_, i) => {
               const player = players.find((p) => p.seat === i + 1);
-              const isBot = player?.player_id === BOT_ID;
+              const isBot = Boolean(player?.player_id && isBotId(player.player_id));
               const emotesForSeat = activeEmotes.filter((e) => e.seat === i + 1);
 
               return player ? (

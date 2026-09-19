@@ -19,7 +19,7 @@ import { sounds } from "@/lib/audio";
 
 
 const colors = ["#ff9eaa", "#77dce7", "#f4dc69", "#8de2bd"];
-const BOT_ID = "11111111-1111-1111-1111-111111111111";
+const isBotId = (id: string) => id.startsWith("11111111-1111-1111-1111-");
 
 export function GameBoard({
   room,
@@ -62,12 +62,16 @@ export function GameBoard({
 
   useEffect(() => {
     if (room.status !== "playing") return;
-    const botPlayer = players.find((p) => p.player_id === BOT_ID);
-    if (!botPlayer) return;
+    const botPlayers = players.filter((p) => isBotId(p.player_id));
+    if (botPlayers.length === 0) return;
 
-    const botSeat = botPlayer.seat;
-    let isBotTurn = false;
     const s = state as Record<string, any>;
+    const timers: NodeJS.Timeout[] = [];
+
+    botPlayers.forEach((botPlayer) => {
+      const botSeat = botPlayer.seat;
+    let isBotTurn = false;
+
 
     if (["tic_tac_toe", "connect_four", "dots_boxes", "ludo"].includes(room.game_type)) {
       isBotTurn = s.turn === botSeat;
@@ -107,7 +111,12 @@ export function GameBoard({
       }).catch(console.error);
     }, 1000);
 
-    return () => clearTimeout(timer);
+      timers.push(timer);
+    });
+
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+    };
   }, [room.status, room.id, room.game_type, room.public_state, players, state]);
 
 
@@ -130,13 +139,13 @@ export function GameBoard({
             <div className="flex items-center gap-2">
               <span
                 className={`h-2.5 w-2.5 rounded-full ${
-                  onlineIds.includes(player.player_id) || player.player_id === BOT_ID ? "bg-emerald-600" : "bg-slate-400"
+                  onlineIds.includes(player.player_id) || isBotId(player.player_id) ? "bg-emerald-600" : "bg-slate-400"
                 }`}
               />
               <strong className="truncate text-xs">
                 {player.profile?.display_name || `Player ${player.seat}`}
                 {player.player_id === userId ? " (you)" : ""}
-                {player.player_id === BOT_ID ? " (AI)" : ""}
+                {isBotId(player.player_id) ? " (AI)" : ""}
               </strong>
             </div>
             <p className="mt-2 text-xl font-black">
