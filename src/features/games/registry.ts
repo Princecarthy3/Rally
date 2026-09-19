@@ -1,4 +1,4 @@
-export type GameKey = "rps" | "number_guess" | "memory_match" | "mini_golf" | "battleship" | "tic_tac_toe" | "connect_four" | "dots_boxes" | "skribbl" | "ludo";
+export type GameKey = "uno" | "rps" | "number_guess" | "memory_match" | "mini_golf" | "battleship" | "tic_tac_toe" | "connect_four" | "dots_boxes" | "skribbl" | "ludo";
 
 export type GameDefinition = {
   key: GameKey; name: string; shortName: string; icon: string; description: string;
@@ -6,6 +6,7 @@ export type GameDefinition = {
 };
 
 export const games: GameDefinition[] = [
+  { key:"uno", name:"UNO Classic", shortName:"UNO", icon:"🃏", description:"The classic 108-card matching game. Play colors, numbers, Skips, Reverses, and Wild cards!", players:"2–4", minPlayers:2, maxPlayers:4, color:"#ff8a8a", ink:"#7f1d1d", tag:"Classic" },
   { key:"skribbl", name:"Skribbl Draw & Guess", shortName:"Skribbl", icon:"🎨", description:"Pick a word, draw on the live canvas, and guess what friends are drawing.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#fef08a", ink:"#713f12", tag:"Popular" },
   { key:"dots_boxes", name:"Dots & Boxes", shortName:"Dots & Boxes", icon:"🔲", description:"Take turns connecting dots to claim boxes and capture the grid.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#bbf7d0", ink:"#14532d", tag:"Strategy" },
   { key:"rps", name:"Rock Paper Scissors", shortName:"RPS", icon:"✊", description:"Secret picks, dramatic reveals, and room for a four-way upset.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#c9b8ff", ink:"#30206c", tag:"Classic" },

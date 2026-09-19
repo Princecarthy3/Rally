@@ -29,37 +29,61 @@ export async function POST(request: Request) {
       const choices = ["rock", "paper", "scissors"];
       value = choices[Math.floor(Math.random() * choices.length)];
     } else if (gameType === "uno") {
-      const hands = state.hands || {};
-      const botHand: any[] = hands[String(botSeat)] || [];
       const topCard = state.topCard || { color: "red", value: "7" };
       const activeColor = state.activeColor || (topCard.color !== "wild" ? topCard.color : "red");
       const unoCalled = state.unoCalled || {};
 
-      if (botHand.length <= 2 && !unoCalled[botSeat]) {
-        action = "call_uno";
+      // Check +4 challenge
+      if (state.challenge && Number(state.challenge.challengerSeat) === Number(botSeat)) {
+        action = Math.random() > 0.5 ? "challenge_draw4" : "accept_draw4";
+      } else if (state.unoVulnerableSeat && Number(state.unoVulnerableSeat) !== Number(botSeat)) {
+        action = "catch_uno";
       } else {
-        const playableCard = botHand.find(
-          (c: any) => c.color === "wild" || c.color === activeColor || c.value === topCard.value
-        );
+        // Fetch bot's private hand
+        const { data: botHandData } = await supabase.rpc("get_my_uno_hand", { p_room: roomId, p_actor_seat: botSeat });
+        const botHand: any[] = Array.isArray(botHandData) ? botHandData : [];
 
-        if (playableCard) {
-          action = "play_card";
-          if (playableCard.color === "wild") {
-            const colorCounts: Record<string, number> = { red: 0, blue: 0, green: 0, yellow: 0 };
-            botHand.forEach((c: any) => {
-              if (colorCounts[c.color] !== undefined) colorCounts[c.color]++;
-            });
-            const bestColor = Object.entries(colorCounts).sort((a, b) => b[1] - a[1])[0][0];
-            value = `${playableCard.id}:${bestColor}`;
+        if (botHand.length <= 2 && !unoCalled[String(botSeat)]) {
+          action = "call_uno";
+        } else if (state.drawnCardId) {
+          const drawnCard = botHand.find((c: any) => c.id === state.drawnCardId);
+          if (drawnCard && (drawnCard.color === "wild" || drawnCard.color === activeColor || drawnCard.value === topCard.value)) {
+            action = "play_card";
+            if (drawnCard.color === "wild") {
+              const colorCounts: Record<string, number> = { red: 0, blue: 0, green: 0, yellow: 0 };
+              botHand.forEach((c: any) => { if (colorCounts[c.color] !== undefined) colorCounts[c.color]++; });
+              const bestColor = Object.entries(colorCounts).sort((a, b) => b[1] - a[1])[0][0];
+              value = `${drawnCard.id}:${bestColor}`;
+            } else {
+              value = drawnCard.id;
+            }
           } else {
-            value = playableCard.id;
+            action = "pass_turn";
           }
         } else {
-          action = "draw_card";
+          // Play normal matching card or Wild
+          const playableCard = botHand.find(
+            (c: any) => c.color === "wild" || c.color === activeColor || c.value === topCard.value
+          );
+
+          if (playableCard) {
+            action = "play_card";
+            if (playableCard.color === "wild") {
+              const colorCounts: Record<string, number> = { red: 0, blue: 0, green: 0, yellow: 0 };
+              botHand.forEach((c: any) => {
+                if (colorCounts[c.color] !== undefined) colorCounts[c.color]++;
+              });
+              const bestColor = Object.entries(colorCounts).sort((a, b) => b[1] - a[1])[0][0];
+              value = `${playableCard.id}:${bestColor}`;
+            } else {
+              value = playableCard.id;
+            }
+          } else {
+            action = "draw_card";
+          }
         }
       }
     } else if (gameType === "tic_tac_toe") {
-
       action = "place";
       const board: string[] = state.board || Array(9).fill("");
       const emptyIndices = board.map((cell, i) => (!cell || cell === "" ? i : -1)).filter((i) => i !== -1);
@@ -95,14 +119,14 @@ export async function POST(request: Request) {
         }
       }
     } else if (gameType === "mini_golf") {
-        const ball = state.balls?.[String(botSeat)];
-        const cup = state.cup;
-        if (Number(state.turn) === botSeat && ball && cup && !ball.finished) {
-          action = "shoot";
-          const angle = Math.atan2(Number(cup.y) - Number(ball.y), Number(cup.x) - Number(ball.x)) * 180 / Math.PI;
-          const power = Math.min(100, Math.max(14, Math.hypot(Number(cup.x) - Number(ball.x), Number(cup.y) - Number(ball.y)) / .46));
-          value = JSON.stringify({ angle, power });
-        }
+      const ball = state.balls?.[String(botSeat)];
+      const cup = state.cup;
+      if (Number(state.turn) === botSeat && ball && cup && !ball.finished) {
+        action = "shoot";
+        const angle = Math.atan2(Number(cup.y) - Number(ball.y), Number(cup.x) - Number(ball.x)) * 180 / Math.PI;
+        const power = Math.min(100, Math.max(14, Math.hypot(Number(cup.x) - Number(ball.x), Number(cup.y) - Number(ball.y)) / .46));
+        value = JSON.stringify({ angle, power });
+      }
     } else if (gameType === "battleship") {
       if (state.phase === "placing") {
         if (!state.placements?.[String(botSeat)]) action = "randomize_fleet";
@@ -118,7 +142,6 @@ export async function POST(request: Request) {
         }
       }
     } else if (gameType === "number_guess") {
-      // Normalize types and handle string-keyed guess objects safely so the bot can act reliably
       const pickerSeat = Number(state.pickerSeat ?? 1);
       const targetPicked = Boolean(state.targetPicked);
       const guesses = state.guesses || {};
@@ -181,7 +204,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "No action required" });
     }
 
-    const rpc = gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_rps_action" : gameType === "number_guess" ? "play_number_hunt_action" : gameType === "memory_match" ? "play_memory_match_action" : gameType === "mini_golf" ? "play_mini_golf_action" : gameType === "battleship" ? "play_battleship_action" : gameType === "skribbl" ? "play_skribbl_action" : "play_room_action";
+    const rpc = gameType === "uno" ? "play_uno_action" : gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_rps_action" : gameType === "number_guess" ? "play_number_hunt_action" : gameType === "memory_match" ? "play_memory_match_action" : gameType === "mini_golf" ? "play_mini_golf_action" : gameType === "battleship" ? "play_battleship_action" : gameType === "skribbl" ? "play_skribbl_action" : "play_room_action";
     const params = { p_room: roomId, p_action: action, p_value: value, p_actor_seat: botSeat };
     const { data, error } = await supabase.rpc(rpc, params);
 

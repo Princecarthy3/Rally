@@ -97,6 +97,8 @@ export function GameRoom() {
         ? "start_mini_golf"
         : room.game_type === "battleship"
         ? "start_battleship"
+        : room.game_type === "uno"
+        ? "start_uno_game"
         : "start_game";
     const { error } = await supabase!.rpc(startRpc, { p_room: room.id });
     if (error) setNotice(error.message);

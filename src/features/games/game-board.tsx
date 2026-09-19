@@ -13,6 +13,7 @@ import { ConnectFour } from "./connect-four";
 import { MemoryMatch } from "./memory-match";
 import { MiniGolf } from "./mini-golf";
 import { Battleship } from "./battleship";
+import { UnoGame } from "./uno-game";
 // pong removed
 
 import { sounds } from "@/lib/audio";
@@ -59,7 +60,7 @@ export function GameBoard({
     if (!supabase) return;
     setBusy(true);
     setError("");
-    const rpc = room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "memory_match" ? "play_memory_match_action" : room.game_type === "mini_golf" ? "play_mini_golf_action" : room.game_type === "battleship" ? "play_battleship_action" : room.game_type === "skribbl" ? "play_skribbl_action" : "play_room_action";
+    const rpc = room.game_type === "uno" ? "play_uno_action" : room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "memory_match" ? "play_memory_match_action" : room.game_type === "mini_golf" ? "play_mini_golf_action" : room.game_type === "battleship" ? "play_battleship_action" : room.game_type === "skribbl" ? "play_skribbl_action" : "play_room_action";
     const params = { p_room: room.id, p_action: action, p_value: value ?? null };
     const { data, error } = await supabase.rpc(rpc, params);
     if (error) {
@@ -124,12 +125,8 @@ export function GameBoard({
           turn === botSeat &&
           Boolean(s.balls?.[String(botSeat)]) &&
           !s.balls?.[String(botSeat)]?.finished;
-      } else if (room.game_type === "battleship") {
-        const placements = s.placements || {};
-        isBotTurn =
-          s.phase === "placing"
-            ? !(placements[botSeat] || placements[String(botSeat)])
-            : turn === botSeat;
+      } else if (room.game_type === "uno") {
+        isBotTurn = turn === botSeat || (s.challenge && Number(s.challenge.challengerSeat) === botSeat) || (s.unoVulnerableSeat && Number(s.unoVulnerableSeat) !== botSeat);
       }
 
       if (!isBotTurn) return;
@@ -292,6 +289,9 @@ export function GameBoard({
           )}
           {room.game_type === "ludo" && (
             <LudoGame state={state} players={players} mySeat={me?.seat} busy={busy} act={act} />
+          )}
+          {room.game_type === "uno" && (
+            <UnoGame room={room} players={players} meSeat={me?.seat || 1} isMyTurn={state.turn === me?.seat} onAct={act} />
           )}
         </div>
 
