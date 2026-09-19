@@ -201,7 +201,7 @@ declare r public.game_rooms; me public.game_players; n int; next_seat int; state
 begin
  select * into r from public.game_rooms where id=p_room for update; if r.status<>'playing' then raise exception 'Game is not active'; end if;
  if p_actor_seat is not null then
-  select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id='11111111-1111-1111-1111-111111111111';
+  select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-1111111111%';
  end if;
  if me.id is null then
   select * into me from public.game_players where room_id=p_room and player_id=auth.uid();
@@ -900,7 +900,7 @@ declare r public.game_rooms; me public.game_players; state jsonb; n int; current
 begin
   select * into r from public.game_rooms where id=p_room for update;
   if r.status <> 'playing' or r.game_type <> 'rps' then raise exception 'RPS is not active'; end if;
-  if p_actor_seat is not null then select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id='11111111-1111-1111-1111-111111111111'; end if;
+  if p_actor_seat is not null then select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-1111111111%'; end if;
   if me.id is null then select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); end if;
   if me.id is null then raise exception 'Not a player'; end if;
   select count(*) into n from public.game_players where room_id=p_room;
@@ -954,7 +954,7 @@ declare r public.game_rooms; me public.game_players; state jsonb; n int; current
 begin
   select * into r from public.game_rooms where id=p_room for update;
   if r.status <> 'playing' or r.game_type <> 'number_guess' then raise exception 'Number Hunt is not active'; end if;
-  if p_actor_seat is not null then select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id='11111111-1111-1111-1111-111111111111'; end if;
+  if p_actor_seat is not null then select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-1111111111%'; end if;
   if me.id is null then select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); end if;
   if me.id is null then raise exception 'Not a player'; end if;
   guess:=p_value::int; if guess not between 1 and 25 then raise exception 'Choose a tile from 1 to 25'; end if;
@@ -996,7 +996,7 @@ declare r public.game_rooms; me public.game_players; state jsonb; n int; current
 begin
   select * into r from public.game_rooms where id=p_room for update;
   if r.status <> 'playing' or r.game_type <> 'skribbl' then raise exception 'Skribbl is not active'; end if;
-  if p_actor_seat is not null then select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id='11111111-1111-1111-1111-111111111111'; end if;
+  if p_actor_seat is not null then select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-1111111111%'; end if;
   if me.id is null then select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); end if;
   if me.id is null then raise exception 'Not a player'; end if;
   select count(*) into n from public.game_players where room_id=p_room;
@@ -1063,7 +1063,7 @@ declare r public.game_rooms; me public.game_players; state jsonb; balls jsonb; s
 begin
   select * into r from public.game_rooms where id=p_room for update;
   if r.status<>'playing' or r.game_type<>'mini_golf' then raise exception 'Mini Golf is not active'; end if;
-  if p_actor_seat is not null then select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id='11111111-1111-1111-1111-111111111111'; end if;
+  if p_actor_seat is not null then select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-1111111111%'; end if;
   if me.id is null then select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); end if;
   if me.id is null then raise exception 'Not a player'; end if;
   state:=r.public_state; if p_action<>'shoot' then raise exception 'Invalid Mini Golf action'; end if;
@@ -1119,7 +1119,7 @@ begin
   if r.status <> 'playing' or r.game_type <> 'trivia_clash' then raise exception 'Trivia Clash is not active'; end if;
 
   if p_actor_seat is not null then
-    select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id='11111111-1111-1111-1111-111111111111';
+    select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-1111111111%';
   end if;
   if me.id is null then select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); end if;
   if me.id is null then raise exception 'Not a player'; end if;
@@ -1210,7 +1210,7 @@ declare r public.game_rooms; me public.game_players; state jsonb; deck jsonb; ca
 begin
   select * into r from public.game_rooms where id=p_room for update;
   if r.status<>'playing' or r.game_type<>'memory_match' then raise exception 'Memory Match is not active'; end if;
-  if p_actor_seat is not null then select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id='11111111-1111-1111-1111-111111111111'; end if;
+  if p_actor_seat is not null then select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-1111111111%'; end if;
   if me.id is null then select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); end if;
   if me.id is null then raise exception 'Not a player'; end if;
   state:=r.public_state; if (state->>'turn')::int<>me.seat then raise exception 'Wait for your turn'; end if;
