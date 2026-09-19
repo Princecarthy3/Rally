@@ -189,7 +189,7 @@ export function GameRoom() {
               }}
             />
           ) : (
-            <GameBoard room={room} players={players} userId={user!.id} onlineIds={onlineIds} />
+            <GameBoard room={room} players={players} userId={user!.id} onlineIds={onlineIds} refresh={refresh} />
           )}
 
           {/* Victory Overlay Trigger */}

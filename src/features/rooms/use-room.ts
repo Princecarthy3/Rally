@@ -113,7 +113,14 @@ export function useRoom(code: string, userId?: string) {
     const ch = supabase.channel(`room:${roomId}`, { config: { presence: { key: userId } } });
 
     ch.on("postgres_changes", { event: "*", schema: "public", table: "game_rooms", filter: `id=eq.${roomId}` }, (payload) => {
-      if (payload.eventType !== "DELETE") setRoom(payload.new as Room);
+      if (payload.eventType === "DELETE") return;
+      const nextRoom = payload.new as Room;
+      setRoom((currentRoom) => {
+        if (currentRoom && nextRoom.state_version < currentRoom.state_version) {
+          return currentRoom;
+        }
+        return nextRoom;
+      });
     })
       .on("postgres_changes", { event: "*", schema: "public", table: "game_players", filter: `room_id=eq.${roomId}` }, () => {
         void refresh();

@@ -708,6 +708,9 @@ begin
   return state;
 end $$;
 
+-- Cleanup removed games
+drop function if exists public.play_ping_pong_point(uuid, int);
+
 -- Permissions grant
 grant execute on function public.play_room_action(uuid,text,text,int) to authenticated, anon;
 grant execute on function public.play_ludo_action(uuid,text,text,int) to authenticated, anon;
@@ -718,6 +721,5 @@ grant execute on function public.play_mini_golf_action(uuid,text,text,int) to au
 grant execute on function public.play_battleship_action(uuid,text,text,int) to authenticated, anon;
 grant execute on function public.play_memory_match_action(uuid,text,text,int) to authenticated, anon;
 grant execute on function public.play_trivia_clash_action(uuid,text,text,int) to authenticated, anon;
-grant execute on function public.play_ping_pong_point(uuid,int) to authenticated, anon;
 grant execute on function public.get_battleship_private_state(uuid) to authenticated, anon;
 grant execute on function public.start_battleship(uuid) to authenticated, anon;

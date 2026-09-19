@@ -13,7 +13,7 @@ import { ConnectFour } from "./connect-four";
 import { MemoryMatch } from "./memory-match";
 import { MiniGolf } from "./mini-golf";
 import { Battleship } from "./battleship";
-import { PongBoard } from "./pong-board";
+// pong removed
 
 import { sounds } from "@/lib/audio";
 
@@ -26,11 +26,13 @@ export function GameBoard({
   players,
   userId,
   onlineIds,
+  refresh,
 }: {
   room: Room;
   players: RoomPlayer[];
   userId: string;
   onlineIds: string[];
+  refresh: () => Promise<void>;
 }) {
   const me = players.find((p) => p.player_id === userId);
   const state = room.public_state || {};
@@ -56,7 +58,14 @@ export function GameBoard({
     const rpc = room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "memory_match" ? "play_memory_match_action" : room.game_type === "mini_golf" ? "play_mini_golf_action" : room.game_type === "battleship" ? "play_battleship_action" : room.game_type === "skribbl" ? "play_skribbl_action" : "play_room_action";
     const params = { p_room: room.id, p_action: action, p_value: value ?? null };
     const { error } = await supabase.rpc(rpc, params);
-    if (error) setError(error.message);
+    if (error) {
+      setError(error.message);
+    } else {
+      // Do not depend on Realtime delivery for the submitting client. The RPC
+      // response is successful even when the database-change event is delayed
+      // or unavailable, so fetch the committed room state immediately.
+      await refresh();
+    }
     setBusy(false);
   }
 
@@ -207,9 +216,6 @@ export function GameBoard({
           )}
           {room.game_type === "battleship" && (
             <Battleship room={room} players={players} meSeat={me?.seat || 1} onAct={act} busy={busy} />
-          )}
-          {room.game_type === "ping_pong" && me && (
-            <PongBoard room={room} players={players} me={me} />
           )}
           {room.game_type === "tic_tac_toe" && (
             <TicTacToe state={state} mySeat={me?.seat} place={(i) => act("place", String(i))} busy={busy} />
