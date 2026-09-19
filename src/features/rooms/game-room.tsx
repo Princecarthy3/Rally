@@ -28,7 +28,7 @@ export function GameRoom() {
   const isSpectatorRequested = searchParams?.get("spectate") === "true";
 
   const { user, profile } = useAuth();
-  const { room, players, loading, error, onlineIds, connection, channel, isSpectator, spectatorCount } = useRoom(
+  const { room, players, loading, error, onlineIds, connection, channel, isSpectator, spectatorCount, refresh } = useRoom(
     params.code,
     user?.id,
     isSpectatorRequested
@@ -80,6 +80,7 @@ export function GameRoom() {
     setBusy(true);
     const { error } = await supabase!.rpc("set_player_ready", { p_room: room.id, p_ready: value });
     if (error) setNotice(error.message);
+    else await refresh();
     setBusy(false);
   }
 
@@ -108,6 +109,7 @@ export function GameRoom() {
     setNotice("");
     const { error } = await supabase!.rpc("add_bot_to_room", { p_room: room.id });
     if (error) setNotice(error.message);
+    else await refresh();
     setBusy(false);
   }
 

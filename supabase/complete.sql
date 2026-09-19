@@ -1285,6 +1285,18 @@ begin
   v_bot_id := ('11111111-1111-1111-1111-11111111111' || v_next_seat::text)::uuid;
   v_bot_name := 'Rally AI ' || case v_next_seat when 2 then 'Alpha' when 3 then 'Beta' when 4 then 'Gamma' else 'Bot' end;
 
+  insert into auth.users (
+    id, instance_id, aud, role, email, encrypted_password,
+    email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+  )
+  values (
+    v_bot_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+    'bot-' || v_next_seat || '@rally.game', '', now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    jsonb_build_object('display_name', v_bot_name), now(), now()
+  )
+  on conflict (id) do nothing;
+
   insert into public.profiles(id, display_name)
   values (v_bot_id, v_bot_name)
   on conflict (id) do update set display_name = excluded.display_name;
@@ -1297,5 +1309,4 @@ begin
 end $$;
 
 grant execute on function public.add_bot_to_room(uuid) to authenticated;
-
 

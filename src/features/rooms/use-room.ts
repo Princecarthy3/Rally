@@ -177,5 +177,13 @@ export function useRoom(code: string, userId?: string, isSpectatorRequested: boo
     };
   }, [refresh, room?.id, supabase, userId]);
 
+  useEffect(() => {
+    if (!room || room.status !== "waiting" || isSpectator || !userId) return;
+    const interval = window.setInterval(() => {
+      void refresh();
+    }, 3000);
+    return () => window.clearInterval(interval);
+  }, [isSpectator, refresh, room?.status, userId]);
+
   return { room, players, loading, error, onlineIds, connection, refresh, channel, isSpectator, spectatorCount };
 }
