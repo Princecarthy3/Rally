@@ -318,17 +318,26 @@ function Lobby({
   const [friendsList, setFriendsList] = useState<Array<{ id: string; display_name: string; avatar_url: string | null }>>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
 
+  const isRoomFull = players.length >= room.max_players;
+
   const openInviteModal = useCallback(async () => {
+    if (isRoomFull) {
+      return;
+    }
     setIsInviteOpen(true);
     if (!supabase) return;
     setLoadingFriends(true);
     const { data } = await supabase.rpc("get_friends");
     setFriendsList((data || []) as Array<{ id: string; display_name: string; avatar_url: string | null }>);
     setLoadingFriends(false);
-  }, [supabase]);
+  }, [isRoomFull, supabase]);
 
   async function handleInviteFriend(friendId: string, friendName: string) {
     if (!supabase) return;
+    if (players.length >= room.max_players) {
+      setInviteNotice("Room is full!");
+      return;
+    }
     const { error } = await supabase.rpc("send_game_invite_to_room", { p_receiver: friendId, p_room: room.id });
     if (error) {
       const { error: err2 } = await supabase.rpc("send_game_invite", { p_receiver: friendId });
@@ -371,9 +380,12 @@ function Lobby({
             <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
               <button
                 onClick={() => void openInviteModal()}
-                className="arcade-button justify-center gap-1 px-2 py-2 text-[11px] bg-[#7357ff] text-white shadow-[2px_2px_0_#171821] sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs"
+                disabled={isRoomFull}
+                className={`arcade-button justify-center gap-1 px-2 py-2 text-[11px] ${
+                  isRoomFull ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-[#7357ff] text-white"
+                } shadow-[2px_2px_0_#171821] sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs`}
               >
-                <UsersRound size={13} /> <span className="truncate">Invite</span>
+                <UsersRound size={13} /> <span className="truncate">{isRoomFull ? "Full" : "Invite"}</span>
               </button>
               <button
                 onClick={() => copy(invite, "Invite link")}
@@ -560,12 +572,16 @@ function Lobby({
 
                       <button
                         onClick={() => void handleInviteFriend(friend.id, friend.display_name)}
-                        disabled={isInvited}
+                        disabled={isInvited || isRoomFull}
                         className={`arcade-button text-xs py-1.5 px-3 ${
-                          isInvited ? "bg-emerald-400 text-slate-950" : "bg-[#7357ff] text-white"
+                          isInvited
+                            ? "bg-emerald-400 text-slate-950"
+                            : isRoomFull
+                            ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                            : "bg-[#7357ff] text-white"
                         }`}
                       >
-                        {isInvited ? "INVITED ✓" : "INVITE"}
+                        {isInvited ? "INVITED ✓" : isRoomFull ? "ROOM FULL" : "INVITE"}
                       </button>
                     </div>
                   );
