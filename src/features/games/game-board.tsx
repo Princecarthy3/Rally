@@ -270,7 +270,7 @@ export function GameBoard({
             />
           )}
           {room.game_type === "memory_match" && (
-            <MemoryMatch room={room} players={players} meSeat={me?.seat || 1} onAct={act} busy={busy} />
+            <MemoryMatch room={room} players={players} meSeat={me?.seat || 1} onAct={act} busy={busy} isHost={room.host_id === userId} />
           )}
           {room.game_type === "mini_golf" && (
             <MiniGolf room={room} players={players} meSeat={me?.seat || 1} onAct={act} busy={busy} />

@@ -16,6 +16,9 @@ export type PublicGameState = {
   cards?: (string | null)[];
   flipped?: number[];
   matched?: number[];
+  mode?: string;
+  pairs?: number;
+  cols?: number;
 };
 export type Room = { id:string; code:string; game_type:GameKey; host_id:string; status:RoomStatus; max_players:number; public_state:PublicGameState; state_version:number; match_number:number; created_at:string; updated_at:string };
 export type RoomPlayer = {

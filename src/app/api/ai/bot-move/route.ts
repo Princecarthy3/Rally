@@ -78,11 +78,14 @@ export async function POST(request: Request) {
     } else if (gameType === "memory_match") {
       const matched = (state.matched || []).map((n: unknown) => Number(n));
       const flipped = (state.flipped || []).map((n: unknown) => Number(n));
+      const cardCount = Array.isArray(state.cards)
+        ? state.cards.length
+        : Number(state.pairs || 8) * 2;
       if (Number(state.turn) === Number(botSeat)) {
         if (state.revealed) {
           action = "resolve";
         } else {
-          const available = Array.from({ length: 16 }, (_, index) => index).filter(
+          const available = Array.from({ length: cardCount }, (_, index) => index).filter(
             (index) => !matched.includes(index) && !flipped.includes(index)
           );
           if (available.length > 0) {
