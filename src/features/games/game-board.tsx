@@ -90,59 +90,77 @@ export function GameBoard({
     if (botPlayers.length === 0) return;
 
     const s = state as Record<string, any>;
-    const timers: NodeJS.Timeout[] = [];
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const turn = Number(s.turn);
 
     botPlayers.forEach((botPlayer) => {
-      const botSeat = botPlayer.seat;
-    let isBotTurn = false;
+      const botSeat = Number(botPlayer.seat);
+      let isBotTurn = false;
 
+      if (["tic_tac_toe", "connect_four", "dots_boxes", "ludo"].includes(room.game_type)) {
+        isBotTurn = turn === botSeat;
+        if (room.game_type === "ludo" && s.awaitingMove && turn === botSeat) isBotTurn = true;
+      } else if (room.game_type === "number_guess") {
+        const pickerSeat = Number(s.pickerSeat ?? 1);
+        const targetPicked = Boolean(s.targetPicked);
+        const guesses = s.guesses || {};
+        const hasGuessed = Object.prototype.hasOwnProperty.call(guesses, String(botSeat));
+        if (pickerSeat === botSeat && !targetPicked) isBotTurn = true;
+        if (pickerSeat !== botSeat && targetPicked && !hasGuessed) isBotTurn = true;
+      } else if (room.game_type === "rps") {
+        // choices are keyed by seat as string in jsonb
+        isBotTurn = !s.choices?.[String(botSeat)] && !s.choices?.[botSeat];
+      } else if (room.game_type === "skribbl") {
+        const drawerSeat = Number(s.drawerSeat);
+        const guessed = (s.guessedSeats || []).map((n: unknown) => Number(n));
+        if (drawerSeat === botSeat && !s.wordSelected) isBotTurn = true;
+        if (drawerSeat !== botSeat && s.wordSelected && !guessed.includes(botSeat)) isBotTurn = true;
+      } else if (room.game_type === "memory_match") {
+        isBotTurn = turn === botSeat;
+      } else if (room.game_type === "mini_golf") {
+        isBotTurn = turn === botSeat && Boolean(s.balls?.[String(botSeat)]) && !s.balls?.[String(botSeat)]?.finished;
+      } else if (room.game_type === "battleship") {
+        const placements = s.placements || {};
+        isBotTurn = s.phase === "placing"
+          ? !(placements[botSeat] || placements[String(botSeat)])
+          : turn === botSeat;
+      }
 
-    if (["tic_tac_toe", "connect_four", "dots_boxes", "ludo"].includes(room.game_type)) {
-      isBotTurn = s.turn === botSeat;
-      if (room.game_type === "ludo" && s.awaitingMove && s.turn === botSeat) isBotTurn = true;
-    } else if (room.game_type === "number_guess") {
-      const pickerSeat = Number(s.pickerSeat ?? 1);
-      const targetPicked = Boolean(s.targetPicked);
-      const guesses = s.guesses || {};
-      const hasGuessed = Object.prototype.hasOwnProperty.call(guesses, String(botSeat));
-      if (pickerSeat === botSeat && !targetPicked) isBotTurn = true;
-      if (pickerSeat !== botSeat && targetPicked && !hasGuessed) isBotTurn = true;
-    } else if (room.game_type === "rps") {
-      isBotTurn = !s.choices?.[botSeat];
-    } else if (room.game_type === "skribbl") {
-      if (s.drawerSeat === botSeat && !s.wordSelected) isBotTurn = true;
-      if (s.drawerSeat !== botSeat && s.wordSelected && !s.guessedSeats?.includes(botSeat)) isBotTurn = true;
-    } else if (room.game_type === "memory_match") {
-      isBotTurn = s.turn === botSeat;
-    } else if (room.game_type === "mini_golf") {
-      isBotTurn = s.turn === botSeat && Boolean(s.balls?.[String(botSeat)]) && !s.balls?.[String(botSeat)]?.finished;
-    } else if (room.game_type === "battleship") {
-      isBotTurn = s.phase === "placing"
-        ? !s.placements?.[botSeat]
-        : s.turn === botSeat;
-    }
+      if (!isBotTurn) return;
 
-    if (!isBotTurn) return;
+      const requestKey = `${room.id}:${room.state_version}:${botSeat}`;
+      if (pendingBotMoves.current.has(requestKey)) return;
+      pendingBotMoves.current.add(requestKey);
 
-    const requestKey = `${room.id}:${room.state_version}:${botSeat}`;
-    if (pendingBotMoves.current.has(requestKey)) return;
-    pendingBotMoves.current.add(requestKey);
-
-    const timer = setTimeout(() => {
-      fetch("/api/ai/bot-move", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          roomId: room.id,
-          gameType: room.game_type,
-          publicState: room.public_state,
-          botSeat,
-        }),
-      })
-        .then((response) => response.ok ? undefined : response.json().then((body) => Promise.reject(body)))
-        .catch((reason) => console.error("Bot move failed", reason))
-        .finally(() => pendingBotMoves.current.delete(requestKey));
-    }, 1000);
+      const timer = setTimeout(() => {
+        fetch("/api/ai/bot-move", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            roomId: room.id,
+            gameType: room.game_type,
+            publicState: room.public_state,
+            botSeat,
+          }),
+        })
+          .then(async (response) => {
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              throw body;
+            }
+            // Apply bot's returned state immediately so the board advances without waiting on Realtime.
+            if (body?.newState && typeof body.newState === "object" && applyPublicState) {
+              const payload = body.newState as Record<string, unknown>;
+              const nextState = (payload.public_state && typeof payload.public_state === "object"
+                ? payload.public_state
+                : payload) as Room["public_state"];
+              applyPublicState(nextState);
+            }
+            await refresh();
+          })
+          .catch((reason) => console.error("Bot move failed", reason))
+          .finally(() => pendingBotMoves.current.delete(requestKey));
+      }, 900);
 
       timers.push(timer);
     });
@@ -150,7 +168,7 @@ export function GameBoard({
     return () => {
       timers.forEach((t) => clearTimeout(t));
     };
-  }, [room.status, room.id, room.game_type, room.public_state, room.state_version, players, state]);
+  }, [room.status, room.id, room.game_type, room.public_state, room.state_version, players, state, refresh, applyPublicState]);
 
 
 

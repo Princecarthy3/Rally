@@ -5,10 +5,11 @@ import { generateSkribblWordsAI } from "@/lib/ai/gemini";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { roomId, gameType, publicState, botSeat } = body;
+    const { roomId, gameType, publicState, botSeat: rawBotSeat } = body;
+    const botSeat = Number(rawBotSeat);
 
-    if (!roomId || !gameType) {
-      return NextResponse.json({ error: "Missing roomId or gameType" }, { status: 400 });
+    if (!roomId || !gameType || !Number.isFinite(botSeat)) {
+      return NextResponse.json({ error: "Missing roomId, gameType, or botSeat" }, { status: 400 });
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
 
       action = "place";
       const board: string[] = state.board || Array(9).fill("");
-      const emptyIndices = board.map((cell, i) => (cell === "" ? i : -1)).filter((i) => i !== -1);
+      const emptyIndices = board.map((cell, i) => (!cell || cell === "" ? i : -1)).filter((i) => i !== -1);
       if (emptyIndices.length > 0) {
         value = String(emptyIndices[Math.floor(Math.random() * emptyIndices.length)]);
       }
@@ -75,23 +76,25 @@ export async function POST(request: Request) {
         value = String(availableColumns[Math.floor(Math.random() * availableColumns.length)]);
       }
     } else if (gameType === "memory_match") {
-      const matched = state.matched || [];
-      const flipped = state.flipped || [];
-      if (state.turn === botSeat) {
+      const matched = (state.matched || []).map((n: unknown) => Number(n));
+      const flipped = (state.flipped || []).map((n: unknown) => Number(n));
+      if (Number(state.turn) === Number(botSeat)) {
         if (state.revealed) {
           action = "resolve";
         } else {
-          const available = Array.from({ length: 16 }, (_, index) => index).filter((index) => !matched.includes(index) && !flipped.includes(index));
+          const available = Array.from({ length: 16 }, (_, index) => index).filter(
+            (index) => !matched.includes(index) && !flipped.includes(index)
+          );
           if (available.length > 0) {
             action = "flip";
             value = String(available[Math.floor(Math.random() * available.length)]);
           }
-          }
         }
+      }
     } else if (gameType === "mini_golf") {
         const ball = state.balls?.[String(botSeat)];
         const cup = state.cup;
-        if (state.turn === botSeat && ball && cup && !ball.finished) {
+        if (Number(state.turn) === botSeat && ball && cup && !ball.finished) {
           action = "shoot";
           const angle = Math.atan2(Number(cup.y) - Number(ball.y), Number(cup.x) - Number(ball.x)) * 180 / Math.PI;
           const power = Math.min(100, Math.max(14, Math.hypot(Number(cup.x) - Number(ball.x), Number(cup.y) - Number(ball.y)) / .46));
@@ -105,7 +108,7 @@ export async function POST(request: Request) {
         const used = new Set(fired.map((shot) => `${shot.row},${shot.col}`));
         const available = Array.from({ length: 64 }, (_, index) => ({ row: Math.floor(index / 8), col: index % 8 }))
           .filter((shot) => !used.has(`${shot.row},${shot.col}`));
-        if (state.turn === botSeat && available.length > 0) {
+        if (Number(state.turn) === botSeat && available.length > 0) {
           const shot = available[Math.floor(Math.random() * available.length)];
           action = "fire";
           value = `${shot.row},${shot.col}`;
@@ -180,7 +183,8 @@ export async function POST(request: Request) {
     const { data, error } = await supabase.rpc(rpc, params);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      console.error("Bot RPC failed", { rpc, params, message: error.message, details: error });
+      return NextResponse.json({ error: error.message, rpc, params }, { status: 400 });
     }
 
     return NextResponse.json({ success: true, action, value, newState: data });
