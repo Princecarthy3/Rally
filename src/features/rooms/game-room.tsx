@@ -355,22 +355,22 @@ function Lobby({
         </header>
 
         <div className="p-5 sm:p-8">
-          <div className="flex flex-col gap-4 rounded-2xl border-2 border-dashed border-slate-300 bg-[#faf9f3] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-[#faf9f3] p-3 sm:gap-4 sm:flex-row sm:items-center sm:justify-between sm:p-4">
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Room code</p>
-              <button onClick={() => copy(room.code, "Room code")} className="mt-1 cursor-pointer font-mono text-3xl font-black tracking-[.2em]">
+              <button onClick={() => copy(room.code, "Room code")} className="mt-0.5 cursor-pointer font-mono text-2xl font-black tracking-[.2em] sm:mt-1 sm:text-3xl">
                 {room.code}
               </button>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => void openInviteModal()} className="arcade-button bg-[#7357ff] text-white shadow-[2px_2px_0_#171821]">
-                <UsersRound size={15} /> Invite friends
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              <button onClick={() => void openInviteModal()} className="arcade-button gap-1.5 px-2.5 py-2 text-xs bg-[#7357ff] text-white shadow-[2px_2px_0_#171821] sm:gap-2 sm:px-[1.15rem] sm:py-[.7rem] sm:text-sm">
+                <UsersRound size={14} className="sm:h-[15px] sm:w-[15px]" /> Invite friends
               </button>
-              <button onClick={() => copy(invite, "Invite link")} className="arcade-button bg-white text-slate-950">
-                <Copy size={15} /> Copy link
+              <button onClick={() => copy(invite, "Invite link")} className="arcade-button gap-1.5 px-2.5 py-2 text-xs bg-white text-slate-950 sm:gap-2 sm:px-[1.15rem] sm:py-[.7rem] sm:text-sm">
+                <Copy size={14} className="sm:h-[15px] sm:w-[15px]" /> Copy link
               </button>
-              <button onClick={share} className="arcade-button bg-slate-950 text-white">
-                <Share2 size={15} /> Share
+              <button onClick={share} className="arcade-button gap-1.5 px-2.5 py-2 text-xs bg-slate-950 text-white sm:gap-2 sm:px-[1.15rem] sm:py-[.7rem] sm:text-sm">
+                <Share2 size={14} className="sm:h-[15px] sm:w-[15px]" /> Share
               </button>
             </div>
           </div>
