@@ -12,7 +12,7 @@ create table if not exists public.profiles (
 
 create table if not exists public.game_rooms (
  id uuid primary key default gen_random_uuid(), code text not null unique check(code=upper(code) and char_length(code)=5),
- game_type text not null check(game_type in ('rps','number_guess','memory_match','mini_golf','battleship','ping_pong','tic_tac_toe','connect_four','dots_boxes','skribbl','ludo')),
+ game_type text not null check(game_type in ('basketball','dice_dash','trivia_clash','uno','rps','number_guess','memory_match','mini_golf','battleship','ping_pong','tic_tac_toe','connect_four','dots_boxes','skribbl','ludo')),
  host_id uuid not null references public.profiles(id), status text not null default 'waiting' check(status in ('waiting','playing','completed','cancelled')),
  max_players smallint not null check(max_players between 2 and 4), public_state jsonb not null default '{}'::jsonb,
  state_version bigint not null default 0, match_number integer not null default 1, created_at timestamptz not null default now(), updated_at timestamptz not null default now(), expires_at timestamptz not null default(now()+interval '24 hours')
@@ -31,7 +31,7 @@ begin
   end loop;
 end $$;
 
-alter table public.game_rooms add constraint game_rooms_game_type_check check (game_type in ('rps','number_guess','memory_match','mini_golf','battleship','ping_pong','tic_tac_toe','connect_four','dots_boxes','skribbl','ludo'));
+alter table public.game_rooms add constraint game_rooms_game_type_check check (game_type in ('basketball','dice_dash','trivia_clash','uno','rps','number_guess','memory_match','mini_golf','battleship','ping_pong','tic_tac_toe','connect_four','dots_boxes','skribbl','ludo'));
 
 create table if not exists public.game_players (
  id uuid primary key default gen_random_uuid(), room_id uuid not null references public.game_rooms(id) on delete cascade,

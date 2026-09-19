@@ -2,6 +2,7 @@
 alter table public.game_rooms drop constraint if exists game_rooms_game_type_check;
 alter table public.game_rooms add constraint game_rooms_game_type_check
   check (game_type in (
+    'basketball','dice_dash','trivia_clash','uno',
     'rps','number_guess','memory_match','mini_golf','battleship',
     'ping_pong','tic_tac_toe','connect_four','dots_boxes','skribbl','ludo'
   ));
