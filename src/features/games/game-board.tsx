@@ -201,7 +201,7 @@ export function GameBoard({
   ]);
 
   if (room.status === "completed") {
-    return <Result room={room} players={players} me={me} winningSeats={winningSeats} />;
+    return <Result room={room} players={players} me={me} winningSeats={winningSeats} refresh={refresh} />;
   }
 
   return (
@@ -600,11 +600,13 @@ function Result({
   players,
   me,
   winningSeats,
+  refresh,
 }: {
   room: Room;
   players: RoomPlayer[];
   me?: RoomPlayer;
   winningSeats: number[];
+  refresh: () => Promise<void>;
 }) {
   const supabase = getSupabaseBrowserClient();
   const [busy, setBusy] = useState(false);
@@ -630,8 +632,28 @@ function Result({
       } the round.`;
 
   async function rematch() {
+    if (!supabase) return;
     setBusy(true);
-    await supabase?.rpc("rematch_room", { p_room: room.id });
+    const { error } = await supabase.rpc("rematch_room", { p_room: room.id });
+    if (error) {
+      // Fallback: direct table updates if RPC is outdated/fails
+      await supabase.from("game_players").update({ is_ready: false, score: 0 }).eq("room_id", room.id);
+      await supabase
+        .from("game_players")
+        .update({ is_ready: true })
+        .eq("room_id", room.id)
+        .like("player_id", "11111111-1111-1111-1111-1111111111%");
+      await supabase
+        .from("game_rooms")
+        .update({
+          status: "waiting",
+          public_state: {},
+          state_version: room.state_version + 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", room.id);
+    }
+    await refresh();
     setBusy(false);
   }
 

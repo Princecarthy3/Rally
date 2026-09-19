@@ -2,7 +2,7 @@
 
 import { ArrowRight, Copy, LoaderCircle, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState, useEffect } from "react";
+import { FormEvent, useState } from "react";
 import { games, type GameDefinition } from "@/features/games/registry";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -17,6 +17,8 @@ export function RoomLauncher({
   initialGame?: GameDefinition | null;
   onClose?: () => void;
 }) {
+  const [prevGame, setPrevGame] = useState<GameDefinition | null>(initialGame);
+  const [prevMode, setPrevMode] = useState<Mode>(initialMode);
   const [mode, setMode] = useState<Mode>(initialMode || (initialGame ? "create" : null));
   const [selected, setSelected] = useState<GameDefinition>(initialGame || games[0]);
   const [max, setMax] = useState(initialGame ? initialGame.maxPlayers : 4);
@@ -25,15 +27,20 @@ export function RoomLauncher({
   const [error, setError] = useState("");
   const router = useRouter();
 
-  useEffect(() => {
+  // Sync state when props change during render (avoids useEffect setState lint error)
+  if (initialGame !== prevGame) {
+    setPrevGame(initialGame);
     if (initialGame) {
       setSelected(initialGame);
       setMode("create");
       setMax(initialGame.maxPlayers);
-    } else if (initialMode) {
+    }
+  } else if (initialMode !== prevMode) {
+    setPrevMode(initialMode);
+    if (initialMode) {
       setMode(initialMode);
     }
-  }, [initialGame, initialMode]);
+  }
 
   function close() {
     setMode(null);
