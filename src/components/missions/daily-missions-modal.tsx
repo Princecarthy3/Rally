@@ -122,6 +122,29 @@ export function DailyMissionsModal({ isOpen, onClose }: DailyMissionsModalProps)
     }
   };
 
+  const claimAllRewards = async () => {
+    if (!supabase) return;
+    setClaimingId("all");
+    try {
+      const { data: claimRes, error } = await supabase.rpc("claim_all_daily_mission_rewards");
+      if (error) {
+        setNotice(error.message);
+      } else if (claimRes && claimRes.claimed_count > 0) {
+        sounds.playClickSound();
+        setNotice(`All Rewards Claimed! +${claimRes.reward_coins} Rally Coins & +${claimRes.reward_xp} XP! 🎉`);
+        await loadMissions();
+        await refreshProfile();
+      }
+    } catch (err) {
+      console.error("Failed to claim all rewards:", err);
+    } finally {
+      setClaimingId(null);
+      setTimeout(() => setNotice(null), 3500);
+    }
+  };
+
+  const hasUnclaimed = data?.missions.some((m) => m.completed && !m.claimed);
+
   if (!isOpen) return null;
 
   return (
@@ -179,6 +202,21 @@ export function DailyMissionsModal({ isOpen, onClose }: DailyMissionsModalProps)
             </div>
           ) : activeTab === "today" ? (
             <div className="space-y-4">
+              {hasUnclaimed && (
+                <div className="flex items-center justify-between rounded-2xl border-2 border-slate-950 bg-emerald-300 p-4 shadow-[3px_3px_0_#171821]">
+                  <div>
+                    <strong className="block text-sm font-black text-slate-950">Completed Missions Available! 🎉</strong>
+                    <span className="text-xs font-bold text-slate-800">Claim all completed mission rewards instantly.</span>
+                  </div>
+                  <button
+                    onClick={claimAllRewards}
+                    disabled={claimingId === "all"}
+                    className="arcade-button bg-slate-950 text-white shadow-[2px_2px_0_#ffffff] text-xs py-2 px-4 cursor-pointer"
+                  >
+                    {claimingId === "all" ? <Loader2 size={16} className="animate-spin" /> : "CLAIM ALL REWARDS"}
+                  </button>
+                </div>
+              )}
               {data?.missions.map((m) => {
                 const percent = Math.min(100, Math.round((m.progress / m.target_count) * 100));
 

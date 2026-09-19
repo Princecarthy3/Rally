@@ -622,7 +622,14 @@ function Result({
     } else {
       sounds.playLoseSound();
     }
-  }, [draw, isWin]);
+
+    if (supabase && me) {
+      void supabase.rpc("track_mission_progress", { p_mission_type: "play_game", p_amount: 1 });
+      if (isWin) {
+        void supabase.rpc("track_mission_progress", { p_mission_type: "win_game", p_amount: 1 });
+      }
+    }
+  }, [draw, isWin, supabase, me]);
 
   const outcome = draw ? "IT’S A DRAW!" : isWin ? "YOU WIN!" : "GOOD GAME!";
   const summary = draw
