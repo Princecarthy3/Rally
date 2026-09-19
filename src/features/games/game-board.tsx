@@ -27,12 +27,14 @@ export function GameBoard({
   userId,
   onlineIds,
   refresh,
+  applyPublicState,
 }: {
   room: Room;
   players: RoomPlayer[];
   userId: string;
   onlineIds: string[];
   refresh: () => Promise<void>;
+  applyPublicState?: (publicState: Room["public_state"], extras?: Partial<Room>) => void;
 }) {
   const me = players.find((p) => p.player_id === userId);
   const state = room.public_state || {};
@@ -57,13 +59,23 @@ export function GameBoard({
     setError("");
     const rpc = room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "memory_match" ? "play_memory_match_action" : room.game_type === "mini_golf" ? "play_mini_golf_action" : room.game_type === "battleship" ? "play_battleship_action" : room.game_type === "skribbl" ? "play_skribbl_action" : "play_room_action";
     const params = { p_room: room.id, p_action: action, p_value: value ?? null };
-    const { error } = await supabase.rpc(rpc, params);
+    const { data, error } = await supabase.rpc(rpc, params);
     if (error) {
       setError(error.message);
     } else {
-      // Do not depend on Realtime delivery for the submitting client. The RPC
-      // response is successful even when the database-change event is delayed
-      // or unavailable, so fetch the committed room state immediately.
+      // Apply the authoritative state returned by the RPC immediately so the
+      // acting client never depends on Realtime delivery or a follow-up SELECT.
+      if (data && typeof data === "object" && applyPublicState) {
+        const payload = data as Record<string, unknown>;
+        const nextState = (payload.public_state && typeof payload.public_state === "object"
+          ? payload.public_state
+          : payload) as Room["public_state"];
+        const extras: Partial<Room> = {};
+        if (typeof payload.status === "string") {
+          extras.status = payload.status as Room["status"];
+        }
+        applyPublicState(nextState, extras);
+      }
       await refresh();
     }
     setBusy(false);

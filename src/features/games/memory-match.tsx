@@ -18,11 +18,12 @@ export function MemoryMatch({ room, players, meSeat, onAct, busy }: {
   onAct: (action: string, value?: string) => Promise<void>; busy?: boolean;
 }) {
   const state = (room.public_state || {}) as MemoryState;
-  const flipped = state.flipped || [];
-  const matched = state.matched || [];
+  // Coerce to numbers — jsonb can deserialize indices as strings depending on path.
+  const flipped = (state.flipped || []).map((n) => Number(n));
+  const matched = (state.matched || []).map((n) => Number(n));
   const cards = state.cards || Array(16).fill(null);
-  const isMyTurn = state.turn === meSeat;
-  const isResolvingPair = state.revealed || flipped.length === 2;
+  const isMyTurn = Number(state.turn) === meSeat;
+  const isResolvingPair = Boolean(state.revealed) || flipped.length === 2;
 
   useEffect(() => {
     if (meSeat !== state.turn || !state.revealed || flipped.length !== 2 || busy) return;

@@ -25,7 +25,7 @@ const isBotId = (id: string) => id.startsWith("11111111-1111-1111-1111-");
 export function GameRoom() {
   const params = useParams<{ code: string }>();
   const { user, profile } = useAuth();
-  const { room, players, loading, error, onlineIds, connection, channel, refresh } = useRoom(params.code, user?.id);
+  const { room, players, loading, error, onlineIds, connection, channel, refresh, applyPublicState } = useRoom(params.code, user?.id);
 
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -189,7 +189,7 @@ export function GameRoom() {
               }}
             />
           ) : (
-            <GameBoard room={room} players={players} userId={user!.id} onlineIds={onlineIds} refresh={refresh} />
+            <GameBoard room={room} players={players} userId={user!.id} onlineIds={onlineIds} refresh={refresh} applyPublicState={applyPublicState} />
           )}
 
           {/* Victory Overlay Trigger */}

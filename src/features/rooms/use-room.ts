@@ -162,5 +162,19 @@ export function useRoom(code: string, userId?: string) {
     return () => window.clearInterval(interval);
   }, [refresh, room?.status, userId]);
 
-  return { room, players, loading, error, onlineIds, connection, refresh, channel };
+  const applyPublicState = useCallback((publicState: Room["public_state"], extras?: Partial<Room>) => {
+    setRoom((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        ...extras,
+        public_state: publicState as Room["public_state"],
+        // Bump so concurrent realtime events with older versions cannot clobber this update.
+        state_version: Math.max(current.state_version + 1, (extras?.state_version as number) || 0),
+        updated_at: new Date().toISOString(),
+      };
+    });
+  }, []);
+
+  return { room, players, loading, error, onlineIds, connection, refresh, channel, applyPublicState };
 }
