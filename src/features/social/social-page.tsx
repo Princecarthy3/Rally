@@ -144,67 +144,78 @@ export function SocialPage() {
               visibleFriends.map((friend) => {
                 const isOnline = online.has(friend.id);
                 return (
-                  <div className="flex items-center gap-2 sm:gap-3 py-4" key={friend.id}>
-                    <button
-                      onClick={() => {
-                        setSelectedPlayerId(friend.id);
-                        setIsPlayerModalOpen(true);
-                      }}
-                      className="cursor-pointer hover:opacity-80 transition"
-                    >
-                      <Avatar player={friend} />
-                    </button>
-
-                    <div className="min-w-0 flex-1">
+                  <div
+                    className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:gap-3"
+                    key={friend.id}
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
                       <button
                         onClick={() => {
                           setSelectedPlayerId(friend.id);
                           setIsPlayerModalOpen(true);
                         }}
-                        className="block truncate text-sm sm:text-base font-black text-left hover:underline cursor-pointer"
+                        className="shrink-0 cursor-pointer transition hover:opacity-80"
                       >
-                        {friend.display_name}
+                        <Avatar player={friend} />
                       </button>
-                      <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
-                        <i className={`h-2 w-2 rounded-full ${statusDot(friend.room_status || "offline", isOnline)}`} />
-                        {statusLabel(friend, isOnline)}
-                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        <button
+                          onClick={() => {
+                            setSelectedPlayerId(friend.id);
+                            setIsPlayerModalOpen(true);
+                          }}
+                          className="block max-w-full truncate text-left text-sm font-black hover:underline cursor-pointer sm:text-base"
+                        >
+                          {friend.display_name}
+                        </button>
+                        <span className="mt-0.5 flex items-center gap-1.5 text-xs font-bold text-slate-500">
+                          <i className={`h-2 w-2 shrink-0 rounded-full ${statusDot(friend.room_status || "offline", isOnline)}`} />
+                          <span className="truncate">{statusLabel(friend, isOnline)}</span>
+                        </span>
+                      </div>
                     </div>
 
-                    <button
-                      onClick={() => router.push(`/messages?friendId=${friend.id}`)}
-                      className="arcade-button bg-[#f4dc69] px-2.5 sm:px-3 py-2 text-xs text-slate-950 flex items-center gap-1 shadow-[2px_2px_0_#171821]"
-                    >
-                      <MessageCircle size={14} /> Chat
-                    </button>
-
-                    {friend.room_status === "playing" && friend.room_code && friend.allow_spectate !== false && (
+                    <div className="flex flex-wrap items-center gap-2 pl-12 sm:pl-0 sm:justify-end">
                       <button
-                        onClick={() => router.push(`/room/${friend.room_code}?spectate=1`)}
-                        className="arcade-button bg-emerald-500 px-2.5 sm:px-3 py-2 text-xs text-white flex items-center gap-1 shadow-[2px_2px_0_#171821]"
+                        onClick={() => router.push(`/messages?friendId=${friend.id}`)}
+                        className="arcade-button flex items-center gap-1 bg-[#f4dc69] px-3 py-2 text-xs text-slate-950 shadow-[2px_2px_0_#171821]"
                       >
-                        <Eye size={14} /> Spectate
+                        <MessageCircle size={14} />
+                        <span>Chat</span>
                       </button>
-                    )}
 
-                    {isOnline && friend.room_status !== "playing" && (
+                      {friend.room_status === "playing" && friend.room_code && friend.allow_spectate !== false && (
+                        <button
+                          onClick={() => router.push(`/room/${friend.room_code}?spectate=1`)}
+                          className="arcade-button flex items-center gap-1 bg-emerald-500 px-3 py-2 text-xs text-white shadow-[2px_2px_0_#171821]"
+                        >
+                          <Eye size={14} />
+                          <span>Spectate</span>
+                        </button>
+                      )}
+
+                      {isOnline && friend.room_status !== "playing" && (
+                        <button
+                          onClick={() =>
+                            void call("send_game_invite", { p_receiver: friend.id }).then(() =>
+                              setMessage(`Invite sent to ${friend.display_name}!`)
+                            )
+                          }
+                          className="arcade-button bg-[#7357ff] px-3 py-2 text-xs text-white"
+                        >
+                          Invite
+                        </button>
+                      )}
+
                       <button
-                        onClick={() =>
-                          void call("send_game_invite", { p_receiver: friend.id }).then(() => setMessage(`Invite sent to ${friend.display_name}!`))
-                        }
-                        className="arcade-button bg-[#7357ff] px-2.5 sm:px-3 py-2 text-xs text-white"
+                        aria-label={`Remove ${friend.display_name}`}
+                        onClick={() => void call("remove_friend", { p_friend: friend.id })}
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-slate-950 bg-white transition hover:border-red-600 hover:bg-red-50 hover:text-red-600"
                       >
-                        Invite
+                        <UserMinus size={15} />
                       </button>
-                    )}
-
-                    <button
-                      aria-label={`Remove ${friend.display_name}`}
-                      onClick={() => void call("remove_friend", { p_friend: friend.id })}
-                      className="grid h-9 w-9 place-items-center rounded-full border-2 border-slate-950 bg-white hover:bg-red-50 hover:border-red-600 hover:text-red-600 transition"
-                    >
-                      <UserMinus size={15} />
-                    </button>
+                    </div>
                   </div>
                 );
               })
