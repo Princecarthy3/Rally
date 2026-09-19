@@ -89,9 +89,10 @@ export function GameBoard({
     const botPlayers = players.filter((p) => isBotId(p.player_id));
     if (botPlayers.length === 0) return;
 
-    const s = state as Record<string, any>;
-    const timers: ReturnType<typeof setTimeout>[] = [];
+    const s = (room.public_state || {}) as Record<string, any>;
     const turn = Number(s.turn);
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const scheduledKeys: string[] = [];
 
     botPlayers.forEach((botPlayer) => {
       const botSeat = Number(botPlayer.seat);
@@ -108,7 +109,6 @@ export function GameBoard({
         if (pickerSeat === botSeat && !targetPicked) isBotTurn = true;
         if (pickerSeat !== botSeat && targetPicked && !hasGuessed) isBotTurn = true;
       } else if (room.game_type === "rps") {
-        // choices are keyed by seat as string in jsonb
         isBotTurn = !s.choices?.[String(botSeat)] && !s.choices?.[botSeat];
       } else if (room.game_type === "skribbl") {
         const drawerSeat = Number(s.drawerSeat);
@@ -118,21 +118,32 @@ export function GameBoard({
       } else if (room.game_type === "memory_match") {
         isBotTurn = turn === botSeat;
       } else if (room.game_type === "mini_golf") {
-        isBotTurn = turn === botSeat && Boolean(s.balls?.[String(botSeat)]) && !s.balls?.[String(botSeat)]?.finished;
+        isBotTurn =
+          turn === botSeat &&
+          Boolean(s.balls?.[String(botSeat)]) &&
+          !s.balls?.[String(botSeat)]?.finished;
       } else if (room.game_type === "battleship") {
         const placements = s.placements || {};
-        isBotTurn = s.phase === "placing"
-          ? !(placements[botSeat] || placements[String(botSeat)])
-          : turn === botSeat;
+        isBotTurn =
+          s.phase === "placing"
+            ? !(placements[botSeat] || placements[String(botSeat)])
+            : turn === botSeat;
       }
 
       if (!isBotTurn) return;
 
-      const requestKey = `${room.id}:${room.state_version}:${botSeat}`;
+      // Key by room + turn + seat (not state_version) so a cancelled timer can be rescheduled
+      // after applyPublicState/refresh re-renders without getting stuck.
+      const requestKey = `${room.id}:turn:${turn}:bot:${botSeat}`;
       if (pendingBotMoves.current.has(requestKey)) return;
-      pendingBotMoves.current.add(requestKey);
+
+      scheduledKeys.push(requestKey);
 
       const timer = setTimeout(() => {
+        // Mark in-flight only when the request actually starts
+        if (pendingBotMoves.current.has(requestKey)) return;
+        pendingBotMoves.current.add(requestKey);
+
         fetch("/api/ai/bot-move", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -145,32 +156,50 @@ export function GameBoard({
         })
           .then(async (response) => {
             const body = await response.json().catch(() => ({}));
-            if (!response.ok) {
-              throw body;
-            }
-            // Apply bot's returned state immediately so the board advances without waiting on Realtime.
+            if (!response.ok) throw body;
             if (body?.newState && typeof body.newState === "object" && applyPublicState) {
               const payload = body.newState as Record<string, unknown>;
-              const nextState = (payload.public_state && typeof payload.public_state === "object"
-                ? payload.public_state
-                : payload) as Room["public_state"];
+              const nextState = (
+                payload.public_state && typeof payload.public_state === "object"
+                  ? payload.public_state
+                  : payload
+              ) as Room["public_state"];
               applyPublicState(nextState);
             }
             await refresh();
           })
           .catch((reason) => console.error("Bot move failed", reason))
-          .finally(() => pendingBotMoves.current.delete(requestKey));
-      }, 900);
+          .finally(() => {
+            pendingBotMoves.current.delete(requestKey);
+          });
+      }, 700);
 
       timers.push(timer);
     });
 
     return () => {
       timers.forEach((t) => clearTimeout(t));
+      // Do not leave pending locks for timers that never started
+      scheduledKeys.forEach((key) => {
+        // Only clear if fetch has not started yet — in-flight keys stay until finally()
+        // Actually: if we cleared the timeout, fetch never started, so always safe to delete
+        // unless fetch already began (timeout fired). Once fired, key is in pending and
+        // timeout already ran — clearTimeout is a no-op. Safe to only delete keys whose
+        // timeout was still pending: we track that by not having started fetch.
+        // Simplest correct approach: never add to pending until fetch starts (done above),
+        // so cleanup only clears timeouts and never leaves a stuck lock.
+      });
     };
-  }, [room.status, room.id, room.game_type, room.public_state, room.state_version, players, state, refresh, applyPublicState]);
-
-
+  }, [
+    room.status,
+    room.id,
+    room.game_type,
+    room.public_state,
+    room.state_version,
+    players,
+    refresh,
+    applyPublicState,
+  ]);
 
   if (room.status === "completed") {
     return <Result room={room} players={players} me={me} winningSeats={winningSeats} />;
