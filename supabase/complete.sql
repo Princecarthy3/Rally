@@ -201,9 +201,8 @@ declare r public.game_rooms; me public.game_players; n int; next_seat int; state
 begin
  select * into r from public.game_rooms where id=p_room for update; if r.status<>'playing' then raise exception 'Game is not active'; end if;
  if p_actor_seat is not null then
-  select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-1111111111%';
- end if;
- if me.id is null then
+  select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-%';
+ else
   select * into me from public.game_players where room_id=p_room and player_id=auth.uid();
  end if;
  if me.id is null then raise exception 'Not a player'; end if; state:=r.public_state; select count(*) into n from public.game_players where room_id=p_room;
@@ -894,14 +893,71 @@ end $$;
 
 grant execute on function public.send_game_invite_to_room(uuid, uuid) to authenticated;
 
+-- 2. Ludo action handler
+create or replace function public.play_ludo_action(p_room uuid,p_action text,p_value text default null,p_actor_seat int default null) returns jsonb language plpgsql security definer set search_path='' as $$
+declare r public.game_rooms; me public.game_players; state jsonb; roll int; token int; old_pos int; new_pos int; next_seat int; positions jsonb; other record; i int; finished boolean;
+begin
+  select * into r from public.game_rooms where id=p_room for update;
+  if r.status<>'playing' or r.game_type<>'ludo' then raise exception 'Ludo is not active'; end if;
+  if p_actor_seat is not null then
+    select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-%';
+  else
+    select * into me from public.game_players where room_id=p_room and player_id=auth.uid();
+  end if;
+  if me.id is null then raise exception 'Not a player'; end if;
+  state:=r.public_state;
+  if coalesce((state->>'turn')::int,1)<>me.seat then raise exception 'Wait for your turn'; end if;
+  positions:=state->'ludoPositions';
+  if p_action='roll' then
+    if coalesce((state->>'awaitingMove')::boolean,false) then raise exception 'Move a token first'; end if;
+    roll:=1+floor(random()*6)::int;
+    state:=jsonb_set(state,'{lastRoll}',to_jsonb(roll),true);
+    state:=jsonb_set(state,'{awaitingMove}','true'::jsonb,true);
+    state:=jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' rolled a '||roll||'.')::text),true);
+  elsif p_action='move' then
+    if not coalesce((state->>'awaitingMove')::boolean,false) then raise exception 'Roll first'; end if;
+    roll:=coalesce((state->>'lastRoll')::int,0); token:=p_value::int;
+    if token=-1 then
+      if exists(select 1 from jsonb_array_elements_text(positions->me.seat::text) with ordinality t(position,ord) where (roll=6 and t.position::int<57) or (roll<>6 and t.position::int>=0 and t.position::int+roll<=57)) then raise exception 'A token can move'; end if;
+    else
+      if token<0 or token>3 then raise exception 'Invalid token'; end if;
+      old_pos:=coalesce((positions->me.seat::text->>token)::int,-1);
+      if (roll=6 and old_pos>=57) or (roll<>6 and (old_pos<0 or old_pos+roll>57)) then raise exception 'That token cannot move'; end if;
+      new_pos:=case when old_pos=-1 then 0 else old_pos+roll end;
+      positions:=jsonb_set(positions,array[me.seat::text,token::text],to_jsonb(new_pos),true);
+      if new_pos<52 and new_pos not in (0,8,13,21,26,34,39,47) then
+        for other in select seat from public.game_players where room_id=p_room and seat<>me.seat loop
+          for i in 0..3 loop
+            if coalesce((positions->other.seat::text->>i)::int,-1)<52 and coalesce((positions->other.seat::text->>i)::int,-1)>=0 and ((case other.seat when 1 then 0 when 2 then 13 when 3 then 26 else 39 end + coalesce((positions->other.seat::text->>i)::int,-1)) % 52) = ((case me.seat when 1 then 0 when 2 then 13 when 3 then 26 else 39 end + new_pos) % 52) then positions:=jsonb_set(positions,array[other.seat::text,i::text],to_jsonb(-1),true); end if;
+          end loop;
+        end loop;
+      end if;
+    end if;
+    finished:=not exists(select 1 from jsonb_array_elements_text(positions->me.seat::text) t where t::int<57);
+    state:=jsonb_set(state,'{ludoPositions}',positions,true);
+    state:=jsonb_set(state,'{awaitingMove}','false'::jsonb,true);
+    state:=jsonb_set(state,'{lastRoll}','null'::jsonb,true);
+    if finished then state:=jsonb_set(state,'{winnerSeat}',to_jsonb(me.seat),true); r.status:='completed'; state:=jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' wins Ludo!')::text),true);
+    elsif roll=6 and token<>-1 then state:=jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' rolled 6 — roll again!')::text),true);
+    else select seat into next_seat from public.game_players where room_id=p_room and seat>me.seat order by seat limit 1; if next_seat is null then select min(seat) into next_seat from public.game_players where room_id=p_room; end if; state:=jsonb_set(state,'{turn}',to_jsonb(next_seat),true); state:=jsonb_set(state,'{message}',to_jsonb(('Player '||next_seat||', roll the dice!')::text),true); end if;
+  else raise exception 'Invalid Ludo action'; end if;
+  update public.game_rooms set public_state=state,status=r.status,state_version=state_version+1,updated_at=now() where id=p_room;
+  if r.status='completed' then perform public.finalize_room(p_room,state,r.game_type); end if;
+  return state;
+end $$;
+
+-- 3. RPS action handler
 create or replace function public.play_rps_action(p_room uuid, p_action text, p_value text default null, p_actor_seat int default null) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare r public.game_rooms; me public.game_players; state jsonb; n int; current_round int; count_choices int; one_choice text; two_choice text; round_winner int; score_one int; score_two int; winner int;
 begin
   select * into r from public.game_rooms where id=p_room for update;
   if r.status <> 'playing' or r.game_type <> 'rps' then raise exception 'RPS is not active'; end if;
-  if p_actor_seat is not null then select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-1111111111%'; end if;
-  if me.id is null then select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); end if;
+  if p_actor_seat is not null then
+    select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-%';
+  else
+    select * into me from public.game_players where room_id=p_room and player_id=auth.uid();
+  end if;
   if me.id is null then raise exception 'Not a player'; end if;
   select count(*) into n from public.game_players where room_id=p_room;
   state:=coalesce(r.public_state, jsonb_build_object('round',1,'scores','{}'::jsonb,'choices','{}'::jsonb,'revealed',false));
@@ -918,7 +974,6 @@ begin
     if p_value not in ('rock','paper','scissors') then raise exception 'Invalid choice'; end if;
     if coalesce((state->>'revealed')::boolean,false) then raise exception 'Start the next round first'; end if;
     insert into private.rps_choices(room_id,round,player_id,choice) values(p_room,current_round,me.player_id,p_value) on conflict do nothing;
-    if not found then raise exception 'Choice already locked'; end if;
     state:=jsonb_set(state,array['choices',me.seat::text],to_jsonb(p_value),true);
     select count(*) into count_choices from private.rps_choices where room_id=p_room and round=current_round;
     if count_choices=n then
@@ -948,14 +1003,18 @@ begin
   return state;
 end $$;
 
+-- 4. Number Hunt action handler
 create or replace function public.play_number_hunt_action(p_room uuid, p_value text, p_actor_seat int default null) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare r public.game_rooms; me public.game_players; state jsonb; n int; current_round int; guess int; target int; guesses jsonb; guessed_count int; score int; top_score int; count_tied int; winner int;
 begin
   select * into r from public.game_rooms where id=p_room for update;
   if r.status <> 'playing' or r.game_type <> 'number_guess' then raise exception 'Number Hunt is not active'; end if;
-  if p_actor_seat is not null then select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-1111111111%'; end if;
-  if me.id is null then select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); end if;
+  if p_actor_seat is not null then
+    select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-%';
+  else
+    select * into me from public.game_players where room_id=p_room and player_id=auth.uid();
+  end if;
   if me.id is null then raise exception 'Not a player'; end if;
   guess:=p_value::int; if guess not between 1 and 25 then raise exception 'Choose a tile from 1 to 25'; end if;
   select count(*) into n from public.game_players where room_id=p_room;
@@ -990,14 +1049,18 @@ begin
   if r.status='completed' then perform public.finalize_room(p_room,state,r.game_type); end if; return state;
 end $$;
 
+-- 5. Skribbl action handler
 create or replace function public.play_skribbl_action(p_room uuid, p_action text, p_value text default null, p_actor_seat int default null) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare r public.game_rooms; me public.game_players; state jsonb; n int; current_round int; started_at bigint; seconds_left int; tries_left int; guessed jsonb; resolved int; next_seat int; score int; top_score int; count_tied int; winner int;
 begin
   select * into r from public.game_rooms where id=p_room for update;
   if r.status <> 'playing' or r.game_type <> 'skribbl' then raise exception 'Skribbl is not active'; end if;
-  if p_actor_seat is not null then select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-1111111111%'; end if;
-  if me.id is null then select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); end if;
+  if p_actor_seat is not null then
+    select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-%';
+  else
+    select * into me from public.game_players where room_id=p_room and player_id=auth.uid();
+  end if;
   if me.id is null then raise exception 'Not a player'; end if;
   select count(*) into n from public.game_players where room_id=p_room;
   state:=coalesce(r.public_state,jsonb_build_object('drawerSeat',1,'round',1,'scores','{}'::jsonb,'usedWords','[]'::jsonb,'guessFeed','[]'::jsonb));
@@ -1029,42 +1092,59 @@ begin
       if lower(trim(p_value))=lower(trim(state->>'wordSelected')) then
         score:=coalesce((state->'scores'->>me.seat::text)::int,0)+20+seconds_left;
         state:=jsonb_set(state,array['scores',me.seat::text],to_jsonb(score),true);
-        score:=coalesce((state->'scores'->>(state->>'drawerSeat'))::int,0)+15;
-        state:=jsonb_set(state,array['scores',state->>'drawerSeat'],to_jsonb(score),true);
-        guessed:=guessed||jsonb_build_array(me.seat); state:=jsonb_set(state,'{guessedSeats}',guessed,true);
-        state:=jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' guessed it! +'||(20+seconds_left)||' points.')::text),true);
-      elsif tries_left<=0 then guessed:=guessed||jsonb_build_array(me.seat); state:=jsonb_set(state,'{guessedSeats}',guessed,true); end if;
+        guessed:=guessed||to_jsonb(me.seat);
+        state:=jsonb_set(state,'{guessedSeats}',guessed,true);
+        state:=jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' guessed the word! +'||(20+seconds_left))::text),true);
+      elsif tries_left<=0 then
+        guessed:=guessed||to_jsonb(me.seat);
+        state:=jsonb_set(state,'{guessedSeats}',guessed,true);
+        state:=jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' used all 3 guesses.')::text),true);
+      end if;
     end if;
-    select count(*) into resolved from jsonb_array_elements_text(coalesce(state->'guessedSeats','[]'::jsonb));
-    if seconds_left=0 or resolved >= n-1 then
+    select count(*) into resolved from jsonb_array_elements(guessed);
+    if resolved>=n-1 or p_action='time_expired' then
       select min(seat) into next_seat from public.game_players where room_id=p_room and seat>coalesce((state->>'drawerSeat')::int,1);
       if next_seat is null then select min(seat) into next_seat from public.game_players where room_id=p_room; end if;
-      if current_round >= n*2 then
+      if current_round>=n*2 then
         select max(coalesce((state->'scores'->>seat::text)::int,0)) into top_score from public.game_players where room_id=p_room;
         select count(*) into count_tied from public.game_players where room_id=p_room and coalesce((state->'scores'->>seat::text)::int,0)=top_score;
         if count_tied=1 then
           select min(seat) into winner from public.game_players where room_id=p_room and coalesce((state->'scores'->>seat::text)::int,0)=top_score;
-          r.status:='completed'; state:=jsonb_set(state,'{winnerSeat}',to_jsonb(winner),true); state:=jsonb_set(state,'{message}',to_jsonb(('Skribbl match complete! Player '||winner||' wins!')::text),true);
+          r.status:='completed'; state:=jsonb_set(state,'{winnerSeat}',to_jsonb(winner),true);
+          state:=jsonb_set(state,'{message}',to_jsonb(('Skribbl complete! Player '||winner||' wins!')::text),true);
         else
-          state:=jsonb_set(state,'{round}',to_jsonb(current_round+1),true); state:=jsonb_set(state,'{drawerSeat}',to_jsonb(next_seat),true); state:=jsonb_set(state,'{wordSelected}','null'::jsonb,true); state:=jsonb_set(state,'{roundStartedAt}','null'::jsonb,true); state:=jsonb_set(state,'{message}',to_jsonb(('Tiebreaker Round '||(current_round+1)||': Next drawer: Player '||next_seat||'.')::text),true);
+          state:=jsonb_set(state,'{round}',to_jsonb(current_round+1),true);
+          state:=jsonb_set(state,'{drawerSeat}',to_jsonb(next_seat),true);
+          state:=jsonb_set(state,'{wordSelected}','null'::jsonb,true);
+          state:=jsonb_set(state,'{guessedSeats}','[]'::jsonb,true);
+          state:=jsonb_set(state,'{message}',to_jsonb(('Tiebreaker Round '||(current_round+1)||'! Player '||next_seat||' draws next!')::text),true);
         end if;
       else
-        state:=jsonb_set(state,'{round}',to_jsonb(current_round+1),true); state:=jsonb_set(state,'{drawerSeat}',to_jsonb(next_seat),true); state:=jsonb_set(state,'{wordSelected}','null'::jsonb,true); state:=jsonb_set(state,'{roundStartedAt}','null'::jsonb,true); state:=jsonb_set(state,'{message}',to_jsonb(('Next drawer: Player '||next_seat||'.')::text),true);
+        state:=jsonb_set(state,'{round}',to_jsonb(current_round+1),true);
+        state:=jsonb_set(state,'{drawerSeat}',to_jsonb(next_seat),true);
+        state:=jsonb_set(state,'{wordSelected}','null'::jsonb,true);
+        state:=jsonb_set(state,'{guessedSeats}','[]'::jsonb,true);
+        state:=jsonb_set(state,'{message}',to_jsonb(('Round '||(current_round+1)||': Player '||next_seat||' is picking a word.')::text),true);
       end if;
     end if;
   else raise exception 'Invalid Skribbl action'; end if;
   update public.game_rooms set public_state=state,status=r.status,state_version=state_version+1,updated_at=now() where id=p_room;
-  if r.status='completed' then perform public.finalize_room(p_room,state,r.game_type); end if; return state;
+  if r.status='completed' then perform public.finalize_room(p_room,state,r.game_type); end if;
+  return state;
 end $$;
 
+-- 6. Mini Golf action handler
 create or replace function public.play_mini_golf_action(p_room uuid,p_action text,p_value text default null,p_actor_seat int default null) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare r public.game_rooms; me public.game_players; state jsonb; balls jsonb; scores jsonb; shot jsonb; ball jsonb; hole int; angle numeric; shot_power numeric; x numeric; y numeric; next_x numeric; next_y numeric; cup_x numeric; cup_y numeric; start_x numeric; start_y numeric; strokes int; next_seat int; active_count int; winner int; lowest int; count_tied int; water boolean:=false; par int;
 begin
   select * into r from public.game_rooms where id=p_room for update;
   if r.status<>'playing' or r.game_type<>'mini_golf' then raise exception 'Mini Golf is not active'; end if;
-  if p_actor_seat is not null then select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-1111111111%'; end if;
-  if me.id is null then select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); end if;
+  if p_actor_seat is not null then
+    select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-%';
+  else
+    select * into me from public.game_players where room_id=p_room and player_id=auth.uid();
+  end if;
   if me.id is null then raise exception 'Not a player'; end if;
   state:=r.public_state; if p_action<>'shoot' then raise exception 'Invalid Mini Golf action'; end if;
   if coalesce((state->>'turn')::int,1)<>me.seat then raise exception 'Wait for your turn'; end if;
@@ -1088,130 +1168,119 @@ begin
         select min(seat) into winner from public.game_players where room_id=p_room and coalesce((scores->>seat::text)::int,0)=lowest;
         r.status:='completed'; state:=jsonb_set(state,'{winnerSeat}',to_jsonb(winner),true); state:=jsonb_set(state,'{message}',to_jsonb(('Mini Golf complete! Player '||winner||' wins!')::text),true);
       else
-        hole:=hole+1; par:=4; start_x:=12; start_y:=82; cup_x:=88; cup_y:=18;
-        state:=jsonb_set(state,'{hole}',to_jsonb(hole),true); state:=jsonb_set(state,'{par}',to_jsonb(par),true); state:=jsonb_set(state,'{turn}',to_jsonb(1),true); state:=jsonb_set(state,'{start}',jsonb_build_object('x',start_x,'y',start_y),true); state:=jsonb_set(state,'{cup}',jsonb_build_object('x',cup_x,'y',cup_y),true); state:=jsonb_set(state,'{balls}',(select jsonb_object_agg(seat::text,jsonb_build_object('x',start_x,'y',start_y,'strokes',0,'finished',false)) from public.game_players where room_id=p_room),true); state:=jsonb_set(state,'{message}',to_jsonb(('Playoff Hole '||hole||': Sudden death tiebreaker!')::text),true);
+        hole:=hole+1; start_x:=12; start_y:=82; cup_x:=84; cup_y:=18; par:=3;
+        state:=jsonb_set(state,'{hole}',to_jsonb(hole),true); state:=jsonb_set(state,'{par}',to_jsonb(par),true);
+        state:=jsonb_set(state,'{start}',jsonb_build_object('x',start_x,'y',start_y),true); state:=jsonb_set(state,'{cup}',jsonb_build_object('x',cup_x,'y',cup_y),true);
+        balls:='{}'::jsonb; for item in select seat from public.game_players where room_id=p_room loop balls:=jsonb_set(balls,array[item.seat::text],jsonb_build_object('x',start_x,'y',start_y,'strokes',0,'finished',false),true); end loop;
+        state:=jsonb_set(state,'{balls}',balls,true); state:=jsonb_set(state,'{turn}',to_jsonb(1),true); state:=jsonb_set(state,'{message}',to_jsonb(('Sudden Death Hole '||hole||'! Tied for 1st place! Player 1 tees off!')::text),true);
       end if;
     else
-      hole:=hole+1; par:=case when hole in (3,6,9) then 4 else 3 end; start_x:=case when hole%2=0 then 12 else 88 end; start_y:=case when hole%3=0 then 18 else 82 end; cup_x:=100-start_x; cup_y:=100-start_y;
-      state:=jsonb_set(state,'{hole}',to_jsonb(hole),true); state:=jsonb_set(state,'{par}',to_jsonb(par),true); state:=jsonb_set(state,'{turn}',to_jsonb(1),true); state:=jsonb_set(state,'{start}',jsonb_build_object('x',start_x,'y',start_y),true); state:=jsonb_set(state,'{cup}',jsonb_build_object('x',cup_x,'y',cup_y),true); state:=jsonb_set(state,'{balls}',(select jsonb_object_agg(seat::text,jsonb_build_object('x',start_x,'y',start_y,'strokes',0,'finished',false)) from public.game_players where room_id=p_room),true); state:=jsonb_set(state,'{message}',to_jsonb(('Hole '||hole||': Player 1 tees off!')::text),true);
+      hole:=hole+1;
+      start_x:=case hole when 2 then 14 when 3 then 12 when 4 then 15 when 5 then 10 when 6 then 14 when 7 then 12 when 8 then 15 else 12 end;
+      start_y:=case hole when 2 then 84 when 3 then 80 when 4 then 82 when 5 then 86 when 6 then 84 when 7 then 82 when 8 then 86 else 82 end;
+      cup_x:=case hole when 2 then 82 when 3 then 86 when 4 then 84 when 5 then 88 when 6 then 82 when 7 then 85 when 8 then 86 else 84 end;
+      cup_y:=case hole when 2 then 20 when 3 then 16 when 4 then 18 when 5 then 14 when 6 then 20 when 7 then 18 when 8 then 16 else 18 end;
+      par:=case hole when 2 then 4 when 3 then 3 when 4 then 4 when 5 then 5 when 6 then 3 when 7 then 4 when 8 then 5 else 3 end;
+      state:=jsonb_set(state,'{hole}',to_jsonb(hole),true); state:=jsonb_set(state,'{par}',to_jsonb(par),true);
+      state:=jsonb_set(state,'{start}',jsonb_build_object('x',start_x,'y',start_y),true); state:=jsonb_set(state,'{cup}',jsonb_build_object('x',cup_x,'y',cup_y),true);
+      balls:='{}'::jsonb; for item in select seat from public.game_players where room_id=p_room loop balls:=jsonb_set(balls,array[item.seat::text],jsonb_build_object('x',start_x,'y',start_y,'strokes',0,'finished',false),true); end loop;
+      state:=jsonb_set(state,'{balls}',balls,true); state:=jsonb_set(state,'{turn}',to_jsonb(1),true); state:=jsonb_set(state,'{message}',to_jsonb(('Hole '||hole||' of 9! Player 1 tees off.')::text),true);
     end if;
   else
     select min(seat) into next_seat from public.game_players where room_id=p_room and seat>me.seat and not coalesce((balls->seat::text->>'finished')::boolean,false);
     if next_seat is null then select min(seat) into next_seat from public.game_players where room_id=p_room and not coalesce((balls->seat::text->>'finished')::boolean,false); end if;
-    state:=jsonb_set(state,'{turn}',to_jsonb(next_seat),true); state:=jsonb_set(state,'{message}',to_jsonb(case when water then ('Player '||me.seat||' found water — back to the tee!') when coalesce((ball->>'finished')::boolean,false) then ('Player '||me.seat||' finished the hole!') else ('Player '||next_seat||' is up!') end),true);
+    state:=jsonb_set(state,'{turn}',to_jsonb(next_seat),true); state:=jsonb_set(state,'{message}',to_jsonb(('Player '||next_seat||'’s turn to shoot.')::text),true);
   end if;
   update public.game_rooms set public_state=state,status=r.status,state_version=state_version+1,updated_at=now() where id=p_room;
   if r.status='completed' then perform public.finalize_room(p_room,state,r.game_type); end if;
   return state;
 end $$;
 
-create or replace function public.play_trivia_action(
-  p_room uuid,
-  p_action text,
-  p_value text default null,
-  p_actor_seat int default null
-) returns jsonb
-language plpgsql security definer set search_path='' as $$
-declare
-  r public.game_rooms; me public.game_players; state jsonb; answers jsonb; question jsonb; correct int; selected int; current_round int; player_count int; answer_count int; score int; winner int; top_score int; count_tied int; answer_row record;
+-- 7. Battleship action handler
+create or replace function public.play_battleship_action(p_room uuid,p_action text,p_value text default null,p_actor_seat int default null) returns jsonb language plpgsql security definer set search_path='' as $$
+declare r public.game_rooms; me public.game_players; target public.game_players; board private.battleship_boards; target_board private.battleship_boards; state jsonb; v_ships jsonb; placements jsonb; shots jsonb; mine jsonb; stats jsonb; cells jsonb; new_hits jsonb; ship_id text; orient text; sunk text; row_no int; col_no int; size int; i int; cell int; hit boolean; remaining int; all_ready boolean;
 begin
-  select * into r from public.game_rooms where id=p_room for update;
-  if r.status <> 'playing' or r.game_type <> 'trivia_clash' then raise exception 'Trivia Clash is not active'; end if;
-
-  if p_actor_seat is not null then
-    select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-1111111111%';
+ select * into r from public.game_rooms where id=p_room for update;
+ if r.id is null or r.status<>'playing' or r.game_type<>'battleship' then raise exception 'Battleship is not active'; end if;
+ if p_actor_seat is not null then
+  select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-%';
+ else
+  select * into me from public.game_players where room_id=p_room and player_id=auth.uid();
+ end if;
+ if me.id is null then raise exception 'Not a player'; end if;
+ state:=r.public_state; placements:=coalesce(state->'placements','{}'::jsonb);
+ if state->>'phase'='placing' then
+  if p_action='randomize_fleet' then
+   v_ships:='{}'::jsonb;
+   foreach ship_id in array array['carrier','battleship','cruiser','submarine','destroyer'] loop
+    size:=case ship_id when 'carrier' then 5 when 'battleship' then 4 when 'cruiser' then 3 when 'submarine' then 3 else 2 end;
+    loop
+     orient:=case when random()>.5 then 'H' else 'V' end;
+     row_no:=case when orient='H' then floor(random()*8)::int else floor(random()*(8-size+1))::int end;
+     col_no:=case when orient='H' then floor(random()*(8-size+1))::int else floor(random()*8)::int end;
+     cells:='[]'::jsonb; i:=0; while i<size loop cells:=cells||to_jsonb(case when orient='H' then row_no*8+col_no+i else (row_no+i)*8+col_no end); i:=i+1; end loop;
+     if not exists(select 1 from jsonb_each(v_ships) s, jsonb_array_elements_text(s.value->'cells') c1, jsonb_array_elements_text(cells) c2 where c1=c2) then
+      v_ships:=jsonb_set(v_ships,array[ship_id],jsonb_build_object('id',ship_id,'row',row_no,'col',col_no,'orientation',orient,'cells',cells),true); exit;
+     end if;
+    end loop;
+   end loop;
+   insert into private.battleship_boards(room_id,player_id,ships) values(p_room,me.player_id,v_ships) on conflict(room_id,player_id) do update set ships=excluded.ships;
+   placements:=jsonb_set(placements,array[me.seat::text],'true'::jsonb,true); state:=jsonb_set(state,'{placements}',placements,true);
+   select not exists(select 1 from public.game_players p where p.room_id=p_room and not coalesce((placements->p.seat::text)::boolean,false)) into all_ready;
+   if all_ready then state:=jsonb_set(state,'{phase}','battle'::jsonb,true); state:=jsonb_set(state,'{message}','Both fleets deployed! Player 1 fires first.'::jsonb,true); else state:=jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' deployed fleet. Waiting for opponent...')::text),true); end if;
   end if;
-  if me.id is null then select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); end if;
-  if me.id is null then raise exception 'Not a player'; end if;
-
-  select count(*) into player_count from public.game_players where room_id=p_room;
-  state := coalesce(r.public_state, '{}'::jsonb);
-  current_round := coalesce((state->>'round')::int, 1);
-
-  if p_action = 'load_question' then
-    if state ? 'question' then return state; end if;
-    if p_value is null then raise exception 'AI question payload is required'; end if;
-    question := p_value::jsonb;
-    if jsonb_typeof(question->'question') <> 'string'
-      or jsonb_typeof(question->'options') <> 'array'
-      or jsonb_array_length(question->'options') <> 4
-      or jsonb_typeof(question->'answer') <> 'number'
-      or (question->>'answer')::int not between 0 and 3 then
-      raise exception 'Invalid AI question payload';
+ elsif state->>'phase'='battle' then
+  if (state->>'turn')::int<>me.seat or p_action<>'fire' then raise exception 'Wait for your turn'; end if;
+  row_no:=split_part(p_value,',',1)::int; col_no:=split_part(p_value,',',2)::int; cell:=row_no*8+col_no;
+  select * into target from public.game_players where room_id=p_room and seat<>me.seat limit 1;
+  select * into target_board from private.battleship_boards where room_id=p_room and player_id=target.player_id;
+  shots:=coalesce(state->'shots','{}'::jsonb); mine:=coalesce(shots->me.seat::text,'[]'::jsonb);
+  if exists(select 1 from jsonb_array_elements(mine) s where (s->>'row')::int=row_no and (s->>'col')::int=col_no) then raise exception 'Coordinates already targeted'; end if;
+  hit:=exists(select 1 from jsonb_each(target_board.ships) s, jsonb_array_elements_text(s.value->'cells') c where c::int=cell);
+  mine:=mine||jsonb_build_array(jsonb_build_object('row',row_no,'col',col_no,'hit',hit));
+  shots:=jsonb_set(shots,array[me.seat::text],mine,true); state:=jsonb_set(state,'{shots}',shots,true);
+  stats:=coalesce(state->'stats','{}'::jsonb);
+  stats:=jsonb_set(stats,array[me.seat::text,case when hit then 'hits' else 'misses' end],to_jsonb(coalesce((stats->me.seat::text->>(case when hit then 'hits' else 'misses' end))::int,0)+1),true);
+  sunk:=null;
+  for ship_id in select key from jsonb_each(target_board.ships) loop
+   if not exists(select 1 from jsonb_array_elements_text(target_board.ships->ship_id->'cells') c where not exists(select 1 from jsonb_array_elements(mine) m where (m->>'hit')::boolean and (m->>'row')::int*8+(m->>'col')::int=c::int)) then
+    new_hits:=coalesce(state->'sunkShips'->me.seat::text,'[]'::jsonb);
+    if not new_hits ? ship_id then
+     state:=jsonb_set(state,array['sunkShips',me.seat::text],new_hits||to_jsonb(ship_id),true);
+     stats:=jsonb_set(stats,array[me.seat::text,'sunk'],to_jsonb(coalesce((stats->me.seat::text->>'sunk')::int,0)+1),true);
+     sunk:=ship_id;
     end if;
-    correct := (question->>'answer')::int;
-    insert into private.trivia_answers(room_id,round,answer) values(p_room,current_round,correct)
-      on conflict(room_id,round) do nothing;
-    state := jsonb_set(state,'{question}',question->'question',true);
-    state := jsonb_set(state,'{options}',question->'options',true);
-    state := jsonb_set(state,'{answers}','{}'::jsonb,true);
-    state := jsonb_set(state,'{revealed}','false'::jsonb,true);
-    state := jsonb_set(state,'{message}',to_jsonb(('Question '||current_round||' is live!')::text),true);
-  elsif p_action = 'answer' then
-    if not state ? 'question' then raise exception 'Question is not ready'; end if;
-    if coalesce((state->>'revealed')::boolean,false) then raise exception 'This question is already complete'; end if;
-    selected := p_value::int;
-    if selected not between 0 and 3 then raise exception 'Invalid answer'; end if;
-    answers := case when jsonb_typeof(state->'answers')='object' then state->'answers' else '{}'::jsonb end;
-    if answers ? me.seat::text then raise exception 'Answer already locked'; end if;
-    answers := jsonb_set(answers,array[me.seat::text],to_jsonb(selected),true);
-    state := jsonb_set(state,'{answers}',answers,true);
-    select count(*) into answer_count from jsonb_object_keys(answers);
-    if answer_count = player_count then
-      select answer into correct from private.trivia_answers where room_id=p_room and round=current_round;
-      for answer_row in select key, value from jsonb_each_text(answers) loop
-        if answer_row.value::int = correct then
-          score := coalesce((state->'scores'->>answer_row.key)::int,0) + 100;
-          state := jsonb_set(state,array['scores',answer_row.key],to_jsonb(score),true);
-        end if;
-      end loop;
-      state := jsonb_set(state,'{correctAnswer}',to_jsonb(correct),true);
-      state := jsonb_set(state,'{revealed}','true'::jsonb,true);
-      if current_round >= 5 then
-        select max(coalesce((state->'scores'->>seat::text)::int,0)) into top_score from public.game_players where room_id=p_room;
-        select count(*) into count_tied from public.game_players where room_id=p_room and coalesce((state->'scores'->>seat::text)::int,0)=top_score;
-        if count_tied = 1 then
-          select min(seat) into winner from public.game_players where room_id=p_room and coalesce((state->'scores'->>seat::text)::int,0)=top_score;
-          r.status := 'completed';
-          state := jsonb_set(state,'{winnerSeat}',to_jsonb(winner),true);
-          state := jsonb_set(state,'{message}',to_jsonb(('Trivia Clash complete! Player '||winner||' wins!')::text),true);
-        else
-          state := jsonb_set(state,'{message}',to_jsonb(('Scores tied! Sudden death tiebreaker question '||(current_round+1)||'!')::text),true);
-        end if;
-      else
-        state := jsonb_set(state,'{message}',to_jsonb(('Correct answer revealed! +100 points for each correct player.')::text),true);
-      end if;
-    else
-      state := jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' locked an answer.')::text),true);
-    end if;
-  elsif p_action = 'next_question' then
-    if not coalesce((state->>'revealed')::boolean,false) then raise exception 'Finish this question first'; end if;
-    select max(coalesce((state->'scores'->>seat::text)::int,0)) into top_score from public.game_players where room_id=p_room;
-    select count(*) into count_tied from public.game_players where room_id=p_room and coalesce((state->'scores'->>seat::text)::int,0)=top_score;
-    if current_round >= 5 and count_tied = 1 then raise exception 'Trivia Clash is complete'; end if;
-    current_round := current_round + 1;
-    state := state - 'question' - 'options' - 'correctAnswer';
-    state := jsonb_set(state,'{round}',to_jsonb(current_round),true);
-    state := jsonb_set(state,'{answers}','{}'::jsonb,true);
-    state := jsonb_set(state,'{revealed}','false'::jsonb,true);
-    state := jsonb_set(state,'{message}',to_jsonb(('Question '||current_round||' is ready to load.')::text),true);
+   end if;
+  end loop;
+  state:=jsonb_set(state,'{stats}',stats,true);
+  remaining:=0;
+  for ship_id in select key from jsonb_each(target_board.ships) loop
+   if exists(select 1 from jsonb_array_elements_text(target_board.ships->ship_id->'cells') c where not exists(select 1 from jsonb_array_elements(mine) m where (m->>'hit')::boolean and (m->>'row')::int*8+(m->>'col')::int=c::int)) then remaining:=remaining+1; end if;
+  end loop;
+  if remaining=0 then
+   r.status:='completed'; state:=jsonb_set(state,'{winnerSeat}',to_jsonb(me.seat),true); state:=jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' sank the entire enemy fleet! Victory!')::text),true);
   else
-    raise exception 'Invalid Trivia Clash action';
+   state:=jsonb_set(state,'{turn}',to_jsonb(target.seat),true);
+   state:=jsonb_set(state,'{message}',to_jsonb(case when sunk is not null then ('Player '||me.seat||' SUNK enemy '||upper(sunk)||'! Player '||target.seat||'’s turn.')::text when hit then ('Player '||me.seat||' scored a HIT! Player '||target.seat||'’s turn.')::text else ('Player '||me.seat||' missed. Player '||target.seat||'’s turn.')::text end),true);
   end if;
-
-  update public.game_rooms set public_state=state,status=r.status,state_version=state_version+1,updated_at=now() where id=p_room;
-  if r.status='completed' then perform public.finalize_room(p_room,state,r.game_type); end if;
-  return state;
+ end if;
+ update public.game_rooms set public_state=state,status=r.status,state_version=state_version+1,updated_at=now() where id=p_room;
+ if r.status='completed' then perform public.finalize_room(p_room,state,r.game_type); end if;
+ return state;
 end $$;
 
+-- 8. Memory Match action handler
 create or replace function public.play_memory_match_action(p_room uuid,p_action text,p_value text default null,p_actor_seat int default null) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare r public.game_rooms; me public.game_players; state jsonb; deck jsonb; cards jsonb; flipped jsonb; matched jsonb; idx int; next_seat int; score int; winner int; top_score int; count_tied int; total_cards int;
 begin
   select * into r from public.game_rooms where id=p_room for update;
   if r.status<>'playing' or r.game_type<>'memory_match' then raise exception 'Memory Match is not active'; end if;
-  if p_actor_seat is not null then select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-1111111111%'; end if;
-  if me.id is null then select * into me from public.game_players where room_id=p_room and player_id=auth.uid(); end if;
+  if p_actor_seat is not null then
+    select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-%';
+  else
+    select * into me from public.game_players where room_id=p_room and player_id=auth.uid();
+  end if;
   if me.id is null then raise exception 'Not a player'; end if;
   state:=r.public_state; if (state->>'turn')::int<>me.seat then raise exception 'Wait for your turn'; end if;
   deck:=(select d.cards from private.memory_match_decks d where d.room_id=p_room); if deck is null then raise exception 'Memory deck is missing'; end if;
@@ -1252,6 +1321,102 @@ begin
     end if;
     state:=jsonb_set(state,'{flipped}','[]'::jsonb,true); state:=jsonb_set(state,'{revealed}','false'::jsonb,true);
   else raise exception 'Invalid Memory Match action'; end if;
+  update public.game_rooms set public_state=state,status=r.status,state_version=state_version+1,updated_at=now() where id=p_room;
+  if r.status='completed' then perform public.finalize_room(p_room,state,r.game_type); end if;
+  return state;
+end $$;
+
+-- 9. Trivia Clash action handler
+create or replace function public.play_trivia_clash_action(
+  p_room uuid,
+  p_action text,
+  p_value text default null,
+  p_actor_seat int default null
+) returns jsonb
+language plpgsql security definer set search_path='' as $$
+declare
+  r public.game_rooms; me public.game_players; state jsonb; answers jsonb; question jsonb; correct int; selected int; current_round int; player_count int; answer_count int; score int; winner int; top_score int; count_tied int; answer_row record;
+begin
+  select * into r from public.game_rooms where id=p_room for update;
+  if r.status <> 'playing' or r.game_type <> 'trivia_clash' then raise exception 'Trivia Clash is not active'; end if;
+
+  if p_actor_seat is not null then
+    select * into me from public.game_players where room_id=p_room and seat=p_actor_seat and player_id::text like '11111111-1111-1111-1111-%';
+  else
+    select * into me from public.game_players where room_id=p_room and player_id=auth.uid();
+  end if;
+  if me.id is null then raise exception 'Not a player'; end if;
+
+  select count(*) into player_count from public.game_players where room_id=p_room;
+  state := coalesce(r.public_state,'{}'::jsonb);
+  current_round := coalesce((state->>'round')::int,1);
+  answers := coalesce(state->'answers','{}'::jsonb);
+
+  if p_action = 'set_question' then
+    if r.host_id <> auth.uid() then raise exception 'Only host can set question'; end if;
+    question := p_value::jsonb;
+    state := jsonb_set(state,'{question}',question->'question',true);
+    state := jsonb_set(state,'{options}',question->'options',true);
+    state := jsonb_set(state,'{correctAnswer}',question->'correctAnswer',true);
+    state := jsonb_set(state,'{answers}','{}'::jsonb,true);
+    state := jsonb_set(state,'{revealed}','false'::jsonb,true);
+    state := jsonb_set(state,'{message}',to_jsonb(('Question '||current_round||' is live! Lock in your answer.')::text),true);
+  elsif p_action = 'answer' then
+    if not (state ? 'question') then raise exception 'Waiting for next question'; end if;
+    if coalesce((state->>'revealed')::boolean,false) then raise exception 'Question already revealed'; end if;
+    if answers ? me.seat::text then raise exception 'Already answered'; end if;
+
+    selected := p_value::int;
+    if selected not between 0 and 3 then raise exception 'Invalid option'; end if;
+
+    answers := jsonb_set(answers, array[me.seat::text], to_jsonb(selected), true);
+    state := jsonb_set(state, '{answers}', answers, true);
+
+    select count(*) into answer_count from jsonb_object_keys(answers);
+    if answer_count >= player_count then
+      state := jsonb_set(state, '{revealed}', 'true'::jsonb, true);
+      correct := (state->>'correctAnswer')::int;
+
+      for answer_row in select key as seat_str, value::int as chosen from jsonb_each_text(answers) loop
+        if answer_row.chosen = correct then
+          score := coalesce((state->'scores'->>answer_row.seat_str)::int,0) + 100;
+          state := jsonb_set(state, array['scores', answer_row.seat_str], to_jsonb(score), true);
+        end if;
+      end loop;
+
+      if current_round >= 5 then
+        select max(coalesce((state->'scores'->>seat::text)::int,0)) into top_score from public.game_players where room_id=p_room;
+        select count(*) into count_tied from public.game_players where room_id=p_room and coalesce((state->'scores'->>seat::text)::int,0)=top_score;
+
+        if count_tied = 1 then
+          select min(seat) into winner from public.game_players where room_id=p_room and coalesce((state->'scores'->>seat::text)::int,0)=top_score;
+          r.status := 'completed';
+          state := jsonb_set(state,'{winnerSeat}',to_jsonb(winner),true);
+          state := jsonb_set(state,'{message}',to_jsonb(('Trivia Clash complete! Player '||winner||' wins!')::text),true);
+        else
+          state := jsonb_set(state,'{message}',to_jsonb(('Tie game! Sudden death tiebreaker question coming up!')::text),true);
+        end if;
+      else
+        state := jsonb_set(state,'{message}',to_jsonb(('Correct answer revealed! +100 points for each correct player.')::text),true);
+      end if;
+    else
+      state := jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' locked an answer.')::text),true);
+    end if;
+  elsif p_action = 'next_question' then
+    if not coalesce((state->>'revealed')::boolean,false) then raise exception 'Finish this question first'; end if;
+    select max(coalesce((state->'scores'->>seat::text)::int,0)) into top_score from public.game_players where room_id=p_room;
+    select count(*) into count_tied from public.game_players where room_id=p_room and coalesce((state->'scores'->>seat::text)::int,0)=top_score;
+    if current_round >= 5 and count_tied = 1 then raise exception 'Trivia Clash is complete'; end if;
+    current_round := current_round + 1;
+    state := state - 'question' - 'options' - 'correctAnswer';
+    state := jsonb_set(state,'{round}',to_jsonb(current_round),true);
+    state := jsonb_set(state,'{answers}','{}'::jsonb,true);
+    state := jsonb_set(state,'{revealed}','false'::jsonb,true);
+    state := jsonb_set(state,'{message}',to_jsonb(('Question '||current_round||' is ready to load.')::text),true);
+  else
+    raise exception 'Invalid Trivia Clash action';
+  end if;
+
   update public.game_rooms set public_state=state,status=r.status,state_version=state_version+1,updated_at=now() where id=p_room;
   if r.status='completed' then perform public.finalize_room(p_room,state,r.game_type); end if;
   return state;
