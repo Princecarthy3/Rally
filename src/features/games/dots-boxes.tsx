@@ -31,8 +31,12 @@ export function DotsBoxes({
   const vLines: Record<string, number> = state.vLines || {};
   const boxes: Record<string, number> = state.boxes || {};
 
-  const totalBoxes = gridSize * gridSize;
-  const step = 100 / gridSize;
+  // Keep dots/lines inside the card on every grid size (esp. mobile).
+  // Positions map into [margin%, 100-margin%] instead of [0%, 100%].
+  const margin = gridSize >= 5 ? 5 : gridSize === 4 ? 6 : 7;
+  const usable = 100 - margin * 2;
+  const step = usable / gridSize;
+  const at = (index: number) => margin + index * step;
 
   const playerMap = useMemo(() => {
     const map = new Map<number, RoomPlayer>();
@@ -53,13 +57,15 @@ export function DotsBoxes({
     act("set_grid_size", String(size));
   };
 
-  // Has game started drawing lines yet?
   const linesDrawnCount = Object.keys(hLines).length + Object.keys(vLines).length;
   const canChangeGridSize = isHost && linesDrawnCount === 0;
 
+  const lineThickness = gridSize >= 5 ? 2.4 : 3.2;
+  const dotSize = gridSize >= 5 ? 9 : gridSize === 4 ? 11 : 13;
+  const lineInset = step * (gridSize >= 5 ? 0.18 : 0.2);
+
   return (
-    <div className="mx-auto max-w-md select-none text-center">
-      {/* Grid Size Selection Bar */}
+    <div className="mx-auto w-full max-w-md select-none text-center">
       {canChangeGridSize && (
         <div className="mb-4 rounded-2xl border-2 border-slate-950 bg-slate-100 p-2 shadow-[3px_3px_0_#171821]">
           <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
@@ -70,73 +76,75 @@ export function DotsBoxes({
               { size: 3, label: "9 Boxes (3×3)" },
               { size: 4, label: "16 Boxes (4×4)" },
               { size: 5, label: "25 Boxes (5×5)" },
-            ].map((opt) => (
+            ].map(({ size, label }) => (
               <button
-                key={opt.size}
+                key={size}
+                type="button"
                 disabled={busy}
-                onClick={() => handleGridSizeChange(opt.size)}
-                className={`rounded-xl border-2 border-slate-950 px-3 py-1.5 text-xs font-black transition ${
-                  gridSize === opt.size
-                    ? "bg-amber-300 shadow-[2px_2px_0_#171821] scale-105"
-                    : "bg-white opacity-70 hover:opacity-100"
+                onClick={() => handleGridSizeChange(size)}
+                className={`rounded-xl border-2 border-slate-950 px-2 py-2 text-[10px] font-black leading-tight transition sm:px-3 sm:text-xs ${
+                  gridSize === size
+                    ? "bg-[#f4dc69] shadow-[2px_2px_0_#171821]"
+                    : "bg-white hover:bg-slate-50"
                 }`}
               >
-                {opt.label}
+                {label}
               </button>
             ))}
           </div>
         </div>
       )}
 
-      {/* Turn Indicator */}
-      <div className="mb-4 inline-flex items-center gap-2 rounded-full border-2 border-slate-950 bg-amber-100 px-4 py-1.5 text-xs font-black shadow-[2px_2px_0_#171821]">
-        <span>
-          {isMyTurn
-            ? "👉 YOUR TURN TO DRAW A LINE"
-            : `WAITING FOR PLAYER ${state.turn}`}
+      <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full border-2 border-slate-950 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide sm:text-xs ${
+            isMyTurn ? "bg-[#fef9c3]" : "bg-white"
+          }`}
+        >
+          {isMyTurn ? "👉 Your turn to draw a line" : `Player ${state.turn || 1}, draw a line`}
         </span>
-        <span className="ml-2 rounded-full bg-amber-300 px-2 py-0.5 text-[10px]">
-          {totalBoxes} Boxes ({gridSize}×{gridSize})
+        <span className="rounded-full border-2 border-slate-950 bg-[#f4dc69] px-2.5 py-1 text-[10px] font-black sm:text-xs">
+          {gridSize * gridSize} Boxes ({gridSize}×{gridSize})
         </span>
       </div>
 
-      {/* Main Board */}
-      <div className="relative mx-auto aspect-square w-full max-w-[360px] rounded-3xl border-4 border-slate-950 bg-slate-900 p-6 shadow-[6px_6px_0_#171821]">
+      {/* Board card — overflow hidden so nothing spills; inset coords keep dots inside */}
+      <div className="relative mx-auto aspect-square w-full max-w-[min(100%,360px)] overflow-hidden rounded-3xl border-4 border-slate-950 bg-slate-900 p-2 shadow-[6px_6px_0_#171821] sm:p-3">
         <div className="relative h-full w-full">
-          {/* Boxes */}
+          {/* Claimed boxes */}
           {Array.from({ length: gridSize }).map((_, r) =>
             Array.from({ length: gridSize }).map((_, c) => {
               const boxOwner = boxes[`b_${r}_${c}`];
               const p = boxOwner ? playerMap.get(boxOwner) : null;
               const style = boxOwner ? PLAYER_COLORS[(boxOwner - 1) % 4] : null;
-
-              const boxPadding = gridSize >= 5 ? 2.5 : 4;
-              const boxSize = step - boxPadding * 2;
+              const pad = step * 0.12;
 
               return (
                 <div
                   key={`box_${r}_${c}`}
-                  className={`absolute flex items-center justify-center rounded-lg sm:rounded-xl transition-all duration-300 ${
-                    style ? `${style.bg} ${style.border} border-2 scale-95 shadow-inner` : ""
+                  className={`absolute flex items-center justify-center rounded-md transition-all duration-300 sm:rounded-lg ${
+                    style ? `${style.bg} ${style.border} border-2 shadow-inner` : ""
                   }`}
                   style={{
-                    left: `${c * step + boxPadding}%`,
-                    top: `${r * step + boxPadding}%`,
-                    width: `${boxSize}%`,
-                    height: `${boxSize}%`,
+                    left: `${at(c) + pad}%`,
+                    top: `${at(r) + pad}%`,
+                    width: `${step - pad * 2}%`,
+                    height: `${step - pad * 2}%`,
                   }}
                 >
                   {p && (
                     <span
                       className={`font-black ${
                         gridSize >= 5
-                          ? "text-[10px] sm:text-xs"
+                          ? "text-[9px] sm:text-[10px]"
                           : gridSize === 4
-                          ? "text-xs sm:text-sm"
-                          : "text-sm sm:text-base"
+                            ? "text-[10px] sm:text-xs"
+                            : "text-xs sm:text-sm"
                       } ${style?.text}`}
                     >
-                      {p.profile?.display_name ? p.profile.display_name.slice(0, 2).toUpperCase() : `P${boxOwner}`}
+                      {p.profile?.display_name
+                        ? p.profile.display_name.slice(0, 2).toUpperCase()
+                        : `P${boxOwner}`}
                     </span>
                   )}
                 </div>
@@ -144,87 +152,86 @@ export function DotsBoxes({
             })
           )}
 
-          {/* Horizontal Lines */}
+          {/* Horizontal lines */}
           {Array.from({ length: gridSize + 1 }).map((_, r) =>
             Array.from({ length: gridSize }).map((_, c) => {
               const owner = hLines[`${r}_${c}`];
               const drawn = Boolean(owner);
               const ownerStyle = owner ? PLAYER_COLORS[(owner - 1) % 4] : null;
 
-              const lineOffset = gridSize >= 5 ? 4 : 8;
-              const lineLength = step - lineOffset * 2;
-
               return (
                 <button
                   key={`h_${r}_${c}`}
+                  type="button"
                   disabled={!isMyTurn || drawn || busy}
                   onClick={() => handleLineClick("h", r, c)}
                   aria-label={`Horizontal line row ${r + 1} col ${c + 1}`}
-                  className={`absolute cursor-pointer rounded-full transition-all duration-200 ${
+                  className={`absolute z-[5] cursor-pointer rounded-full transition-all duration-200 ${
                     drawn
-                      ? "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)] scale-100"
+                      ? "scale-100 shadow-[0_0_8px_rgba(251,191,36,0.8)]"
                       : isMyTurn
-                      ? "bg-slate-700 hover:bg-amber-300 hover:scale-105 opacity-60"
-                      : "bg-slate-800 opacity-40 cursor-not-allowed"
+                        ? "bg-slate-700 opacity-60 hover:scale-105 hover:bg-amber-300"
+                        : "cursor-not-allowed bg-slate-800 opacity-40"
                   }`}
                   style={{
-                    left: `${c * step + lineOffset}%`,
-                    top: `${r * step - 1.5}%`,
-                    width: `${lineLength}%`,
-                    height: "3%",
-                    backgroundColor: ownerStyle ? ownerStyle.fill : undefined,
+                    left: `${at(c) + lineInset}%`,
+                    top: `${at(r)}%`,
+                    width: `${step - lineInset * 2}%`,
+                    height: `${lineThickness}%`,
+                    transform: "translateY(-50%)",
+                    backgroundColor: ownerStyle ? ownerStyle.fill : drawn ? "#fbbf24" : undefined,
                   }}
                 />
               );
             })
           )}
 
-          {/* Vertical Lines */}
+          {/* Vertical lines */}
           {Array.from({ length: gridSize }).map((_, r) =>
             Array.from({ length: gridSize + 1 }).map((_, c) => {
               const owner = vLines[`${r}_${c}`];
               const drawn = Boolean(owner);
               const ownerStyle = owner ? PLAYER_COLORS[(owner - 1) % 4] : null;
 
-              const lineOffset = gridSize >= 5 ? 4 : 8;
-              const lineLength = step - lineOffset * 2;
-
               return (
                 <button
                   key={`v_${r}_${c}`}
+                  type="button"
                   disabled={!isMyTurn || drawn || busy}
                   onClick={() => handleLineClick("v", r, c)}
                   aria-label={`Vertical line row ${r + 1} col ${c + 1}`}
-                  className={`absolute cursor-pointer rounded-full transition-all duration-200 ${
+                  className={`absolute z-[5] cursor-pointer rounded-full transition-all duration-200 ${
                     drawn
-                      ? "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)] scale-100"
+                      ? "scale-100 shadow-[0_0_8px_rgba(251,191,36,0.8)]"
                       : isMyTurn
-                      ? "bg-slate-700 hover:bg-amber-300 hover:scale-105 opacity-60"
-                      : "bg-slate-800 opacity-40 cursor-not-allowed"
+                        ? "bg-slate-700 opacity-60 hover:scale-105 hover:bg-amber-300"
+                        : "cursor-not-allowed bg-slate-800 opacity-40"
                   }`}
                   style={{
-                    left: `${c * step - 1.5}%`,
-                    top: `${r * step + lineOffset}%`,
-                    width: "3%",
-                    height: `${lineLength}%`,
-                    backgroundColor: ownerStyle ? ownerStyle.fill : undefined,
+                    left: `${at(c)}%`,
+                    top: `${at(r) + lineInset}%`,
+                    width: `${lineThickness}%`,
+                    height: `${step - lineInset * 2}%`,
+                    transform: "translateX(-50%)",
+                    backgroundColor: ownerStyle ? ownerStyle.fill : drawn ? "#fbbf24" : undefined,
                   }}
                 />
               );
             })
           )}
 
-          {/* Grid Dots */}
+          {/* Dots */}
           {Array.from({ length: gridSize + 1 }).map((_, r) =>
             Array.from({ length: gridSize + 1 }).map((_, c) => (
               <div
                 key={`dot_${r}_${c}`}
-                className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-slate-950 bg-white shadow-md"
+                className="absolute z-10 rounded-full border-2 border-slate-950 bg-white shadow-md"
                 style={{
-                  left: `${c * step}%`,
-                  top: `${r * step}%`,
-                  width: gridSize >= 5 ? "10px" : "13px",
-                  height: gridSize >= 5 ? "10px" : "13px",
+                  left: `${at(c)}%`,
+                  top: `${at(r)}%`,
+                  width: `${dotSize}px`,
+                  height: `${dotSize}px`,
+                  transform: "translate(-50%, -50%)",
                 }}
               />
             ))
@@ -232,7 +239,7 @@ export function DotsBoxes({
         </div>
       </div>
 
-      <p className="mt-4 text-xs font-bold text-slate-500">
+      <p className="mt-4 px-1 text-xs font-bold text-slate-500">
         Connect lines between dots. Complete 4 sides of a box to score points & get an extra turn!
       </p>
     </div>
