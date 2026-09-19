@@ -747,6 +747,27 @@ begin
   end if;
 
   return state;
+grant execute on function public.play_uno_action(uuid, text, text, int) to anon, authenticated;
+
+-- 9. Update rematch_room to ready all AI bots and reset UNO state
+create or replace function public.rematch_room(p_room uuid) returns void
+language plpgsql security definer set search_path='' as $$
+declare room_row public.game_rooms;
+begin
+  select * into room_row from public.game_rooms where id=p_room for update;
+  if room_row.id is null then raise exception 'Room not found'; end if;
+  if room_row.host_id<>auth.uid() then raise exception 'Only host can rematch'; end if;
+
+  delete from private.rps_choices where room_id=p_room;
+  delete from private.uno_games where room_id=p_room;
+  update public.game_players set is_ready=false, score=0 where room_id=p_room;
+  -- Automatically set all AI bots in the room to is_ready=true after rematch
+  update public.game_players set is_ready=true
+    where room_id=p_room and player_id::text like '11111111-1111-1111-1111-%';
+  update public.game_rooms
+    set status='waiting', public_state='{}', match_number=match_number+1,
+        state_version=state_version+1, updated_at=now()
+    where id=p_room;
 end $$;
 
-grant execute on function public.play_uno_action(uuid, text, text, int) to anon, authenticated;
+grant execute on function public.rematch_room(uuid) to authenticated;

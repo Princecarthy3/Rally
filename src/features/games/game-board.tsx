@@ -642,7 +642,7 @@ function Result({
         .from("game_players")
         .update({ is_ready: true })
         .eq("room_id", room.id)
-        .like("player_id", "11111111-1111-1111-1111-1111111111%");
+        .like("player_id", "11111111-1111-1111-1111-%");
       await supabase
         .from("game_rooms")
         .update({
@@ -652,6 +652,13 @@ function Result({
           updated_at: new Date().toISOString(),
         })
         .eq("id", room.id);
+    } else {
+      // Ensure all bots in the room are set to is_ready=true after rematch_room RPC runs
+      await supabase
+        .from("game_players")
+        .update({ is_ready: true })
+        .eq("room_id", room.id)
+        .like("player_id", "11111111-1111-1111-1111-%");
     }
     await refresh();
     setBusy(false);
