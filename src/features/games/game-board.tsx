@@ -1,7 +1,7 @@
 "use client";
 
 import { LoaderCircle, Lock, RotateCcw, Send } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
 import { gameByKey } from "./registry";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -38,6 +38,9 @@ export function GameBoard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [guess, setGuess] = useState("");
+  // A room update can reach several clients at once. Keep each bot/state pair to
+  // one request so a slow response cannot make the bot play twice.
+  const pendingBotMoves = useRef(new Set<string>());
 
 
   async function act(action: string, value?: string) {
@@ -93,10 +96,16 @@ export function GameBoard({
     } else if (room.game_type === "mini_golf") {
       isBotTurn = s.turn === botSeat && Boolean(s.balls?.[String(botSeat)]) && !s.balls?.[String(botSeat)]?.finished;
     } else if (room.game_type === "battleship") {
-      isBotTurn = s.turn === botSeat;
+      isBotTurn = s.phase === "placing"
+        ? !s.placements?.[botSeat]
+        : s.turn === botSeat;
     }
 
     if (!isBotTurn) return;
+
+    const requestKey = `${room.id}:${room.state_version}:${botSeat}`;
+    if (pendingBotMoves.current.has(requestKey)) return;
+    pendingBotMoves.current.add(requestKey);
 
     const timer = setTimeout(() => {
       fetch("/api/ai/bot-move", {
@@ -108,7 +117,10 @@ export function GameBoard({
           publicState: room.public_state,
           botSeat,
         }),
-      }).catch(console.error);
+      })
+        .then((response) => response.ok ? undefined : response.json().then((body) => Promise.reject(body)))
+        .catch((reason) => console.error("Bot move failed", reason))
+        .finally(() => pendingBotMoves.current.delete(requestKey));
     }, 1000);
 
       timers.push(timer);
@@ -117,7 +129,7 @@ export function GameBoard({
     return () => {
       timers.forEach((t) => clearTimeout(t));
     };
-  }, [room.status, room.id, room.game_type, room.public_state, players, state]);
+  }, [room.status, room.id, room.game_type, room.public_state, room.state_version, players, state]);
 
 
 

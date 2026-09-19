@@ -98,14 +98,18 @@ export async function POST(request: Request) {
           value = JSON.stringify({ angle, power });
         }
     } else if (gameType === "battleship") {
-      const fired: Array<{ row: number; col: number }> = state.shots?.[String(botSeat)] || [];
-      const used = new Set(fired.map((shot) => `${shot.row},${shot.col}`));
-      const available = Array.from({ length: 64 }, (_, index) => ({ row: Math.floor(index / 8), col: index % 8 }))
-        .filter((shot) => !used.has(`${shot.row},${shot.col}`));
-      if (state.turn === botSeat && available.length > 0) {
-        const shot = available[Math.floor(Math.random() * available.length)];
-        action = "fire";
-        value = `${shot.row},${shot.col}`;
+      if (state.phase === "placing") {
+        if (!state.placements?.[String(botSeat)]) action = "randomize_fleet";
+      } else {
+        const fired: Array<{ row: number; col: number }> = state.shots?.[String(botSeat)] || [];
+        const used = new Set(fired.map((shot) => `${shot.row},${shot.col}`));
+        const available = Array.from({ length: 64 }, (_, index) => ({ row: Math.floor(index / 8), col: index % 8 }))
+          .filter((shot) => !used.has(`${shot.row},${shot.col}`));
+        if (state.turn === botSeat && available.length > 0) {
+          const shot = available[Math.floor(Math.random() * available.length)];
+          action = "fire";
+          value = `${shot.row},${shot.col}`;
+        }
       }
     } else if (gameType === "number_guess") {
       // Normalize types and handle string-keyed guess objects safely so the bot can act reliably
