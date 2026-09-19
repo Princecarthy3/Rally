@@ -10,6 +10,7 @@ begin
     from pg_proc p
     join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='public'
+      and p.prokind='f'
       and pg_get_functiondef(p.oid) like '%player_id%11111111-1111-1111-1111-111111111111%'
   loop
     select pg_get_functiondef(function_row.signature) into definition;
