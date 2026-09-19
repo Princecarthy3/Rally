@@ -1145,7 +1145,7 @@ end $$;
 -- 6. Mini Golf action handler
 create or replace function public.play_mini_golf_action(p_room uuid,p_action text,p_value text default null,p_actor_seat int default null) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare r public.game_rooms; me public.game_players; state jsonb; balls jsonb; scores jsonb; shot jsonb; ball jsonb; hole int; angle numeric; shot_power numeric; x numeric; y numeric; next_x numeric; next_y numeric; cup_x numeric; cup_y numeric; start_x numeric; start_y numeric; strokes int; next_seat int; active_count int; winner int; lowest int; count_tied int; water boolean:=false; par int;
+declare r public.game_rooms; me public.game_players; state jsonb; balls jsonb; scores jsonb; shot jsonb; ball jsonb; hole int; angle numeric; shot_power numeric; x numeric; y numeric; next_x numeric; next_y numeric; cup_x numeric; cup_y numeric; start_x numeric; start_y numeric; strokes int; next_seat int; active_count int; winner int; lowest int; count_tied int; water boolean:=false; par int; item record;
 begin
   select * into r from public.game_rooms where id=p_room for update;
   if r.status<>'playing' or r.game_type<>'mini_golf' then raise exception 'Mini Golf is not active'; end if;
@@ -1198,7 +1198,7 @@ begin
   else
     select min(seat) into next_seat from public.game_players where room_id=p_room and seat>me.seat and not coalesce((balls->seat::text->>'finished')::boolean,false);
     if next_seat is null then select min(seat) into next_seat from public.game_players where room_id=p_room and not coalesce((balls->seat::text->>'finished')::boolean,false); end if;
-    state:=jsonb_set(state,'{turn}',to_jsonb(next_seat),true); state:=jsonb_set(state,'{message}',to_jsonb(('Player '||next_seat||'’s turn to shoot.')::text),true);
+    state:=jsonb_set(state,'{turn}',to_jsonb(next_seat),true); state:=jsonb_set(state,'{message}',to_jsonb(('Player '||next_seat||'''s turn to shoot.')::text),true);
   end if;
   update public.game_rooms set public_state=state,status=r.status,state_version=state_version+1,updated_at=now() where id=p_room;
   if r.status='completed' then perform public.finalize_room(p_room,state,r.game_type); end if;
@@ -1270,7 +1270,7 @@ begin
    r.status:='completed'; state:=jsonb_set(state,'{winnerSeat}',to_jsonb(me.seat),true); state:=jsonb_set(state,'{message}',to_jsonb(('Player '||me.seat||' sank the entire enemy fleet! Victory!')::text),true);
   else
    state:=jsonb_set(state,'{turn}',to_jsonb(target.seat),true);
-   state:=jsonb_set(state,'{message}',to_jsonb(case when sunk is not null then ('Player '||me.seat||' SUNK enemy '||upper(sunk)||'! Player '||target.seat||'’s turn.')::text when hit then ('Player '||me.seat||' scored a HIT! Player '||target.seat||'’s turn.')::text else ('Player '||me.seat||' missed. Player '||target.seat||'’s turn.')::text end),true);
+   state:=jsonb_set(state,'{message}',to_jsonb(case when sunk is not null then ('Player '||me.seat||' SUNK enemy '||upper(sunk)||'! Player '||target.seat||'''s turn.')::text when hit then ('Player '||me.seat||' scored a HIT! Player '||target.seat||'''s turn.')::text else ('Player '||me.seat||' missed. Player '||target.seat||'''s turn.')::text end),true);
   end if;
  end if;
  update public.game_rooms set public_state=state,status=r.status,state_version=state_version+1,updated_at=now() where id=p_room;
