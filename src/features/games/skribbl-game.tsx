@@ -1,6 +1,6 @@
 "use client";
 
-import { Eraser, Paintbrush, RotateCcw, Send, Sparkles } from "lucide-react";
+import { Eraser, Paintbrush, PaintBucket, RotateCcw, Send, Sparkles } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -16,10 +16,13 @@ const WORD_BANK = [
 ];
 
 const COLORS = [
-  "#000000", "#ef4444", "#f97316", "#eab308",
-  "#22c55e", "#06b6d4", "#3b82f6", "#a855f7",
-  "#ec4899", "#78350f", "#64748b", "#ffffff"
+  "#000000", "#ffffff", "#64748b", "#78350f",
+  "#ef4444", "#f97316", "#eab308", "#84cc16",
+  "#22c55e", "#14b8a6", "#06b6d4", "#3b82f6",
+  "#6366f1", "#a855f7", "#ec4899", "#f43f5e",
 ];
+
+const ROUND_SECONDS = 60;
 
 interface StrokeData {
   x0: number;
@@ -63,9 +66,9 @@ export function SkribblGame({
   const [drawing, setDrawing] = useState(false);
   const [color, setColor] = useState("#000000");
   const [brushSize, setBrushSize] = useState(6);
-  const [tool, setTool] = useState<"brush" | "eraser">("brush");
+  const [tool, setTool] = useState<"brush" | "eraser" | "fill">("brush");
   const [guess, setGuess] = useState("");
-  const [secondsLeft, setSecondsLeft] = useState(80);
+  const [secondsLeft, setSecondsLeft] = useState(ROUND_SECONDS);
 
   const prevPos = useRef<{ x: number; y: number } | null>(null);
   const channelRef = useRef<any>(null);
@@ -140,16 +143,17 @@ export function SkribblGame({
 
   useEffect(() => {
     if (!wordSelected || !state.roundStartedAt || room.status !== "playing") return;
-    const tick = () => setSecondsLeft(Math.max(0, 80 - Math.floor((Date.now() - Number(state.roundStartedAt)) / 1000)));
+    const tick = () => setSecondsLeft(Math.max(0, ROUND_SECONDS - Math.floor((Date.now() - Number(state.roundStartedAt)) / 1000)));
     tick();
     const interval = window.setInterval(tick, 1000);
     return () => window.clearInterval(interval);
   }, [wordSelected, state.roundStartedAt, room.status]);
 
   useEffect(() => {
-    if (secondsLeft !== 0 || !wordSelected || !isDrawer) return;
+    if (secondsLeft !== 0 || !wordSelected) return;
+    // Any client can close the round when the clock hits zero (covers bot-drawer games).
     void act("time_expired");
-  }, [secondsLeft, wordSelected, isDrawer, act]);
+  }, [secondsLeft, wordSelected, act]);
 
 
 
@@ -178,6 +182,56 @@ export function SkribblGame({
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   };
 
+  const floodFill = (startX: number, startY: number, fillColor: string) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const w = canvas.width;
+    const h = canvas.height;
+    const x0 = Math.max(0, Math.min(w - 1, Math.floor(startX)));
+    const y0 = Math.max(0, Math.min(h - 1, Math.floor(startY)));
+    const image = ctx.getImageData(0, 0, w, h);
+    const data = image.data;
+    const idx = (x: number, y: number) => (y * w + x) * 4;
+    const target = data.slice(idx(x0, y0), idx(x0, y0) + 4);
+    const hex = fillColor.replace("#", "");
+    const full = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
+    const nr = parseInt(full.slice(0, 2), 16);
+    const ng = parseInt(full.slice(2, 4), 16);
+    const nb = parseInt(full.slice(4, 6), 16);
+    if (target[0] === nr && target[1] === ng && target[2] === nb) return;
+
+    const match = (x: number, y: number) => {
+      const i = idx(x, y);
+      return (
+        Math.abs(data[i] - target[0]) < 12 &&
+        Math.abs(data[i + 1] - target[1]) < 12 &&
+        Math.abs(data[i + 2] - target[2]) < 12
+      );
+    };
+
+    const stack: Array<[number, number]> = [[x0, y0]];
+    const visited = new Uint8Array(w * h);
+    while (stack.length) {
+      const [x, y] = stack.pop()!;
+      const key = y * w + x;
+      if (visited[key]) continue;
+      visited[key] = 1;
+      if (!match(x, y)) continue;
+      const i = idx(x, y);
+      data[i] = nr;
+      data[i + 1] = ng;
+      data[i + 2] = nb;
+      data[i + 3] = 255;
+      if (x > 0) stack.push([x - 1, y]);
+      if (x < w - 1) stack.push([x + 1, y]);
+      if (y > 0) stack.push([x, y - 1]);
+      if (y < h - 1) stack.push([x, y + 1]);
+    }
+    ctx.putImageData(image, 0, 0);
+  };
+
   // Set up Supabase Realtime Broadcast Channel for Live Canvas Strokes
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -193,6 +247,10 @@ export function SkribblGame({
       })
       .on("broadcast", { event: "clear" }, () => {
         clearCanvasLocal();
+      })
+      .on("broadcast", { event: "fill" }, (payload) => {
+        const f = payload.payload as { x: number; y: number; color: string };
+        if (f) floodFill(f.x, f.y, f.color);
       })
       .subscribe();
 
@@ -239,8 +297,17 @@ export function SkribblGame({
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (!isDrawer || !wordSelected) return;
-    setDrawing(true);
     const coords = getCanvasCoords(e);
+    if (tool === "fill") {
+      floodFill(coords.x, coords.y, color);
+      channelRef.current?.send({
+        type: "broadcast",
+        event: "fill",
+        payload: { x: coords.x, y: coords.y, color },
+      });
+      return;
+    }
+    setDrawing(true);
     prevPos.current = coords;
   };
 
@@ -276,7 +343,7 @@ export function SkribblGame({
 
   const handleGuessSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!guess.trim() || isDrawer || busy) return;
+    if (!guess.trim() || isDrawer || busy || secondsLeft <= 0) return;
 
     const val = guess.trim();
     setGuess("");
@@ -373,6 +440,94 @@ export function SkribblGame({
     );
   }
 
+
+  // When the Rally bot is the drawer, the human host streams simple strokes for everyone.
+  const drawerPlayer = players.find((p) => p.seat === drawerSeat);
+  const drawerIsBot = Boolean(
+    drawerPlayer &&
+      (drawerPlayer.player_id === "11111111-1111-1111-1111-111111111111" ||
+        (drawerPlayer.profile?.display_name || "").toLowerCase().includes("rally ai") ||
+        (drawerPlayer.profile?.display_name || "").toLowerCase().includes("bot"))
+  );
+
+  useEffect(() => {
+    if (!wordSelected || !drawerIsBot || !channelRef.current) return;
+    // Only one client drives bot art — prefer seat 1 human, else any non-bot.
+    const humans = players.filter(
+      (p) => p.player_id !== "11111111-1111-1111-1111-111111111111"
+    );
+    const driver = humans.find((p) => p.player_id === userId);
+    if (!driver) return;
+    // Lowest human seat drives to avoid duplicate streams
+    const lowestHuman = Math.min(...humans.map((p) => p.seat));
+    if (driver.seat !== lowestHuman) return;
+
+    let cancelled = false;
+    const word = String(wordSelected);
+    const palette = ["#000000", "#ef4444", "#3b82f6", "#22c55e", "#eab308", "#a855f7"];
+    const pickColor = () => palette[Math.floor(Math.random() * palette.length)];
+
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    const broadcastStroke = (x0: number, y0: number, x1: number, y1: number, c: string, size: number) => {
+      drawStroke(x0, y0, x1, y1, c, size);
+      channelRef.current?.send({
+        type: "broadcast",
+        event: "draw",
+        payload: { x0, y0, x1, y1, color: c, size },
+      });
+    };
+
+    void (async () => {
+      await sleep(600);
+      if (cancelled) return;
+      // Simple "sketch" based on word length — abstract but looks intentional
+      const cx = 300;
+      const cy = 190;
+      const color = pickColor();
+      // Outline circle / box
+      const steps = 24;
+      let prevX = cx + 80;
+      let prevY = cy;
+      for (let i = 1; i <= steps; i++) {
+        if (cancelled) return;
+        const a = (i / steps) * Math.PI * 2;
+        const x = cx + Math.cos(a) * (70 + (word.length % 5) * 4);
+        const y = cy + Math.sin(a) * (55 + (word.length % 3) * 6);
+        broadcastStroke(prevX, prevY, x, y, color, 5);
+        prevX = x;
+        prevY = y;
+        await sleep(40);
+      }
+      // Accent lines
+      for (let k = 0; k < 3 + (word.length % 4); k++) {
+        if (cancelled) return;
+        const x0 = 80 + Math.random() * 440;
+        const y0 = 60 + Math.random() * 260;
+        const x1 = x0 + (Math.random() - 0.5) * 120;
+        const y1 = y0 + (Math.random() - 0.5) * 120;
+        broadcastStroke(x0, y0, x1, y1, pickColor(), 3 + Math.random() * 4);
+        await sleep(80);
+      }
+      // Optional fill splash
+      if (!cancelled && Math.random() > 0.4) {
+        const fx = cx + (Math.random() - 0.5) * 40;
+        const fy = cy + (Math.random() - 0.5) * 40;
+        const fc = pickColor();
+        floodFill(fx, fy, fc);
+        channelRef.current?.send({
+          type: "broadcast",
+          event: "fill",
+          payload: { x: fx, y: fy, color: fc },
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [wordSelected, drawerIsBot, drawerSeat, players, userId, room.match_number, state.round]);
+
   // Active Drawing & Guessing Canvas View
   const wordHint = isDrawer
     ? wordSelected
@@ -458,8 +613,19 @@ export function SkribblGame({
                 className={`rounded-lg border-2 border-slate-950 p-1.5 text-xs font-bold ${
                   tool === "brush" ? "bg-amber-300" : "bg-white"
                 }`}
+                title="Brush"
               >
                 <Paintbrush size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setTool("fill")}
+                className={`rounded-lg border-2 border-slate-950 p-1.5 text-xs font-bold ${
+                  tool === "fill" ? "bg-amber-300" : "bg-white"
+                }`}
+                title="Fill"
+              >
+                <PaintBucket size={16} />
               </button>
               <button
                 type="button"
@@ -467,6 +633,7 @@ export function SkribblGame({
                 className={`rounded-lg border-2 border-slate-950 p-1.5 text-xs font-bold ${
                   tool === "eraser" ? "bg-amber-300" : "bg-white"
                 }`}
+                title="Eraser"
               >
                 <Eraser size={16} />
               </button>
@@ -486,14 +653,20 @@ export function SkribblGame({
       {!isDrawer && (
         <form onSubmit={handleGuessSubmit} className="flex gap-2">
           <input
-            disabled={busy || attemptsLeft <= 0}
+            disabled={busy || attemptsLeft <= 0 || secondsLeft <= 0}
             value={guess}
             onChange={(e) => setGuess(e.target.value)}
-            placeholder={attemptsLeft <= 0 ? "No tries remaining for this word" : "Type your guess here..."}
+            placeholder={
+              secondsLeft <= 0
+                ? "Time is up — no more guesses"
+                : attemptsLeft <= 0
+                  ? "No tries remaining for this word"
+                  : "Type your guess here..."
+            }
             className="flex-1 rounded-2xl border-2 border-slate-950 px-4 py-3 text-sm font-bold outline-none shadow-[3px_3px_0_#171821] disabled:bg-slate-100 disabled:opacity-60"
           />
           <button
-            disabled={busy || attemptsLeft <= 0}
+            disabled={busy || attemptsLeft <= 0 || secondsLeft <= 0}
             type="submit"
             className="arcade-button bg-amber-400 px-6 text-sm font-black shadow-[3px_3px_0_#171821] disabled:opacity-50"
           >
@@ -503,22 +676,35 @@ export function SkribblGame({
         </form>
       )}
 
-      {/* Recent Guesses */}
+      {/* Live guesses — everyone sees wrong guesses; correct answers never reveal the word */}
       {Array.isArray(state.guessFeed) && state.guessFeed.length > 0 && (
-        <div className="max-h-28 overflow-y-auto space-y-1.5 rounded-2xl border-2 border-slate-950 bg-slate-50 p-3 text-xs font-bold">
+        <div className="max-h-36 overflow-y-auto space-y-1.5 rounded-2xl border-2 border-slate-950 bg-slate-50 p-3 text-xs font-bold">
           <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-600">Live room guesses</h4>
-          {state.guessFeed.slice(-8).map((g: { seat: number; text: string; correct?: boolean }, i: number) => (
-            <div
-              key={i}
-              className={`flex justify-between rounded-lg px-2 py-1 ${
-                g.correct ? "bg-emerald-100 text-emerald-800 border border-emerald-400" : "bg-white"
-              }`}
-            >
-              <span>{players.find((player) => player.seat === g.seat)?.profile?.display_name || `Player ${g.seat}`}: {g.text}</span>
-              {g.correct && <span className="font-black">🎯 CORRECT!</span>}
-            </div>
-          ))}
+          {state.guessFeed.slice(-12).map((g: { seat: number; text: string; correct?: boolean }, i: number) => {
+            const name = players.find((player) => player.seat === g.seat)?.profile?.display_name || `Player ${g.seat}`;
+            return (
+              <div
+                key={i}
+                className={`flex justify-between gap-2 rounded-lg px-2 py-1 ${
+                  g.correct ? "bg-emerald-100 text-emerald-800 border border-emerald-400" : "bg-white"
+                }`}
+              >
+                <span className="min-w-0 truncate">
+                  {g.correct ? (
+                    <>{name} got it!</>
+                  ) : (
+                    <>{name}: {g.text}</>
+                  )}
+                </span>
+                {g.correct && <span className="shrink-0 font-black">🎯</span>}
+              </div>
+            );
+          })}
         </div>
+      )}
+
+      {secondsLeft <= 0 && wordSelected && (
+        <p className="text-center text-xs font-black text-red-600">Time is up — guessing is locked for this round.</p>
       )}
     </div>
   );

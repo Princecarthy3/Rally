@@ -204,13 +204,28 @@ export async function POST(request: Request) {
         action = "roll";
       }
     } else if (gameType === "skribbl") {
-      if (state.drawerSeat === botSeat && !state.wordSelected) {
+      const drawer = Number(state.drawerSeat);
+      if (drawer === botSeat && !state.wordSelected) {
         action = "select_word";
         const aiWords = await generateSkribblWordsAI(`${roomId}:${state.round || 1}`, state.usedWords || [], { difficulty: "medium", category: "random" });
         value = aiWords[0] || "Pikachu";
-      } else if (state.drawerSeat !== botSeat && state.wordSelected) {
+        // Drawing is streamed by a human client once the word is selected.
+      } else if (drawer === botSeat && state.wordSelected) {
+        // Bot is drawing — no RPC action; client hosts the canvas stream.
+        return NextResponse.json({ message: "Bot is drawing" });
+      } else if (drawer !== botSeat && state.wordSelected) {
+        const guessed: number[] = state.guessedSeats || [];
+        if (guessed.includes(botSeat)) {
+          return NextResponse.json({ message: "Bot already guessed" });
+        }
+        // Stagger: sometimes wrong guess first so humans can play along
         action = "guess";
-        value = state.wordSelected;
+        if (Math.random() < 0.35) {
+          const decoys = ["cat", "tree", "car", "house", "fish", "sun", "robot"];
+          value = decoys[Math.floor(Math.random() * decoys.length)];
+        } else {
+          value = state.wordSelected;
+        }
       }
     }
 
