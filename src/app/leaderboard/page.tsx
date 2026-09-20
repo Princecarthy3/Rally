@@ -38,6 +38,7 @@ type LeaderboardUser = {
 export default function LeaderboardPage() {
   const { user } = useAuth();
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>([]);
+  const [totalPlayers, setTotalPlayers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<LeaderboardUser | null>(null);
   const [socialNotice, setSocialNotice] = useState("");
@@ -55,34 +56,49 @@ export default function LeaderboardPage() {
       const sb = getSupabaseBrowserClient();
       if (!sb) return;
 
-      const { data, error } = await sb.rpc("get_leaderboard", { p_limit: 50 });
+      const countPromise = sb
+        .from("profiles")
+        .select("id", { count: "exact", head: true });
 
-      if (active) {
-        if (!error && data) {
-          setLeaderboard(data as LeaderboardUser[]);
-        } else {
-          // Fallback query if RPC not yet run
-          const { data: levels } = await sb
-            .from("user_levels")
-            .select("user_id, xp, level, profile:profiles(display_name, avatar_url, wins, games_played)")
-            .order("xp", { ascending: false })
-            .limit(50);
+      const { data, error } = await sb.rpc("get_leaderboard", { p_limit: 100 });
+      const { count: profileCount } = await countPromise;
 
-          if (levels) {
-            const mapped: LeaderboardUser[] = levels.map((l) => ({
-              user_id: l.user_id,
-              display_name: (l.profile as any)?.display_name || "Player",
-              avatar_url: (l.profile as any)?.avatar_url || null,
-              xp: l.xp,
-              level: l.level,
-              wins: (l.profile as any)?.wins || 0,
-              games_played: (l.profile as any)?.games_played || 0,
-            }));
-            setLeaderboard(mapped);
+      if (!active) return;
+
+      if (typeof profileCount === "number") {
+        setTotalPlayers(profileCount);
+      }
+
+      if (!error && data) {
+        setLeaderboard(data as LeaderboardUser[]);
+        if (typeof profileCount !== "number") {
+          setTotalPlayers((data as LeaderboardUser[]).length);
+        }
+      } else {
+        // Fallback query if RPC not yet run
+        const { data: levels } = await sb
+          .from("user_levels")
+          .select("user_id, xp, level, profile:profiles(display_name, avatar_url, wins, games_played)")
+          .order("xp", { ascending: false })
+          .limit(100);
+
+        if (levels) {
+          const mapped: LeaderboardUser[] = levels.map((l) => ({
+            user_id: l.user_id,
+            display_name: (l.profile as any)?.display_name || "Player",
+            avatar_url: (l.profile as any)?.avatar_url || null,
+            xp: l.xp,
+            level: l.level,
+            wins: (l.profile as any)?.wins || 0,
+            games_played: (l.profile as any)?.games_played || 0,
+          }));
+          setLeaderboard(mapped);
+          if (typeof profileCount !== "number") {
+            setTotalPlayers(mapped.length);
           }
         }
-        setLoading(false);
       }
+      setLoading(false);
     }
 
     void loadLeaderboard();
@@ -110,7 +126,7 @@ export default function LeaderboardPage() {
               </div>
               <div className="rounded-2xl border-2 border-slate-950 bg-white px-5 py-3 shadow-[4px_4px_0_#171821]">
                 <span className="text-[10px] font-black uppercase text-slate-500">Registered Players</span>
-                <p className="text-2xl font-black">{leaderboard.length} Ranked</p>
+                <p className="text-2xl font-black">{totalPlayers.toLocaleString()}</p>
               </div>
             </div>
           </div>
