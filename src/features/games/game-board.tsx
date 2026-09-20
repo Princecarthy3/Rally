@@ -49,6 +49,15 @@ export function GameBoard({
   // one request so a slow response cannot make the bot play twice.
   const pendingBotMoves = useRef(new Set<string>());
 
+  // Game-specific BGM for this room; restore lobby theme when leaving the board.
+  useEffect(() => {
+    sounds.startGameBgm(room.game_type);
+    return () => {
+      sounds.startLobbyBgm();
+    };
+  }, [room.game_type, room.id]);
+
+
 
   async function act(action: string, value?: string) {
     if (busy || isSpectator) return;

@@ -78,32 +78,48 @@ export function SkribblGame({
     () => (state.skribblCategory as string) || "random"
   );
   const [loadingWords, setLoadingWords] = useState(false);
+  const fetchedSeedRef = useRef<string | null>(null);
+  // Stabilize usedWords so realtime public_state refreshes don't retrigger generation.
+  const usedWordsKey = Array.isArray(state.usedWords)
+    ? (state.usedWords as string[]).map((w) => String(w).toLowerCase()).sort().join("|")
+    : "";
 
   useEffect(() => {
     if (!isDrawer || wordSelected) return;
 
-    let ignore = false;
-    const usedWords = Array.isArray(state.usedWords) ? state.usedWords : [];
+    const usedWords = Array.isArray(state.usedWords) ? (state.usedWords as string[]) : [];
     // Unique per room + round + drawer so concurrent games never share the same set.
-    const seed = `${room.id}:${room.match_number}:${state.round || 1}:${drawerSeat}:${wordDifficulty}:${wordCategory}`;
+    const seed = `${room.id}:${room.match_number}:${state.round || 1}:${drawerSeat}:${wordDifficulty}:${wordCategory}:${usedWordsKey}`;
 
-    // Load words asynchronously — setState only inside the async path (not sync in effect body).
+    // Already loaded this exact set — do not clear buttons or refetch.
+    if (fetchedSeedRef.current === seed && wordChoices.length >= 3) return;
+
+    let ignore = false;
+    const controller = new AbortController();
+
     void (async () => {
       setLoadingWords(true);
-      setWordChoices([]);
+      // Only blank the list when switching rounds/categories (not on StrictMode remount of same seed).
+      if (fetchedSeedRef.current !== seed) {
+        /* keep previous buttons until new payload arrives */
+      }
       try {
         const res = await fetch(
-          `/api/ai/content?type=skribbl&seed=${encodeURIComponent(seed)}&exclude=${encodeURIComponent(usedWords.join(","))}&difficulty=${encodeURIComponent(wordDifficulty)}&category=${encodeURIComponent(wordCategory)}`
+          `/api/ai/content?type=skribbl&seed=${encodeURIComponent(seed)}&exclude=${encodeURIComponent(usedWords.join(","))}&difficulty=${encodeURIComponent(wordDifficulty)}&category=${encodeURIComponent(wordCategory)}`,
+          { signal: controller.signal }
         );
         const data = await res.json();
         if (ignore) return;
-        if (data.words && Array.isArray(data.words) && data.words.length >= 3) {
-          setWordChoices(data.words.slice(0, 3));
-        } else {
-          setWordChoices(fallbackWords(usedWords));
-        }
-      } catch {
-        if (!ignore) setWordChoices(fallbackWords(usedWords));
+        const next =
+          data.words && Array.isArray(data.words) && data.words.length >= 3
+            ? data.words.slice(0, 3)
+            : fallbackWords(usedWords);
+        setWordChoices(next);
+        fetchedSeedRef.current = seed;
+      } catch (err) {
+        if (ignore || (err as Error)?.name === "AbortError") return;
+        setWordChoices(fallbackWords(usedWords));
+        fetchedSeedRef.current = seed;
       } finally {
         if (!ignore) setLoadingWords(false);
       }
@@ -111,8 +127,16 @@ export function SkribblGame({
 
     return () => {
       ignore = true;
+      controller.abort();
     };
-  }, [isDrawer, wordSelected, room.id, room.match_number, state.round, drawerSeat, state.usedWords, wordDifficulty, wordCategory]);
+    // wordChoices intentionally omitted — we only care about seed identity
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDrawer, wordSelected, room.id, room.match_number, state.round, drawerSeat, usedWordsKey, wordDifficulty, wordCategory]);
+
+  // Reset cache when the round advances so a new drawer gets a fresh set.
+  useEffect(() => {
+    fetchedSeedRef.current = null;
+  }, [state.round, room.match_number]);
 
   useEffect(() => {
     if (!wordSelected || !state.roundStartedAt || room.status !== "playing") return;
@@ -316,22 +340,27 @@ export function SkribblGame({
             </div>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              {loadingWords || wordChoices.length === 0 ? (
-                <p className="col-span-full text-sm font-bold text-slate-500">Generating words…</p>
+              {wordChoices.length === 0 ? (
+                <p className="col-span-full text-sm font-bold text-slate-500">
+                  {loadingWords ? "Generating words…" : "Preparing word choices…"}
+                </p>
               ) : (
                 wordChoices.map((word) => (
                   <button
                     key={word}
                     type="button"
-                    disabled={busy}
+                    disabled={busy || loadingWords}
                     onClick={() => void act("select_word", word)}
-                    className="arcade-button bg-amber-300 py-4 text-sm font-black shadow-[3px_3px_0_#171821] hover:bg-amber-400"
+                    className="arcade-button bg-amber-300 py-4 text-sm font-black shadow-[3px_3px_0_#171821] hover:bg-amber-400 disabled:opacity-70"
                   >
                     {word}
                   </button>
                 ))
               )}
             </div>
+            {loadingWords && wordChoices.length > 0 && (
+              <p className="mt-2 text-[10px] font-bold text-slate-400">Refreshing options…</p>
+            )}
           </div>
         ) : (
           <div className="rounded-3xl border-4 border-slate-950 bg-slate-100 p-8 shadow-[6px_6px_0_#171821]">

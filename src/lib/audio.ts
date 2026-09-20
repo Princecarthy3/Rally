@@ -440,19 +440,20 @@ class SoundManager {
   }
 
   public startGameBgm(gameType: string) {
-    const theme =
-      gameType === "ludo"
-        ? "ludo"
-        : gameType === "skribbl"
-          ? "skribbl"
-          : gameType === "memory_match"
-            ? "memory"
-            : gameType === "mini_golf"
-              ? "golf"
-              : gameType === "uno"
-                ? "uno"
-                : "battle";
-    this.startBgm(theme);
+    const map: Record<string, string> = {
+      ludo: "ludo",
+      skribbl: "skribbl",
+      memory_match: "memory",
+      mini_golf: "golf",
+      uno: "uno",
+      rps: "battle",
+      number_guess: "memory",
+      battleship: "battle",
+      tic_tac_toe: "battle",
+      connect_four: "battle",
+      dots_boxes: "golf",
+    };
+    this.startBgm(map[gameType] || "battle");
   }
 
   public startBgm(theme: string = "lobby") {

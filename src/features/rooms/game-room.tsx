@@ -53,6 +53,14 @@ export function GameRoom() {
   const hostPlayer = players.find((p) => p.player_id === room?.host_id);
   const roomThemeStyle = getRoomThemeStyle(hostPlayer?.customization?.room_theme);
 
+  
+  // Leaving the room page returns to lobby ambient music.
+  useEffect(() => {
+    return () => {
+      sounds.startLobbyBgm();
+    };
+  }, []);
+
   useEffect(() => {
     if (!channel) return;
     channel.on("broadcast", { event: "emote" }, (payload) => {
