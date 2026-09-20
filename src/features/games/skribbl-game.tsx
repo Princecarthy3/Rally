@@ -71,18 +71,30 @@ export function SkribblGame({
   const channelRef = useRef<any>(null);
 
   const [wordChoices, setWordChoices] = useState<string[]>([]);
+  const [wordDifficulty, setWordDifficulty] = useState<"easy" | "medium" | "hard">(
+    () => (state.skribblDifficulty as "easy" | "medium" | "hard") || "medium"
+  );
+  const [wordCategory, setWordCategory] = useState<string>(
+    () => (state.skribblCategory as string) || "random"
+  );
+  const [loadingWords, setLoadingWords] = useState(false);
 
   useEffect(() => {
     let ignore = false;
     if (isDrawer && !wordSelected) {
       const usedWords = Array.isArray(state.usedWords) ? state.usedWords : [];
-      const seed = `${room.id}:${room.match_number}:${state.round || 1}:${drawerSeat}`;
-      fetch(`/api/ai/content?type=skribbl&seed=${encodeURIComponent(seed)}&exclude=${encodeURIComponent(usedWords.join(","))}`)
+      // Unique per room + round + drawer so concurrent games never share the same set.
+      const seed = `${room.id}:${room.match_number}:${state.round || 1}:${drawerSeat}:${wordDifficulty}:${wordCategory}`;
+      setLoadingWords(true);
+      setWordChoices([]);
+      fetch(
+        `/api/ai/content?type=skribbl&seed=${encodeURIComponent(seed)}&exclude=${encodeURIComponent(usedWords.join(","))}&difficulty=${encodeURIComponent(wordDifficulty)}&category=${encodeURIComponent(wordCategory)}`
+      )
         .then((res) => res.json())
         .then((data) => {
           if (ignore) return;
-          if (data.words && Array.isArray(data.words) && data.words.length === 3) {
-            setWordChoices(data.words);
+          if (data.words && Array.isArray(data.words) && data.words.length >= 3) {
+            setWordChoices(data.words.slice(0, 3));
           } else {
             setWordChoices(fallbackWords(usedWords));
           }
@@ -90,12 +102,15 @@ export function SkribblGame({
         .catch(() => {
           if (ignore) return;
           setWordChoices(fallbackWords(usedWords));
+        })
+        .finally(() => {
+          if (!ignore) setLoadingWords(false);
         });
     }
     return () => {
       ignore = true;
     };
-  }, [isDrawer, wordSelected, room.id, room.match_number, state.round, drawerSeat, state.usedWords]);
+  }, [isDrawer, wordSelected, room.id, room.match_number, state.round, drawerSeat, state.usedWords, wordDifficulty, wordCategory]);
 
   useEffect(() => {
     if (!wordSelected || !state.roundStartedAt || room.status !== "playing") return;
@@ -251,18 +266,69 @@ export function SkribblGame({
           <div className="rounded-3xl border-4 border-slate-950 bg-amber-50 p-6 shadow-[6px_6px_0_#171821]">
             <Sparkles className="mx-auto text-amber-500" size={36} />
             <h3 className="mt-2 text-xl font-black">Choose a Word to Draw!</h3>
-            <p className="mt-1 text-xs text-slate-600">Pick one of these 3 dynamic words to draw for your opponents:</p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              {wordChoices.map((word) => (
-                <button
-                  key={word}
-                  disabled={busy}
-                  onClick={() => act("select_word", word)}
-                  className="arcade-button bg-amber-300 py-4 text-sm font-black shadow-[3px_3px_0_#171821] hover:bg-amber-400"
+            <p className="mt-1 text-xs text-slate-600">
+              AI picks 3 fresh words for this room only. Adjust difficulty or category, then pick one.
+            </p>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <label className="text-left text-[10px] font-black uppercase tracking-wider text-slate-600">
+                Difficulty
+                <select
+                  value={wordDifficulty}
+                  onChange={(e) => setWordDifficulty(e.target.value as "easy" | "medium" | "hard")}
+                  className="mt-1 w-full rounded-xl border-2 border-slate-950 bg-white px-3 py-2 text-xs font-bold"
                 >
-                  {word}
-                </button>
-              ))}
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </label>
+              <label className="text-left text-[10px] font-black uppercase tracking-wider text-slate-600">
+                Category
+                <select
+                  value={wordCategory}
+                  onChange={(e) => setWordCategory(e.target.value)}
+                  className="mt-1 w-full rounded-xl border-2 border-slate-950 bg-white px-3 py-2 text-xs font-bold"
+                >
+                  {[
+                    "random",
+                    "animals",
+                    "food",
+                    "sports",
+                    "technology",
+                    "places",
+                    "vehicles",
+                    "objects",
+                    "movies",
+                    "games",
+                    "nature",
+                    "professions",
+                    "pop_culture",
+                  ].map((c) => (
+                    <option key={c} value={c}>
+                      {c.replace("_", " ")}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              {loadingWords || wordChoices.length === 0 ? (
+                <p className="col-span-full text-sm font-bold text-slate-500">Generating words…</p>
+              ) : (
+                wordChoices.map((word) => (
+                  <button
+                    key={word}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void act("select_word", word)}
+                    className="arcade-button bg-amber-300 py-4 text-sm font-black shadow-[3px_3px_0_#171821] hover:bg-amber-400"
+                  >
+                    {word}
+                  </button>
+                ))
+              )}
             </div>
           </div>
         ) : (

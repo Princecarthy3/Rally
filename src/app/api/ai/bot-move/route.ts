@@ -192,7 +192,7 @@ export async function POST(request: Request) {
     } else if (gameType === "skribbl") {
       if (state.drawerSeat === botSeat && !state.wordSelected) {
         action = "select_word";
-        const aiWords = await generateSkribblWordsAI(`${roomId}:${state.round || 1}`, state.usedWords || []);
+        const aiWords = await generateSkribblWordsAI(`${roomId}:${state.round || 1}`, state.usedWords || [], { difficulty: "medium", category: "random" });
         value = aiWords[0] || "Pikachu";
       } else if (state.drawerSeat !== botSeat && state.wordSelected) {
         action = "guess";
