@@ -77,34 +77,28 @@ function SpinningDice({
   face: number;
   size?: number;
 }) {
-  const [display, setDisplay] = useState(face || 1);
+  const [spinFace, setSpinFace] = useState(1);
 
+  // Only drive random faces from the interval callback (not sync setState in effect body).
   useEffect(() => {
-    if (!rolling) {
-      setDisplay(face >= 1 && face <= 6 ? face : 1);
-      return;
-    }
+    if (!rolling) return;
     const id = window.setInterval(() => {
-      setDisplay(1 + Math.floor(Math.random() * 6));
+      setSpinFace(1 + Math.floor(Math.random() * 6));
     }, 80);
     return () => window.clearInterval(id);
-  }, [rolling, face]);
+  }, [rolling]);
+
+  const value = rolling ? spinFace : face >= 1 && face <= 6 ? face : 1;
 
   return (
     <div
-      className={`relative transition-transform ${rolling ? "animate-bounce" : ""}`}
+      className="relative transition-transform"
       style={{
         animation: rolling ? "ludo-dice-spin 0.35s linear infinite" : undefined,
       }}
     >
-      <div
-        className={rolling ? "opacity-90" : ""}
-        style={{
-          transform: rolling ? undefined : "rotate(0deg)",
-          filter: rolling ? "blur(0.3px)" : undefined,
-        }}
-      >
-        <DiceFace value={display} size={size} />
+      <div className={rolling ? "opacity-90" : undefined}>
+        <DiceFace value={value} size={size} />
       </div>
       <style>{`
         @keyframes ludo-dice-spin {
@@ -134,14 +128,8 @@ export function LudoGame({ state, players, mySeat, busy, act }: Props) {
     );
 
   const [rolling, setRolling] = useState(false);
-  const [shownFace, setShownFace] = useState(lastRoll >= 1 && lastRoll <= 6 ? lastRoll : 1);
-
-  // Sync face when server roll updates (including opponent rolls)
-  useEffect(() => {
-    if (lastRoll >= 1 && lastRoll <= 6 && !rolling) {
-      setShownFace(lastRoll);
-    }
-  }, [lastRoll, rolling]);
+  // Authoritative face from server — no effect sync needed.
+  const face = lastRoll >= 1 && lastRoll <= 6 ? lastRoll : 1;
 
   const handleRoll = useCallback(async () => {
     if (!isMyTurn || awaitingMove || busy || rolling) return;
@@ -158,13 +146,6 @@ export function LudoGame({ state, players, mySeat, busy, act }: Props) {
       }, wait);
     }
   }, [act, awaitingMove, busy, isMyTurn, rolling]);
-
-  // When rolling ends, snap to authoritative lastRoll
-  useEffect(() => {
-    if (!rolling && lastRoll >= 1 && lastRoll <= 6) {
-      setShownFace(lastRoll);
-    }
-  }, [rolling, lastRoll]);
 
   return (
     <div className="mx-auto max-w-[640px]">
@@ -184,7 +165,7 @@ export function LudoGame({ state, players, mySeat, busy, act }: Props) {
       {/* Live die */}
       <div className="mb-5 flex flex-col items-center gap-3 rounded-3xl border-2 border-slate-950 bg-gradient-to-b from-slate-100 to-slate-200 px-4 py-5 shadow-[4px_4px_0_#171821]">
         <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Game die</p>
-        <SpinningDice rolling={rolling} face={shownFace} size={96} />
+        <SpinningDice rolling={rolling} face={face} size={96} />
         <p className="text-xs font-bold text-slate-600">
           {rolling
             ? "Dice in the air…"
