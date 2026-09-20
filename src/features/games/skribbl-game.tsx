@@ -352,6 +352,94 @@ export function SkribblGame({
   };
 
   // Word selection view for drawer
+  // When the Rally bot is the drawer, the human host streams simple strokes for everyone.
+  const drawerPlayer = players.find((p) => p.seat === drawerSeat);
+  const drawerIsBot = Boolean(
+    drawerPlayer &&
+      (drawerPlayer.player_id === "11111111-1111-1111-1111-111111111111" ||
+        (drawerPlayer.profile?.display_name || "").toLowerCase().includes("rally ai") ||
+        (drawerPlayer.profile?.display_name || "").toLowerCase().includes("bot"))
+  );
+
+  useEffect(() => {
+    if (!wordSelected || !drawerIsBot || !channelRef.current) return;
+    // Only one client drives bot art — prefer seat 1 human, else any non-bot.
+    const humans = players.filter(
+      (p) => p.player_id !== "11111111-1111-1111-1111-111111111111"
+    );
+    const driver = humans.find((p) => p.player_id === userId);
+    if (!driver) return;
+    // Lowest human seat drives to avoid duplicate streams
+    const lowestHuman = Math.min(...humans.map((p) => p.seat));
+    if (driver.seat !== lowestHuman) return;
+
+    let cancelled = false;
+    const word = String(wordSelected);
+    const palette = ["#000000", "#ef4444", "#3b82f6", "#22c55e", "#eab308", "#a855f7"];
+    const pickColor = () => palette[Math.floor(Math.random() * palette.length)];
+
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    const broadcastStroke = (x0: number, y0: number, x1: number, y1: number, c: string, size: number) => {
+      drawStroke(x0, y0, x1, y1, c, size);
+      channelRef.current?.send({
+        type: "broadcast",
+        event: "draw",
+        payload: { x0, y0, x1, y1, color: c, size },
+      });
+    };
+
+    void (async () => {
+      await sleep(600);
+      if (cancelled) return;
+      // Simple "sketch" based on word length — abstract but looks intentional
+      const cx = 300;
+      const cy = 190;
+      const color = pickColor();
+      // Outline circle / box
+      const steps = 24;
+      let prevX = cx + 80;
+      let prevY = cy;
+      for (let i = 1; i <= steps; i++) {
+        if (cancelled) return;
+        const a = (i / steps) * Math.PI * 2;
+        const x = cx + Math.cos(a) * (70 + (word.length % 5) * 4);
+        const y = cy + Math.sin(a) * (55 + (word.length % 3) * 6);
+        broadcastStroke(prevX, prevY, x, y, color, 5);
+        prevX = x;
+        prevY = y;
+        await sleep(40);
+      }
+      // Accent lines
+      for (let k = 0; k < 3 + (word.length % 4); k++) {
+        if (cancelled) return;
+        const x0 = 80 + Math.random() * 440;
+        const y0 = 60 + Math.random() * 260;
+        const x1 = x0 + (Math.random() - 0.5) * 120;
+        const y1 = y0 + (Math.random() - 0.5) * 120;
+        broadcastStroke(x0, y0, x1, y1, pickColor(), 3 + Math.random() * 4);
+        await sleep(80);
+      }
+      // Optional fill splash
+      if (!cancelled && Math.random() > 0.4) {
+        const fx = cx + (Math.random() - 0.5) * 40;
+        const fy = cy + (Math.random() - 0.5) * 40;
+        const fc = pickColor();
+        floodFill(fx, fy, fc);
+        channelRef.current?.send({
+          type: "broadcast",
+          event: "fill",
+          payload: { x: fx, y: fy, color: fc },
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [wordSelected, drawerIsBot, drawerSeat, players, userId, room.match_number, state.round]);
+
+
   if (!wordSelected) {
     return (
       <div className="mx-auto max-w-lg text-center">
@@ -440,93 +528,6 @@ export function SkribblGame({
     );
   }
 
-
-  // When the Rally bot is the drawer, the human host streams simple strokes for everyone.
-  const drawerPlayer = players.find((p) => p.seat === drawerSeat);
-  const drawerIsBot = Boolean(
-    drawerPlayer &&
-      (drawerPlayer.player_id === "11111111-1111-1111-1111-111111111111" ||
-        (drawerPlayer.profile?.display_name || "").toLowerCase().includes("rally ai") ||
-        (drawerPlayer.profile?.display_name || "").toLowerCase().includes("bot"))
-  );
-
-  useEffect(() => {
-    if (!wordSelected || !drawerIsBot || !channelRef.current) return;
-    // Only one client drives bot art — prefer seat 1 human, else any non-bot.
-    const humans = players.filter(
-      (p) => p.player_id !== "11111111-1111-1111-1111-111111111111"
-    );
-    const driver = humans.find((p) => p.player_id === userId);
-    if (!driver) return;
-    // Lowest human seat drives to avoid duplicate streams
-    const lowestHuman = Math.min(...humans.map((p) => p.seat));
-    if (driver.seat !== lowestHuman) return;
-
-    let cancelled = false;
-    const word = String(wordSelected);
-    const palette = ["#000000", "#ef4444", "#3b82f6", "#22c55e", "#eab308", "#a855f7"];
-    const pickColor = () => palette[Math.floor(Math.random() * palette.length)];
-
-    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-    const broadcastStroke = (x0: number, y0: number, x1: number, y1: number, c: string, size: number) => {
-      drawStroke(x0, y0, x1, y1, c, size);
-      channelRef.current?.send({
-        type: "broadcast",
-        event: "draw",
-        payload: { x0, y0, x1, y1, color: c, size },
-      });
-    };
-
-    void (async () => {
-      await sleep(600);
-      if (cancelled) return;
-      // Simple "sketch" based on word length — abstract but looks intentional
-      const cx = 300;
-      const cy = 190;
-      const color = pickColor();
-      // Outline circle / box
-      const steps = 24;
-      let prevX = cx + 80;
-      let prevY = cy;
-      for (let i = 1; i <= steps; i++) {
-        if (cancelled) return;
-        const a = (i / steps) * Math.PI * 2;
-        const x = cx + Math.cos(a) * (70 + (word.length % 5) * 4);
-        const y = cy + Math.sin(a) * (55 + (word.length % 3) * 6);
-        broadcastStroke(prevX, prevY, x, y, color, 5);
-        prevX = x;
-        prevY = y;
-        await sleep(40);
-      }
-      // Accent lines
-      for (let k = 0; k < 3 + (word.length % 4); k++) {
-        if (cancelled) return;
-        const x0 = 80 + Math.random() * 440;
-        const y0 = 60 + Math.random() * 260;
-        const x1 = x0 + (Math.random() - 0.5) * 120;
-        const y1 = y0 + (Math.random() - 0.5) * 120;
-        broadcastStroke(x0, y0, x1, y1, pickColor(), 3 + Math.random() * 4);
-        await sleep(80);
-      }
-      // Optional fill splash
-      if (!cancelled && Math.random() > 0.4) {
-        const fx = cx + (Math.random() - 0.5) * 40;
-        const fy = cy + (Math.random() - 0.5) * 40;
-        const fc = pickColor();
-        floodFill(fx, fy, fc);
-        channelRef.current?.send({
-          type: "broadcast",
-          event: "fill",
-          payload: { x: fx, y: fy, color: fc },
-        });
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [wordSelected, drawerIsBot, drawerSeat, players, userId, room.match_number, state.round]);
 
   // Active Drawing & Guessing Canvas View
   const wordHint = isDrawer
