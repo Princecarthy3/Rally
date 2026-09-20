@@ -512,8 +512,7 @@ class SoundManager {
 
     const pack = themed[theme] || themed.lobby;
     const chords = pack.chords;
-    const melody = pack.melody
-    ];
+    const melody = pack.melody;
 
     const playBeat = () => {
       if (
