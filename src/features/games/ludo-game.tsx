@@ -141,7 +141,7 @@ function HomeYard({
   canMove,
   lastRoll,
   busy,
-  act,
+  onMove,
 }: {
   seat: number;
   positions: Record<string, number[]>;
@@ -149,7 +149,7 @@ function HomeYard({
   canMove: boolean;
   lastRoll: number;
   busy: boolean;
-  act: (action: string, value?: string) => Promise<void>;
+  onMove: (tokenIndex: string) => Promise<void>;
 }) {
   const color = PLAYERS[seat];
   const tokens = positions[String(seat + 1)] || [-1, -1, -1, -1];
@@ -178,7 +178,7 @@ function HomeYard({
               key={token}
               type="button"
               disabled={!canBringOut || busy}
-              onClick={() => void handleMove(String(token))}
+              onClick={() => void onMove(String(token))}
               aria-label={`${color.label} token ${token + 1}${isHome ? " in home" : ""}`}
               className={`aspect-square h-full w-full max-h-[100%] max-w-[100%] rounded-full border-2 border-slate-950 shadow-sm transition disabled:cursor-default ${
                 canBringOut ? "ring-2 ring-offset-1 ring-slate-950 scale-105" : ""
@@ -338,7 +338,7 @@ export function LudoGame({ state, players, mySeat, busy, act }: Props) {
             canMove={canMove}
             lastRoll={lastRoll}
             busy={busy}
-            act={handleMove}
+            onMove={handleMove}
           />
         ))}
 
