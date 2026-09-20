@@ -160,7 +160,7 @@ function MessagesContent() {
         setEditingId(null);
         setReplyTo(null);
         setDraft("");
-        await loadMessages();
+        if (selected) await loadMessages(selected);
         return;
       }
       const { error: sendError } = await sb.rpc("send_encrypted_friend_message", {

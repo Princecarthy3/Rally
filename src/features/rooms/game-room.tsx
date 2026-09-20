@@ -229,6 +229,7 @@ export function GameRoom() {
               ready={ready}
               start={start}
               addBot={addBot}
+              openBotPicker={() => setShowBotPicker(true)}
               copy={copy}
               share={share}
               activeEmotes={activeEmotes}
@@ -347,6 +348,7 @@ function Lobby({
   ready,
   start,
   addBot,
+  openBotPicker,
   copy,
   share,
   activeEmotes,
@@ -361,6 +363,7 @@ function Lobby({
   ready: (v: boolean) => void;
   start: () => void;
   addBot: (difficulty?: "easy" | "medium" | "hard") => void;
+  openBotPicker: () => void;
   copy: (v: string, l: string) => void;
   share: () => void;
   activeEmotes: Array<{ seat: number; emote: string; id: number }>;
@@ -554,7 +557,7 @@ function Lobby({
               {/* Action Buttons: Full width on mobile for easy single-thumb tapping */}
               <div className="grid grid-cols-1 w-full gap-2.5 sm:w-auto sm:flex sm:flex-wrap sm:gap-3">
                 {host && players.length < room.max_players && (
-                  <button onClick={() => setShowBotPicker(true)} disabled={busy} className="arcade-button justify-center bg-[#77dce7] text-slate-950 text-xs py-3 sm:py-2.5 shadow-[3px_3px_0_#171821]">
+                  <button onClick={() => openBotPicker()} disabled={busy} className="arcade-button justify-center bg-[#77dce7] text-slate-950 text-xs py-3 sm:py-2.5 shadow-[3px_3px_0_#171821]">
                     🤖 ADD AI BOT
                   </button>
                 )}

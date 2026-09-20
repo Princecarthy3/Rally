@@ -9,6 +9,7 @@ import { Brand } from "./brand";
 import { useAuth } from "./auth-provider";
 import { SettingsModal } from "./settings-modal";
 import { sounds } from "@/lib/audio";
+import { ensureNotificationPermission, registerRallyServiceWorker, notifyUser } from "@/lib/notifications";
 import { UserAvatar } from "@/components/customization/user-avatar";
 import { NameDisplay } from "@/components/customization/name-display";
 import { CoinWalletModal } from "@/components/customization/coin-wallet-modal";
@@ -35,6 +36,13 @@ export function SiteHeader() {
   const [toast, setToast] = useState("");
   const [socialBadge, setSocialBadge] = useState(0);
   const [messageBadge, setMessageBadge] = useState(0);
+
+  
+  useEffect(() => {
+    void registerRallyServiceWorker().then(() => {
+      void ensureNotificationPermission();
+    });
+  }, []);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
