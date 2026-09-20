@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
+import { sounds } from "@/lib/audio";
 
 type Props = {
   state: Room["public_state"];
@@ -177,7 +178,7 @@ function HomeYard({
               key={token}
               type="button"
               disabled={!canBringOut || busy}
-              onClick={() => void act("move", String(token))}
+              onClick={() => void handleMove(String(token))}
               aria-label={`${color.label} token ${token + 1}${isHome ? " in home" : ""}`}
               className={`aspect-square h-full w-full max-h-[100%] max-w-[100%] rounded-full border-2 border-slate-950 shadow-sm transition disabled:cursor-default ${
                 canBringOut ? "ring-2 ring-offset-1 ring-slate-950 scale-105" : ""
@@ -215,6 +216,7 @@ export function LudoGame({ state, players, mySeat, busy, act }: Props) {
   const handleRoll = useCallback(async () => {
     if (!isMyTurn || awaitingMove || busy || rolling) return;
     setRolling(true);
+    sounds.playDiceRollSound();
     const started = Date.now();
     try {
       await act("roll");
@@ -227,11 +229,57 @@ export function LudoGame({ state, players, mySeat, busy, act }: Props) {
     }
   }, [act, awaitingMove, busy, isMyTurn, rolling]);
 
+  const handleMove = useCallback(
+    async (tokenIndex: string) => {
+      if (busy) return;
+      const idx = Number(tokenIndex);
+      const before = (positions[String(mySeat)] || [-1, -1, -1, -1])[idx];
+      const leavingHome = before !== undefined && before < 0;
+      const finishing = before !== undefined && before >= 0 && before + lastRoll >= 57;
+
+      // Capture heuristic: opponent tokens on destination cell
+      let willCapture = false;
+      if (before !== undefined && before >= 0 && lastRoll > 0) {
+        const destProgress = before + lastRoll;
+        if (destProgress < 52) {
+          const destAbs = (STARTS[(mySeat || 1) - 1] + destProgress) % 52;
+          for (const p of players) {
+            if (p.seat === mySeat) continue;
+            const toks = positions[String(p.seat)] || [];
+            for (const prog of toks) {
+              if (prog >= 0 && prog < 52 && (STARTS[p.seat - 1] + prog) % 52 === destAbs) {
+                if (!SAFE_TRACK.has(destAbs)) willCapture = true;
+              }
+            }
+          }
+        }
+      }
+
+      if (leavingHome) sounds.playTokenExitHomeSound();
+      else if (willCapture) sounds.playTokenCaptureSound();
+      else if (finishing) sounds.playTokenFinishSound();
+      else sounds.playTokenMoveSound();
+
+      await act("move", tokenIndex);
+    },
+    [act, busy, lastRoll, mySeat, players, positions]
+  );
+
+  // Auto-pass when it's your turn to move but nothing is movable
+  useEffect(() => {
+    if (!canMove || movable.length > 0 || busy || rolling) return;
+    const t = window.setTimeout(() => {
+      sounds.playClickSound();
+      void act("move", "-1");
+    }, 650);
+    return () => window.clearTimeout(t);
+  }, [act, busy, canMove, movable.length, rolling]);
+
   const cell = 100 / 15;
 
   return (
-    <div className="mx-auto max-w-[640px]">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-slate-950 bg-white px-4 py-3 text-sm font-black">
+    <div className="mx-auto w-full max-w-[720px]">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-slate-950 bg-white px-3 py-2 text-xs font-black sm:text-sm">
         <span>
           {awaitingMove
             ? `Player ${turn}: choose a token`
@@ -244,43 +292,39 @@ export function LudoGame({ state, players, mySeat, busy, act }: Props) {
         </span>
       </div>
 
-      {/* Live die */}
-      <div className="mb-5 flex flex-col items-center gap-3 rounded-3xl border-2 border-slate-950 bg-gradient-to-b from-slate-100 to-slate-200 px-4 py-5 shadow-[4px_4px_0_#171821]">
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Game die</p>
-        <SpinningDice rolling={rolling} face={face} size={96} />
-        <p className="text-xs font-bold text-slate-600">
-          {rolling
-            ? "Dice in the air…"
-            : awaitingMove && lastRoll
-              ? `Result: ${lastRoll}${lastRoll === 6 ? " — leave home or advance!" : ""}`
-              : isMyTurn
-                ? "Your turn — toss the die"
-                : `Waiting for Player ${turn}`}
-        </p>
+      {/* Compact die row — keeps full board visible without scrolling */}
+      <div className="mb-3 flex items-center gap-3 rounded-2xl border-2 border-slate-950 bg-gradient-to-r from-slate-100 to-slate-200 px-3 py-2 shadow-[3px_3px_0_#171821]">
+        <SpinningDice rolling={rolling} face={face} size={52} />
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Game die</p>
+          <p className="truncate text-xs font-bold text-slate-700">
+            {rolling
+              ? "Tossing…"
+              : awaitingMove && lastRoll
+                ? `Rolled ${lastRoll}${lastRoll === 6 ? " — leave home or move!" : ""}`
+                : canMove && movable.length === 0
+                  ? "No moves — passing…"
+                  : isMyTurn && !awaitingMove
+                    ? "Your turn — toss"
+                    : awaitingMove
+                      ? "Choose a token"
+                      : `Waiting for P${turn}`}
+          </p>
+        </div>
         {!awaitingMove && (
           <button
             type="button"
             disabled={!isMyTurn || busy || rolling}
             onClick={() => void handleRoll()}
-            className="arcade-button bg-[#f4dc69] px-8 py-3 text-sm shadow-[4px_4px_0_#171821] disabled:cursor-not-allowed disabled:opacity-60"
+            className="arcade-button shrink-0 bg-[#f4dc69] px-3 py-2 text-[11px] shadow-[3px_3px_0_#171821] disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:text-xs"
           >
-            {rolling ? "TOSSING…" : isMyTurn ? "TOSS THE DIE" : "WAITING…"}
-          </button>
-        )}
-        {canMove && movable.length === 0 && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void act("move", "-1")}
-            className="arcade-button bg-white px-6 py-3 text-sm"
-          >
-            NO MOVE — PASS
+            {rolling ? "…" : isMyTurn ? "TOSS" : "WAIT"}
           </button>
         )}
       </div>
 
       {/* Classic Ludo board */}
-      <div className="relative mx-auto aspect-square w-full max-w-[520px] overflow-hidden rounded-2xl border-[4px] border-slate-950 bg-white shadow-[6px_6px_0_#171821]">
+      <div className="relative mx-auto aspect-square w-full max-w-none overflow-hidden rounded-2xl border-[4px] border-slate-950 bg-white shadow-[6px_6px_0_#171821]">
         {/* Soft board cloth background */}
         <div className="absolute inset-0 bg-[#f1f5f9]" />
 
@@ -294,7 +338,7 @@ export function LudoGame({ state, players, mySeat, busy, act }: Props) {
             canMove={canMove}
             lastRoll={lastRoll}
             busy={busy}
-            act={act}
+            act={handleMove}
           />
         ))}
 
@@ -435,7 +479,7 @@ export function LudoGame({ state, players, mySeat, busy, act }: Props) {
                 key={`${player.seat}-${token}`}
                 type="button"
                 disabled={!isMovable || busy}
-                onClick={() => void act("move", String(token))}
+                onClick={() => void handleMove(String(token))}
                 aria-label={`${color.label} token`}
                 className={`absolute z-20 rounded-full border-[2.5px] border-slate-950 shadow-[1px_2px_0_rgba(0,0,0,0.35)] transition disabled:cursor-default ${
                   isMovable ? "ring-2 ring-offset-1 ring-slate-950 scale-110 z-30" : ""

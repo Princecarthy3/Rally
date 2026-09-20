@@ -314,6 +314,122 @@ class SoundManager {
   }
 
   // =========================================================
+  // LUDO / BOARD GAME SFX
+  // =========================================================
+
+  /** Dice tumbling while in the air */
+  public playDiceRollSound() {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    for (let i = 0; i < 6; i++) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(180 + Math.random() * 220, now + i * 0.045);
+      gain.gain.setValueAtTime(0.0001, now + i * 0.045);
+      gain.gain.linearRampToValueAtTime(0.12 * this.volume, now + i * 0.045 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.045 + 0.05);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * 0.045);
+      osc.stop(now + i * 0.045 + 0.06);
+    }
+    // Soft land click
+    const click = ctx.createOscillator();
+    const cg = ctx.createGain();
+    click.type = "square";
+    click.frequency.setValueAtTime(420, now + 0.32);
+    cg.gain.setValueAtTime(0.14 * this.volume, now + 0.32);
+    cg.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+    click.connect(cg);
+    cg.connect(ctx.destination);
+    click.start(now + 0.32);
+    click.stop(now + 0.42);
+  }
+
+  /** Token slides along the track */
+  public playTokenMoveSound() {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(280, now);
+    osc.frequency.linearRampToValueAtTime(420, now + 0.12);
+    gain.gain.setValueAtTime(0.1 * this.volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.18);
+  }
+
+  /** Token leaves the home yard */
+  public playTokenExitHomeSound() {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const notes = [392, 494, 587];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, now + i * 0.07);
+      gain.gain.setValueAtTime(0.12 * this.volume, now + i * 0.07);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.14);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * 0.07);
+      osc.stop(now + i * 0.07 + 0.15);
+    });
+  }
+
+  /** Opponent token sent back home */
+  public playTokenCaptureSound() {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(90, now + 0.22);
+    gain.gain.setValueAtTime(0.14 * this.volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.26);
+  }
+
+  /** Token finishes into the centre home */
+  public playTokenFinishSound() {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    [523, 659, 784].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, now + i * 0.08);
+      gain.gain.setValueAtTime(0.11 * this.volume, now + i * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.2);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * 0.08);
+      osc.stop(now + i * 0.08 + 0.22);
+    });
+  }
+
+
+  // =========================================================
   // BGM
   // Catchy Rally Arcade Groove
   // =========================================================
