@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
 import { sounds } from "@/lib/audio";
 
@@ -197,7 +197,7 @@ function HomeYard({
 }
 
 export function LudoGame({ state, players, mySeat, busy, act }: Props) {
-  const positions = state.ludoPositions || {};
+  const positions = useMemo(() => state.ludoPositions || {}, [state.ludoPositions]);
   const turn = Number(state.turn);
   const lastRoll = Number(state.lastRoll || 0);
   const awaitingMove = Boolean(state.awaitingMove);

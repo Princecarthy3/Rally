@@ -80,33 +80,35 @@ export function SkribblGame({
   const [loadingWords, setLoadingWords] = useState(false);
 
   useEffect(() => {
+    if (!isDrawer || wordSelected) return;
+
     let ignore = false;
-    if (isDrawer && !wordSelected) {
-      const usedWords = Array.isArray(state.usedWords) ? state.usedWords : [];
-      // Unique per room + round + drawer so concurrent games never share the same set.
-      const seed = `${room.id}:${room.match_number}:${state.round || 1}:${drawerSeat}:${wordDifficulty}:${wordCategory}`;
+    const usedWords = Array.isArray(state.usedWords) ? state.usedWords : [];
+    // Unique per room + round + drawer so concurrent games never share the same set.
+    const seed = `${room.id}:${room.match_number}:${state.round || 1}:${drawerSeat}:${wordDifficulty}:${wordCategory}`;
+
+    // Load words asynchronously — setState only inside the async path (not sync in effect body).
+    void (async () => {
       setLoadingWords(true);
       setWordChoices([]);
-      fetch(
-        `/api/ai/content?type=skribbl&seed=${encodeURIComponent(seed)}&exclude=${encodeURIComponent(usedWords.join(","))}&difficulty=${encodeURIComponent(wordDifficulty)}&category=${encodeURIComponent(wordCategory)}`
-      )
-        .then((res) => res.json())
-        .then((data) => {
-          if (ignore) return;
-          if (data.words && Array.isArray(data.words) && data.words.length >= 3) {
-            setWordChoices(data.words.slice(0, 3));
-          } else {
-            setWordChoices(fallbackWords(usedWords));
-          }
-        })
-        .catch(() => {
-          if (ignore) return;
+      try {
+        const res = await fetch(
+          `/api/ai/content?type=skribbl&seed=${encodeURIComponent(seed)}&exclude=${encodeURIComponent(usedWords.join(","))}&difficulty=${encodeURIComponent(wordDifficulty)}&category=${encodeURIComponent(wordCategory)}`
+        );
+        const data = await res.json();
+        if (ignore) return;
+        if (data.words && Array.isArray(data.words) && data.words.length >= 3) {
+          setWordChoices(data.words.slice(0, 3));
+        } else {
           setWordChoices(fallbackWords(usedWords));
-        })
-        .finally(() => {
-          if (!ignore) setLoadingWords(false);
-        });
-    }
+        }
+      } catch {
+        if (!ignore) setWordChoices(fallbackWords(usedWords));
+      } finally {
+        if (!ignore) setLoadingWords(false);
+      }
+    })();
+
     return () => {
       ignore = true;
     };
