@@ -54,7 +54,7 @@ export function GameBoard({
     if (busy || isSpectator) return;
     // Browsers only permit AudioContext playback after a real user gesture.
     // Starting here makes the music begin with the player's first game action.
-    sounds.startBgm();
+    sounds.startGameBgm(room.game_type);
     sounds.playClickSound();
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
@@ -151,6 +151,10 @@ export function GameBoard({
             gameType: room.game_type,
             publicState: room.public_state,
             botSeat,
+            difficulty:
+              (typeof window !== "undefined" &&
+                localStorage.getItem(`rally_bot_difficulty_${room.id}`)) ||
+              "medium",
           }),
         })
           .then(async (response) => {

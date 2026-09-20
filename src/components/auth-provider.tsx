@@ -3,6 +3,7 @@
 import type { Session, User } from "@supabase/supabase-js";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { sounds } from "@/lib/audio";
 import { ShopItem, UserCustomizationState, UserLevelState } from "@/lib/customization";
 
 export type Profile = {

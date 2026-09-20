@@ -185,8 +185,10 @@ function HomeYard({
               }`}
               style={{
                 backgroundColor: color.token,
-                opacity: isHome ? 1 : 0.15,
-                visibility: isHome ? "visible" : "hidden",
+                opacity: isHome ? 1 : 0,
+                transform: isHome ? "scale(1)" : "scale(0.5)",
+                transition: "opacity 0.35s ease, transform 0.35s ease",
+                pointerEvents: isHome ? "auto" : "none",
               }}
             />
           );
@@ -481,7 +483,7 @@ export function LudoGame({ state, players, mySeat, busy, act }: Props) {
                 disabled={!isMovable || busy}
                 onClick={() => void handleMove(String(token))}
                 aria-label={`${color.label} token`}
-                className={`absolute z-20 rounded-full border-[2.5px] border-slate-950 shadow-[1px_2px_0_rgba(0,0,0,0.35)] transition disabled:cursor-default ${
+                className={`absolute z-20 rounded-full border-[2.5px] border-slate-950 shadow-[1px_2px_0_rgba(0,0,0,0.35)] disabled:cursor-default ${
                   isMovable ? "ring-2 ring-offset-1 ring-slate-950 scale-110 z-30" : ""
                 }`}
                 style={{
@@ -490,6 +492,8 @@ export function LudoGame({ state, players, mySeat, busy, act }: Props) {
                   left: `${col * cell + cell * 0.14 + stackOffset}%`,
                   top: `${row * cell + cell * 0.14 + stackOffset}%`,
                   background: `radial-gradient(circle at 35% 30%, ${color.home}, ${color.token} 55%, ${color.deep})`,
+                  transition: "left 0.45s cubic-bezier(0.22, 1, 0.36, 1), top 0.45s cubic-bezier(0.22, 1, 0.36, 1), transform 0.2s ease",
+                  willChange: "left, top",
                 }}
               />
             );

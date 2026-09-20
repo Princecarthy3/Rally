@@ -5,8 +5,10 @@ import { generateSkribblWordsAI } from "@/lib/ai/gemini";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { roomId, gameType, publicState, botSeat: rawBotSeat } = body;
+    const { roomId, gameType, publicState, botSeat: rawBotSeat, difficulty: rawDifficulty } = body;
     const botSeat = Number(rawBotSeat);
+    const difficulty =
+      rawDifficulty === "easy" || rawDifficulty === "hard" ? rawDifficulty : "medium";
 
     if (!roomId || !gameType || !Number.isFinite(botSeat)) {
       return NextResponse.json({ error: "Missing roomId, gameType, or botSeat" }, { status: 400 });
@@ -23,6 +25,16 @@ export async function POST(request: Request) {
     const state = publicState || {};
     let action = "";
     let value: string | null = null;
+
+    // easy: high chance of suboptimal picks; hard: almost always optimal among candidates
+    const blunderChance = difficulty === "easy" ? 0.55 : difficulty === "hard" ? 0.08 : 0.28;
+    const pick = <T,>(best: T, alternatives: T[]): T => {
+      if (alternatives.length === 0) return best;
+      if (Math.random() < blunderChance) {
+        return alternatives[Math.floor(Math.random() * alternatives.length)] ?? best;
+      }
+      return best;
+    };
 
     if (gameType === "rps") {
       action = "choose";
@@ -114,7 +126,9 @@ export async function POST(request: Request) {
           );
           if (available.length > 0) {
             action = "flip";
-            value = String(available[Math.floor(Math.random() * available.length)]);
+            const preferred = available[0];
+            const choice = pick(preferred, available.slice(1));
+            value = String(choice);
           }
         }
       }

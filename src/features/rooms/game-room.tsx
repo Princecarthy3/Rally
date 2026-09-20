@@ -35,6 +35,8 @@ export function GameRoom() {
   );
 
   const [busy, setBusy] = useState(false);
+  const [botDifficulty, setBotDifficulty] = useState<"easy" | "medium" | "hard">("medium");
+  const [showBotPicker, setShowBotPicker] = useState(false);
   const [notice, setNotice] = useState("");
   const [activeEmotes, setActiveEmotes] = useState<Array<{ seat: number; emote: string; senderName?: string; id: number }>>([]);
   const [showVictory, setShowVictory] = useState(true);
@@ -106,13 +108,23 @@ export function GameRoom() {
     setBusy(false);
   }
 
-  async function addBot() {
+  async function addBot(difficulty: "easy" | "medium" | "hard" = botDifficulty) {
     if (!room) return;
     setBusy(true);
     setNotice("");
+    setBotDifficulty(difficulty);
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`rally_bot_difficulty_${room.id}`, difficulty);
+      }
+    } catch { /* ignore */ }
     const { error } = await supabase!.rpc("add_bot_to_room", { p_room: room.id });
     if (error) setNotice(error.message);
-    else await refresh();
+    else {
+      setNotice(`AI Bot added (${difficulty}).`);
+      await refresh();
+    }
+    setShowBotPicker(false);
     setBusy(false);
   }
 
@@ -275,7 +287,43 @@ export function GameRoom() {
           )}
 
           {/* Player Profile Card Modal */}
-          <PlayerCardModal
+          
+      {showBotPicker && (
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl border-2 border-slate-950 bg-[#fffdf7] p-5 shadow-[6px_6px_0_#171821]">
+            <h3 className="text-lg font-black">AI Bot difficulty</h3>
+            <p className="mt-1 text-xs font-bold text-slate-500">How smart should the bot play?</p>
+            <div className="mt-4 grid gap-2">
+              {([
+                ["easy", "Easy — makes mistakes, random-ish moves"],
+                ["medium", "Medium — solid play, occasional errors"],
+                ["hard", "Hard — stronger, prioritizes best moves"],
+              ] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void addBot(id)}
+                  className={`rounded-2xl border-2 border-slate-950 px-4 py-3 text-left text-xs font-black transition ${
+                    botDifficulty === id ? "bg-[#77dce7] shadow-[3px_3px_0_#171821]" : "bg-white hover:bg-slate-50"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowBotPicker(false)}
+              className="arcade-button mt-4 w-full bg-white text-xs"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      <PlayerCardModal
             userId={selectedPlayerId}
             isOpen={isPlayerModalOpen}
             onClose={() => {
@@ -312,7 +360,7 @@ function Lobby({
   notice: string;
   ready: (v: boolean) => void;
   start: () => void;
-  addBot: () => void;
+  addBot: (difficulty?: "easy" | "medium" | "hard") => void;
   copy: (v: string, l: string) => void;
   share: () => void;
   activeEmotes: Array<{ seat: number; emote: string; id: number }>;
@@ -506,7 +554,7 @@ function Lobby({
               {/* Action Buttons: Full width on mobile for easy single-thumb tapping */}
               <div className="grid grid-cols-1 w-full gap-2.5 sm:w-auto sm:flex sm:flex-wrap sm:gap-3">
                 {host && players.length < room.max_players && (
-                  <button onClick={addBot} disabled={busy} className="arcade-button justify-center bg-[#77dce7] text-slate-950 text-xs py-3 sm:py-2.5 shadow-[3px_3px_0_#171821]">
+                  <button onClick={() => setShowBotPicker(true)} disabled={busy} className="arcade-button justify-center bg-[#77dce7] text-slate-950 text-xs py-3 sm:py-2.5 shadow-[3px_3px_0_#171821]">
                     🤖 ADD AI BOT
                   </button>
                 )}

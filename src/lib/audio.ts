@@ -8,6 +8,7 @@ class SoundManager {
   private bgmInterval: ReturnType<typeof setTimeout> | null = null;
   private bgmPlaying: boolean = false;
   private bgmStep: number = 0;
+  private bgmTheme: string = "lobby";
 
   constructor() {
     if (typeof window !== "undefined") {
@@ -70,7 +71,7 @@ class SoundManager {
     if (this.isMuted) {
       this.stopBgm();
     } else {
-      this.startBgm();
+      this.startBgm(this.bgmTheme || "lobby");
     }
 
     return this.isMuted;
@@ -434,8 +435,35 @@ class SoundManager {
   // Catchy Rally Arcade Groove
   // =========================================================
 
-  public startBgm() {
-    if (this.isMuted || this.bgmPlaying) return;
+  public startLobbyBgm() {
+    this.startBgm("lobby");
+  }
+
+  public startGameBgm(gameType: string) {
+    const theme =
+      gameType === "ludo"
+        ? "ludo"
+        : gameType === "skribbl"
+          ? "skribbl"
+          : gameType === "memory_match"
+            ? "memory"
+            : gameType === "mini_golf"
+              ? "golf"
+              : gameType === "uno"
+                ? "uno"
+                : "battle";
+    this.startBgm(theme);
+  }
+
+  public startBgm(theme: string = "lobby") {
+    if (this.bgmPlaying && this.bgmTheme === theme) return;
+    this.stopBgm();
+    this.bgmTheme = theme;
+    this._startBgmInternal(theme);
+  }
+
+  private _startBgmInternal(theme: string) {
+    if (this.isMuted) return;
 
     const ctx = this.initCtx();
     if (!ctx) return;
@@ -443,52 +471,48 @@ class SoundManager {
     this.bgmPlaying = true;
     this.bgmStep = 0;
 
-    /*
-      Rally's progression:
+    // Theme-specific progressions so lobby vs each game feel distinct
+    const themed: Record<string, { chords: number[][]; melody: (number | null)[]; tempo: number }> = {
+      lobby: {
+        tempo: 0.28,
+        chords: [[261.63, 329.63, 392.0], [196.0, 246.94, 293.66], [220.0, 261.63, 329.63], [174.61, 220.0, 261.63]],
+        melody: [523.25, 659.25, 783.99, 659.25, 587.33, 659.25, 783.99, 987.77, 880.0, 783.99, 659.25, 523.25, 587.33, 659.25, 523.25, null],
+      },
+      ludo: {
+        tempo: 0.32,
+        chords: [[293.66, 369.99, 440.0], [246.94, 311.13, 369.99], [261.63, 329.63, 392.0], [220.0, 277.18, 329.63]],
+        melody: [587.33, 659.25, 587.33, 493.88, 523.25, 587.33, 659.25, 783.99, 659.25, 587.33, 523.25, 493.88, 523.25, 587.33, null, null],
+      },
+      skribbl: {
+        tempo: 0.26,
+        chords: [[349.23, 440.0, 523.25], [293.66, 369.99, 440.0], [329.63, 415.3, 493.88], [261.63, 329.63, 392.0]],
+        melody: [698.46, 783.99, 880.0, 783.99, 698.46, 659.25, 587.33, 659.25, 698.46, 783.99, 880.0, null, 783.99, 698.46, 659.25, null],
+      },
+      memory: {
+        tempo: 0.3,
+        chords: [[220.0, 277.18, 329.63], [246.94, 311.13, 369.99], [196.0, 246.94, 293.66], [174.61, 220.0, 261.63]],
+        melody: [440.0, 493.88, 523.25, 493.88, 440.0, 392.0, 349.23, 392.0, 440.0, 523.25, 493.88, 440.0, null, 392.0, 440.0, null],
+      },
+      golf: {
+        tempo: 0.34,
+        chords: [[196.0, 246.94, 293.66], [174.61, 220.0, 261.63], [220.0, 277.18, 329.63], [164.81, 207.65, 246.94]],
+        melody: [392.0, 440.0, 493.88, 523.25, 493.88, 440.0, 392.0, null, 349.23, 392.0, 440.0, 392.0, 349.23, 329.63, null, null],
+      },
+      uno: {
+        tempo: 0.24,
+        chords: [[329.63, 415.3, 493.88], [293.66, 369.99, 440.0], [349.23, 440.0, 523.25], [261.63, 329.63, 392.0]],
+        melody: [659.25, 783.99, 659.25, 587.33, 659.25, 783.99, 987.77, 880.0, 783.99, 659.25, 587.33, 523.25, 587.33, 659.25, null, null],
+      },
+      battle: {
+        tempo: 0.27,
+        chords: [[246.94, 311.13, 369.99], [220.0, 277.18, 329.63], [196.0, 246.94, 293.66], [233.08, 293.66, 349.23]],
+        melody: [493.88, 587.33, 698.46, 587.33, 493.88, 440.0, 493.88, 587.33, 698.46, 783.99, 698.46, 587.33, 493.88, null, 440.0, null],
+      },
+    };
 
-      C major
-      G major
-      A minor
-      F major
-
-      This gives the track a happy,
-      energetic gaming feel.
-    */
-
-    const chords = [
-      [261.63, 329.63, 392.0], // C
-      [196.0, 246.94, 293.66], // G
-      [220.0, 261.63, 329.63], // Am
-      [174.61, 220.0, 261.63]  // F
-    ];
-
-    /*
-      Catchy lead melody.
-
-      Each number is a frequency.
-      null = rest.
-    */
-
-    const melody = [
-      523.25,
-      659.25,
-      783.99,
-      659.25,
-
-      587.33,
-      659.25,
-      783.99,
-      987.77,
-
-      880.0,
-      783.99,
-      659.25,
-      523.25,
-
-      587.33,
-      659.25,
-      523.25,
-      null
+    const pack = themed[theme] || themed.lobby;
+    const chords = pack.chords;
+    const melody = pack.melody
     ];
 
     const playBeat = () => {
@@ -509,7 +533,7 @@ class SoundManager {
         Eighth note ≈ 272ms
       */
 
-      const beatDuration = 0.272;
+      const beatDuration = pack.tempo;
 
       const step = this.bgmStep;
 
