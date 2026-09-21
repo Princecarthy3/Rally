@@ -125,8 +125,13 @@ export function GameBoard({
       } else if (room.game_type === "skribbl") {
         const drawerSeat = Number(s.drawerSeat);
         const guessed = (s.guessedSeats || []).map((n: unknown) => Number(n));
-        if (drawerSeat === botSeat && !s.wordSelected) isBotTurn = true;
-        if (drawerSeat !== botSeat && s.wordSelected && !guessed.includes(botSeat)) isBotTurn = true;
+        const hasWord =
+          typeof s.wordSelected === "string" &&
+          s.wordSelected.length > 0 &&
+          s.wordSelected !== "null";
+        if (drawerSeat === botSeat && !hasWord) isBotTurn = true;
+        // Guess only after the word is up and bot has not finished this round
+        if (drawerSeat !== botSeat && hasWord && !guessed.includes(botSeat)) isBotTurn = true;
       } else if (room.game_type === "memory_match") {
         isBotTurn = turn === botSeat;
       } else if (room.game_type === "mini_golf") {
@@ -142,11 +147,16 @@ export function GameBoard({
 
       // Key by room + turn + seat (not state_version) so a cancelled timer can be rescheduled
       // after applyPublicState/refresh re-renders without getting stuck.
-      const requestKey = `${room.id}:turn:${turn}:bot:${botSeat}`;
+      const skribblPhase =
+        room.game_type === "skribbl"
+          ? `${s.round || 1}:${typeof s.wordSelected === "string" && s.wordSelected !== "null" ? "draw" : "pick"}`
+          : String(turn);
+      const requestKey = `${room.id}:phase:${skribblPhase}:bot:${botSeat}`;
       if (pendingBotMoves.current.has(requestKey)) return;
 
       scheduledKeys.push(requestKey);
 
+      const delayMs = room.game_type === "skribbl" ? 1400 : 700;
       const timer = setTimeout(() => {
         // Mark in-flight only when the request actually starts
         if (pendingBotMoves.current.has(requestKey)) return;
@@ -184,7 +194,7 @@ export function GameBoard({
           .finally(() => {
             pendingBotMoves.current.delete(requestKey);
           });
-      }, 700);
+      }, delayMs);
 
       timers.push(timer);
     });

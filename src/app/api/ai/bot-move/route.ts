@@ -205,26 +205,40 @@ export async function POST(request: Request) {
       }
     } else if (gameType === "skribbl") {
       const drawer = Number(state.drawerSeat);
-      if (drawer === botSeat && !state.wordSelected) {
+      const selected =
+        typeof state.wordSelected === "string" &&
+        state.wordSelected.length > 0 &&
+        state.wordSelected !== "null"
+          ? state.wordSelected
+          : null;
+      if (drawer === botSeat && !selected) {
         action = "select_word";
-        const aiWords = await generateSkribblWordsAI(`${roomId}:${state.round || 1}`, state.usedWords || [], { difficulty: "medium", category: "random" });
-        value = aiWords[0] || "Pikachu";
-        // Drawing is streamed by a human client once the word is selected.
-      } else if (drawer === botSeat && state.wordSelected) {
+        try {
+          const aiWords = await generateSkribblWordsAI(
+            `${roomId}:${state.round || 1}`,
+            state.usedWords || [],
+            { difficulty: "medium", category: "random" }
+          );
+          value = (aiWords && aiWords[0]) || "Robot";
+        } catch {
+          value = "Robot";
+        }
+      } else if (drawer === botSeat && selected) {
         // Bot is drawing — no RPC action; client hosts the canvas stream.
         return NextResponse.json({ message: "Bot is drawing" });
-      } else if (drawer !== botSeat && state.wordSelected) {
-        const guessed: number[] = state.guessedSeats || [];
+      } else if (drawer !== botSeat && selected) {
+        const guessed = (state.guessedSeats || []).map((n: unknown) => Number(n));
         if (guessed.includes(botSeat)) {
           return NextResponse.json({ message: "Bot already guessed" });
         }
-        // Stagger: sometimes wrong guess first so humans can play along
         action = "guess";
-        if (Math.random() < 0.35) {
-          const decoys = ["cat", "tree", "car", "house", "fish", "sun", "robot"];
+        // Easy bots miss more often
+        const missChance = difficulty === "easy" ? 0.55 : difficulty === "hard" ? 0.15 : 0.3;
+        if (Math.random() < missChance) {
+          const decoys = ["cat", "tree", "car", "house", "fish", "sun", "robot", "pizza", "moon"];
           value = decoys[Math.floor(Math.random() * decoys.length)];
         } else {
-          value = state.wordSelected;
+          value = selected;
         }
       }
     }

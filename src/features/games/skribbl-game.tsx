@@ -356,9 +356,8 @@ export function SkribblGame({
   const drawerPlayer = players.find((p) => p.seat === drawerSeat);
   const drawerIsBot = Boolean(
     drawerPlayer &&
-      (drawerPlayer.player_id === "11111111-1111-1111-1111-111111111111" ||
-        (drawerPlayer.profile?.display_name || "").toLowerCase().includes("rally ai") ||
-        (drawerPlayer.profile?.display_name || "").toLowerCase().includes("bot"))
+      (drawerPlayer.player_id.startsWith("11111111-1111-1111-1111-") ||
+        (drawerPlayer.profile?.display_name || "").toLowerCase().includes("rally ai"))
   );
 
   useEffect(() => {
@@ -704,8 +703,16 @@ export function SkribblGame({
         </div>
       )}
 
-      {secondsLeft <= 0 && wordSelected && (
-        <p className="text-center text-xs font-black text-red-600">Time is up — guessing is locked for this round.</p>
+      {(secondsLeft <= 0 || state.revealedWord) && (
+        <div className="rounded-2xl border-2 border-slate-950 bg-amber-100 px-4 py-3 text-center shadow-[3px_3px_0_#171821]">
+          <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">Time is up</p>
+          <p className="text-sm font-black text-slate-900">
+            The word was:{" "}
+            <span className="text-[#7357ff]">
+              {String(state.revealedWord || wordSelected || "?")}
+            </span>
+          </p>
+        </div>
       )}
     </div>
   );
