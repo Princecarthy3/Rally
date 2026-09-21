@@ -785,8 +785,20 @@ export function SkribblGame({
 
 
   if (!wordSelected) {
+    const lastReveal =
+      state.revealedWord && String(state.revealedWord) !== "null"
+        ? String(state.revealedWord)
+        : null;
     return (
-      <div className="mx-auto max-w-lg text-center">
+      <div className="mx-auto max-w-lg text-center space-y-3">
+        {lastReveal && (
+          <div className="rounded-2xl border-2 border-slate-950 bg-amber-100 px-4 py-3 shadow-[3px_3px_0_#171821]">
+            <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">Previous word</p>
+            <p className="text-sm font-black text-slate-900">
+              The word was: <span className="text-[#7357ff]">{lastReveal}</span>
+            </p>
+          </div>
+        )}
         {isDrawer ? (
           <div className="rounded-3xl border-4 border-slate-950 bg-amber-50 p-6 shadow-[6px_6px_0_#171821]">
             <Sparkles className="mx-auto text-amber-500" size={36} />
@@ -1048,14 +1060,12 @@ export function SkribblGame({
         </div>
       )}
 
-      {(secondsLeft <= 0 || state.revealedWord) && (
+      {Boolean(state.revealedWord) && String(state.revealedWord) !== "null" && (
         <div className="rounded-2xl border-2 border-slate-950 bg-amber-100 px-4 py-3 text-center shadow-[3px_3px_0_#171821]">
-          <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">Time is up</p>
+          <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">Word revealed</p>
           <p className="text-sm font-black text-slate-900">
             The word was:{" "}
-            <span className="text-[#7357ff]">
-              {String(state.revealedWord || wordSelected || "?")}
-            </span>
+            <span className="text-[#7357ff]">{String(state.revealedWord)}</span>
           </p>
         </div>
       )}
