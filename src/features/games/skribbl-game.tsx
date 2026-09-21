@@ -719,9 +719,15 @@ export function SkribblGame({
     prevPos.current = null;
   };
 
+  const alreadyGotIt = Boolean(
+    me?.seat &&
+      Array.isArray(state.guessedSeats) &&
+      (state.guessedSeats as unknown[]).map(Number).includes(Number(me.seat))
+  );
+
   const handleGuessSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!guess.trim() || isDrawer || busy || secondsLeft <= 0) return;
+    if (!guess.trim() || isDrawer || busy || secondsLeft <= 0 || alreadyGotIt) return;
 
     const val = guess.trim();
     setGuess("");
@@ -803,6 +809,9 @@ export function SkribblGame({
           <div className="rounded-3xl border-4 border-slate-950 bg-amber-50 p-6 shadow-[6px_6px_0_#171821]">
             <Sparkles className="mx-auto text-amber-500" size={36} />
             <h3 className="mt-2 text-xl font-black">Choose a Word to Draw!</h3>
+            <p className="mt-1 text-xs font-bold text-[#7357ff]">
+              Round {Number(state.round) || 1} / {Number(state.maxRounds) || 3} — your turn to draw
+            </p>
             <p className="mt-1 text-xs text-slate-600">
               AI picks 3 fresh words for this room only. Adjust difficulty or category, then pick one.
             </p>
@@ -877,7 +886,10 @@ export function SkribblGame({
           <div className="rounded-3xl border-4 border-slate-950 bg-slate-100 p-8 shadow-[6px_6px_0_#171821]">
             <Paintbrush className="mx-auto animate-bounce text-slate-700" size={40} />
             <h3 className="mt-3 text-lg font-black">Drawer is Picking a Word</h3>
-            <p className="mt-1 text-xs text-slate-500">Get your guessing fingers ready...</p>
+            <p className="mt-1 text-xs font-bold text-[#7357ff]">
+              Round {Number(state.round) || 1} / {Number(state.maxRounds) || 3}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">Get your guessing fingers ready… Miss = 0 pts this turn.</p>
           </div>
         )}
       </div>
@@ -890,10 +902,23 @@ export function SkribblGame({
     ? wordSelected
     : wordSelected.replace(/[a-zA-Z]/g, "_ ");
 
-  const attemptsLeft = state.tries && me?.seat ? (state.tries[me.seat.toString()] ?? 3) : 3;
+  const maxRounds = Number(state.maxRounds) > 0 ? Number(state.maxRounds) : 3;
+  const currentRound = Number(state.round) > 0 ? Number(state.round) : 1;
+  const scores = (state.scores || {}) as Record<string, number>;
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
+      {/* Round progress */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-slate-950 bg-white px-4 py-2 text-xs font-black shadow-[3px_3px_0_#171821]">
+        <span className="text-[#7357ff]">Round {currentRound} / {maxRounds}</span>
+        <span className="text-slate-500">
+          Each player draws once per round · Miss = 0 pts
+        </span>
+        <span className="text-slate-800">
+          You: {me?.seat != null ? scores[String(me.seat)] ?? 0 : 0} pts
+        </span>
+      </div>
+
       {/* Top Banner */}
       <div className="flex items-center justify-between rounded-2xl border-2 border-slate-950 bg-slate-900 px-5 py-3 text-white shadow-[4px_4px_0_#171821]">
         <div>
@@ -910,15 +935,8 @@ export function SkribblGame({
           <p className="text-xs font-black text-amber-300">
             Player {drawerSeat} {isDrawer ? "(YOU)" : ""}
           </p>
-          {!isDrawer && (
-            <div className="mt-1 flex items-center justify-end gap-1 text-xs font-black text-amber-400">
-              <span>Tries:</span>
-              {Array.from({ length: 3 }).map((_, i) => (
-                <span key={i} className={i < attemptsLeft ? "opacity-100 scale-110" : "opacity-30 grayscale"}>
-                  🎨
-                </span>
-              ))}
-            </div>
+          {!isDrawer && alreadyGotIt && (
+            <p className="mt-1 text-[10px] font-black text-emerald-400">You got it! ✓</p>
           )}
         </div>
       </div>
@@ -1010,25 +1028,25 @@ export function SkribblGame({
       {!isDrawer && (
         <form onSubmit={handleGuessSubmit} className="flex gap-2">
           <input
-            disabled={busy || attemptsLeft <= 0 || secondsLeft <= 0}
+            disabled={busy || alreadyGotIt || secondsLeft <= 0}
             value={guess}
             onChange={(e) => setGuess(e.target.value)}
             placeholder={
               secondsLeft <= 0
                 ? "Time is up — no more guesses"
-                : attemptsLeft <= 0
-                  ? "No tries remaining for this word"
+                : alreadyGotIt
+                  ? "You already got this word!"
                   : "Type your guess here..."
             }
             className="flex-1 rounded-2xl border-2 border-slate-950 px-4 py-3 text-sm font-bold outline-none shadow-[3px_3px_0_#171821] disabled:bg-slate-100 disabled:opacity-60"
           />
           <button
-            disabled={busy || attemptsLeft <= 0 || secondsLeft <= 0}
+            disabled={busy || alreadyGotIt || secondsLeft <= 0}
             type="submit"
             className="arcade-button bg-amber-400 px-6 text-sm font-black shadow-[3px_3px_0_#171821] disabled:opacity-50"
           >
             <Send size={16} />
-            <span>GUESS ({attemptsLeft}/3)</span>
+            <span>GUESS</span>
           </button>
         </form>
       )}
@@ -1069,6 +1087,25 @@ export function SkribblGame({
           </p>
         </div>
       )}
+
+      {/* Match scoreboard */}
+      <div className="rounded-2xl border-2 border-slate-950 bg-white p-3 shadow-[3px_3px_0_#171821]">
+        <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-500">Live scores</h4>
+        <div className="mt-2 grid gap-1">
+          {[...players]
+            .sort((a, b) => (scores[String(b.seat)] ?? 0) - (scores[String(a.seat)] ?? 0))
+            .map((p) => (
+              <div key={p.seat} className="flex items-center justify-between text-xs font-bold">
+                <span>
+                  {p.profile?.display_name || `Player ${p.seat}`}
+                  {p.seat === drawerSeat ? " ✏️" : ""}
+                  {p.player_id === userId ? " (you)" : ""}
+                </span>
+                <span className="font-black text-[#7357ff]">{scores[String(p.seat)] ?? 0}</span>
+              </div>
+            ))}
+        </div>
+      </div>
     </div>
   );
 }
