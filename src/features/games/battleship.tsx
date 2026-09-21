@@ -291,7 +291,7 @@ export function Battleship({
         >
           {myTurn ? (
             <>
-              <Crosshair size={16} /> Your shot — pick a square
+              <Crosshair size={16} /> Hit keeps your turn — pick a square
             </>
           ) : (
             <>

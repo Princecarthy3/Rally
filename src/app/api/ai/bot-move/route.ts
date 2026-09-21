@@ -149,6 +149,13 @@ export async function POST(request: Request) {
         const power = Math.min(100, Math.max(14, Math.hypot(Number(cup.x) - Number(ball.x), Number(cup.y) - Number(ball.y)) / .46));
         value = JSON.stringify({ angle, power });
       }
+    } else if (gameType === "basketball") {
+      if (Number(state.turn) === botSeat) {
+        action = "shoot";
+        // skill by difficulty
+        const makeChance = difficulty === "easy" ? 0.35 : difficulty === "hard" ? 0.7 : 0.5;
+        value = Math.random() < makeChance ? "make" : "miss";
+      }
     } else if (gameType === "battleship") {
       if ((state.phase || "placing") === "placing") {
         if (!state.placements?.[String(botSeat)]) {
@@ -273,7 +280,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "No action required" });
     }
 
-    const rpc = gameType === "uno" ? "play_uno_action" : gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_rps_action" : gameType === "number_guess" ? "play_number_hunt_action" : gameType === "memory_match" ? "play_memory_match_action" : gameType === "mini_golf" ? "play_mini_golf_action" : gameType === "battleship" ? "play_battleship_action" : gameType === "skribbl" ? "play_skribbl_action" : "play_room_action";
+    const rpc = gameType === "uno" ? "play_uno_action" : gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_rps_action" : gameType === "number_guess" ? "play_number_hunt_action" : gameType === "memory_match" ? "play_memory_match_action" : gameType === "mini_golf" ? "play_mini_golf_action" : gameType === "battleship" ? "play_battleship_action" : gameType === "skribbl" ? "play_skribbl_action" : gameType === "basketball" ? "play_basketball_action" : "play_room_action";
     const params = { p_room: roomId, p_action: action, p_value: value, p_actor_seat: botSeat };
     const { data, error } = await supabase.rpc(rpc, params);
 
