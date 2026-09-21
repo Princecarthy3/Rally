@@ -116,15 +116,20 @@ export function MiniGolf({
     const rect = fieldRef.current.getBoundingClientRect();
     const dx = ((event.clientX - rect.left) / rect.width) * 100 - ball.x;
     const dy = ((event.clientY - rect.top) / rect.height) * 100 - ball.y;
+    // Server accepts radians or degrees; we send radians + power 14-100
     const angle = Math.atan2(dy, dx);
-    const dist = Math.min(40, Math.hypot(dx, dy));
-    setAim({ angle, power: Math.max(8, dist) });
+    const dist = Math.min(45, Math.hypot(dx, dy));
+    const power = Math.max(14, Math.min(100, dist * 2.4));
+    setAim({ angle, power });
   }
 
   async function releaseShot() {
-    if (!canShoot || !aim) return;
+    if (!canShoot || !aim || aim.power < 14) return;
     sounds.playClickSound();
-    await onAct("shoot", JSON.stringify({ angle: aim.angle, power: aim.power }));
+    await onAct(
+      "shoot",
+      JSON.stringify({ angle: aim.angle, power: aim.power })
+    );
     setAim(null);
   }
 
@@ -133,18 +138,21 @@ export function MiniGolf({
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-slate-950 bg-gradient-to-r from-emerald-800 to-green-700 px-3 py-2 text-white shadow-[3px_3px_0_#171821]">
         <div>
           <p className="text-[10px] font-black uppercase tracking-wider text-emerald-100">
-            Hole {hole} / 9 · Par {state.par || 3}
+            Hole {hole} / 9 · Par {state.par || 3} · Max 4 strokes
           </p>
           <p className="text-sm font-black">Difficulty: {difficultyLabel}</p>
         </div>
         <div className="text-right text-xs font-bold">
-          <p>Your strokes: {ball?.strokes ?? 0}</p>
-          <p className="text-emerald-100">Total: {scores[String(meSeat)] ?? 0}</p>
+          <p>Strokes: {ball?.strokes ?? 0}/4</p>
+          <p className="text-emerald-100">Score: {scores[String(meSeat)] ?? 0}</p>
         </div>
       </div>
 
       <p className="text-center text-xs font-bold text-slate-600">
-        {state.message || (canShoot ? "Drag to aim, release to putt" : "Waiting…")}
+        {state.message ||
+          (canShoot
+            ? "Drag toward the cup, release to putt (max 4 strokes — miss = no points)"
+            : "Waiting…")}
       </p>
 
       {/* Larger mobile-friendly green */}

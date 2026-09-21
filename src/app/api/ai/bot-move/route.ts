@@ -142,11 +142,22 @@ export async function POST(request: Request) {
       }
     } else if (gameType === "mini_golf") {
       const ball = state.balls?.[String(botSeat)];
-      const cup = state.cup;
-      if (Number(state.turn) === botSeat && ball && cup && !ball.finished) {
+      const cup = state.cup || { x: 86, y: 22 };
+      if (Number(state.turn) === botSeat && ball && !ball.finished) {
         action = "shoot";
-        const angle = Math.atan2(Number(cup.y) - Number(ball.y), Number(cup.x) - Number(ball.x)) * 180 / Math.PI;
-        const power = Math.min(100, Math.max(14, Math.hypot(Number(cup.x) - Number(ball.x), Number(cup.y) - Number(ball.y)) / .46));
+        const dx = Number(cup.x) - Number(ball.x);
+        const dy = Number(cup.y) - Number(ball.y);
+        // radians — server accepts both
+        let angle = Math.atan2(dy, dx);
+        const dist = Math.hypot(dx, dy);
+        // Scale power so the ball roughly reaches the cup (server uses *0.42)
+        let power = Math.min(100, Math.max(18, dist / 0.42));
+        // Difficulty: easy misses aim, hard is accurate
+        const jitter =
+          difficulty === "easy" ? 0.45 : difficulty === "hard" ? 0.06 : 0.2;
+        angle += (Math.random() - 0.5) * jitter;
+        power *= 0.85 + Math.random() * 0.3;
+        power = Math.min(100, Math.max(14, power));
         value = JSON.stringify({ angle, power });
       }
     } else if (gameType === "basketball") {
