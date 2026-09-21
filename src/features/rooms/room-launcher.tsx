@@ -68,7 +68,14 @@ export function RoomLauncher({
       return;
     }
 
-    // 2. Fallback: Direct table creation if RPC constraint fails or is outdated
+    // Prefer RPC errors (e.g. Unknown game) over opaque RLS permission denied on direct insert
+    if (rpcError?.message && !/could not find|does not exist|function/i.test(rpcError.message)) {
+      setError(rpcError.message);
+      setBusy(false);
+      return;
+    }
+
+    // 2. Fallback: Direct table creation only if RPC is missing
     try {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) {
@@ -95,7 +102,7 @@ export function RoomLauncher({
         .single();
 
       if (roomErr || !newRoom) {
-        setError(roomErr?.message || rpcError?.message || "Failed to create game room");
+        setError(rpcError?.message || roomErr?.message || "Failed to create game room");
         setBusy(false);
         return;
       }
