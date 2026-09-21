@@ -41,20 +41,27 @@ export function BasketballGame({
   const [dragging, setDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [aim, setAim] = useState<{ dx: number; dy: number } | null>(null);
-  const [resultFlash, setResultFlash] = useState<string | null>(null);
   const animRef = useRef<number | null>(null);
+  const lastSoundKey = useRef<string>("");
 
-  // Sync flash from server message
+  // Derive flash from server state (no setState-in-effect)
+  const resultFlash =
+    state.lastResult === "make"
+      ? "SWISH! 🔥"
+      : state.lastResult === "miss"
+        ? "Miss"
+        : null;
+
+  // Play SFX when lastResult changes (async, not synchronous setState)
   useEffect(() => {
-    if (state.lastResult === "make") {
-      setResultFlash("SWISH! 🔥");
-      sounds.playTokenFinishSound();
-    } else if (state.lastResult === "miss") {
-      setResultFlash("Miss");
-      sounds.playClickSound();
-    }
-    const t = setTimeout(() => setResultFlash(null), 900);
-    return () => clearTimeout(t);
+    const key = `${room.state_version}:${state.lastResult || ""}`;
+    if (!state.lastResult || key === lastSoundKey.current) return;
+    lastSoundKey.current = key;
+    const id = window.setTimeout(() => {
+      if (state.lastResult === "make") sounds.playTokenFinishSound();
+      else if (state.lastResult === "miss") sounds.playClickSound();
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [state.lastResult, room.state_version]);
 
   const launch = useCallback(
