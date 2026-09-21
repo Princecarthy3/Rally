@@ -43,6 +43,384 @@ function fallbackWords(excluded: string[]) {
   return choices;
 }
 
+
+/** Simple stroke recipes so the bot can sketch something related to the word. */
+type BotStroke = { x0: number; y0: number; x1: number; y1: number; color: string; size: number };
+type BotFill = { x: number; y: number; color: string };
+
+function circleStrokes(cx: number, cy: number, r: number, color: string, size = 4, steps = 28): BotStroke[] {
+  const out: BotStroke[] = [];
+  let px = cx + r;
+  let py = cy;
+  for (let i = 1; i <= steps; i++) {
+    const a = (i / steps) * Math.PI * 2;
+    const x = cx + Math.cos(a) * r;
+    const y = cy + Math.sin(a) * r;
+    out.push({ x0: px, y0: py, x1: x, y1: y, color, size });
+    px = x;
+    py = y;
+  }
+  return out;
+}
+
+function line(x0: number, y0: number, x1: number, y1: number, color: string, size = 4): BotStroke {
+  return { x0, y0, x1, y1, color, size };
+}
+
+function rectStrokes(x: number, y: number, w: number, h: number, color: string, size = 4): BotStroke[] {
+  return [
+    line(x, y, x + w, y, color, size),
+    line(x + w, y, x + w, y + h, color, size),
+    line(x + w, y + h, x, y + h, color, size),
+    line(x, y + h, x, y, color, size),
+  ];
+}
+
+function polyStrokes(points: Array<[number, number]>, color: string, size = 4, close = true): BotStroke[] {
+  const out: BotStroke[] = [];
+  for (let i = 1; i < points.length; i++) {
+    out.push(line(points[i - 1][0], points[i - 1][1], points[i][0], points[i][1], color, size));
+  }
+  if (close && points.length > 2) {
+    const last = points[points.length - 1];
+    const first = points[0];
+    out.push(line(last[0], last[1], first[0], first[1], color, size));
+  }
+  return out;
+}
+
+function botArtForWord(raw: string): { strokes: BotStroke[]; fills: BotFill[] } {
+  const word = raw.toLowerCase().trim();
+  const strokes: BotStroke[] = [];
+  const fills: BotFill[] = [];
+  const ink = "#171821";
+  const red = "#ef4444";
+  const blue = "#3b82f6";
+  const green = "#22c55e";
+  const yellow = "#eab308";
+  const orange = "#f97316";
+  const brown = "#78350f";
+  const pink = "#ec4899";
+  const cyan = "#06b6d4";
+  const cx = 300;
+  const cy = 190;
+
+  // --- Animals ---
+  if (/\b(cat|kitten)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy + 10, 55, ink, 4));
+    strokes.push(...polyStrokes([[cx - 40, cy - 30], [cx - 25, cy - 70], [cx - 10, cy - 30]], ink, 4));
+    strokes.push(...polyStrokes([[cx + 10, cy - 30], [cx + 25, cy - 70], [cx + 40, cy - 30]], ink, 4));
+    strokes.push(...circleStrokes(cx - 18, cy, 6, ink, 3));
+    strokes.push(...circleStrokes(cx + 18, cy, 6, ink, 3));
+    strokes.push(line(cx - 8, cy + 18, cx + 8, cy + 18, pink, 3));
+    fills.push({ x: cx, y: cy, color: "#fde68a" });
+  } else if (/\b(dog|puppy)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy + 5, 50, ink, 4));
+    strokes.push(...circleStrokes(cx - 55, cy - 10, 18, ink, 3));
+    strokes.push(...circleStrokes(cx + 55, cy - 10, 18, ink, 3));
+    strokes.push(...circleStrokes(cx - 15, cy, 5, ink, 3));
+    strokes.push(...circleStrokes(cx + 15, cy, 5, ink, 3));
+    strokes.push(line(cx, cy + 10, cx, cy + 25, ink, 3));
+    fills.push({ x: cx, y: cy, color: "#fbbf24" });
+  } else if (/\b(fish)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx - 20, cy, 45, cyan, 4));
+    strokes.push(...polyStrokes([[cx + 20, cy], [cx + 80, cy - 35], [cx + 80, cy + 35]], cyan, 4));
+    strokes.push(...circleStrokes(cx - 35, cy - 10, 5, ink, 3));
+    fills.push({ x: cx - 20, y: cy, color: "#7dd3fc" });
+  } else if (/\b(bird|chicken)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy, 40, ink, 4));
+    strokes.push(...circleStrokes(cx + 35, cy - 25, 18, ink, 3));
+    strokes.push(...polyStrokes([[cx + 50, cy - 25], [cx + 75, cy - 20], [cx + 50, cy - 15]], orange, 3));
+    strokes.push(...polyStrokes([[cx - 10, cy + 10], [cx - 70, cy - 20], [cx - 20, cy + 25]], ink, 3));
+    fills.push({ x: cx, y: cy, color: "#fef3c7" });
+  } else if (/\b(monkey)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy, 50, brown, 4));
+    strokes.push(...circleStrokes(cx - 40, cy - 20, 16, brown, 3));
+    strokes.push(...circleStrokes(cx + 40, cy - 20, 16, brown, 3));
+    strokes.push(...circleStrokes(cx - 15, cy, 5, ink, 3));
+    strokes.push(...circleStrokes(cx + 15, cy, 5, ink, 3));
+    fills.push({ x: cx, y: cy, color: "#d6a06a" });
+  } else if (/\b(butterfly)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx - 50, cy - 20, 35, pink, 3));
+    strokes.push(...circleStrokes(cx + 50, cy - 20, 35, pink, 3));
+    strokes.push(...circleStrokes(cx - 45, cy + 30, 28, "#a855f7", 3));
+    strokes.push(...circleStrokes(cx + 45, cy + 30, 28, "#a855f7", 3));
+    strokes.push(line(cx, cy - 60, cx, cy + 70, ink, 4));
+    fills.push({ x: cx - 50, y: cy - 20, color: "#fbcfe8" });
+  } else if (/\b(dinosaur)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx - 40, cy + 10, 40, green, 4));
+    strokes.push(line(cx - 10, cy + 10, cx + 80, cy + 30, green, 6));
+    strokes.push(...polyStrokes([[cx - 60, cy - 20], [cx - 50, cy - 60], [cx - 30, cy - 20]], green, 3));
+    strokes.push(...polyStrokes([[cx - 40, cy - 15], [cx - 30, cy - 50], [cx - 15, cy - 15]], green, 3));
+    fills.push({ x: cx - 40, y: cy + 10, color: "#86efac" });
+  } else if (/\b(zombie)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy - 40, 35, green, 4));
+    strokes.push(...rectStrokes(cx - 35, cy, 70, 90, green, 4));
+    strokes.push(...circleStrokes(cx - 12, cy - 45, 5, ink, 3));
+    strokes.push(...circleStrokes(cx + 12, cy - 45, 5, ink, 3));
+    strokes.push(line(cx - 10, cy - 25, cx + 10, cy - 25, ink, 2));
+    fills.push({ x: cx, y: cy - 40, color: "#bbf7d0" });
+  } else if (/\b(ghost)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy - 30, 40, "#94a3b8", 4));
+    strokes.push(line(cx - 40, cy - 20, cx - 40, cy + 60, "#94a3b8", 4));
+    strokes.push(line(cx + 40, cy - 20, cx + 40, cy + 60, "#94a3b8", 4));
+    strokes.push(...polyStrokes([[cx - 40, cy + 60], [cx - 20, cy + 40], [cx, cy + 60], [cx + 20, cy + 40], [cx + 40, cy + 60]], "#94a3b8", 3, false));
+    strokes.push(...circleStrokes(cx - 12, cy - 35, 5, ink, 3));
+    strokes.push(...circleStrokes(cx + 12, cy - 35, 5, ink, 3));
+  } else if (/\b(alien)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy, 55, green, 4));
+    strokes.push(...circleStrokes(cx - 18, cy - 5, 12, ink, 3));
+    strokes.push(...circleStrokes(cx + 18, cy - 5, 12, ink, 3));
+    strokes.push(line(cx - 30, cy - 55, cx - 50, cy - 90, green, 3));
+    strokes.push(line(cx + 30, cy - 55, cx + 50, cy - 90, green, 3));
+    fills.push({ x: cx, y: cy, color: "#86efac" });
+  } else if (/\b(mermaid)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy - 50, 28, pink, 3));
+    strokes.push(...rectStrokes(cx - 25, cy - 25, 50, 55, pink, 3));
+    strokes.push(...polyStrokes([[cx - 30, cy + 30], [cx, cy + 100], [cx + 30, cy + 30]], cyan, 4));
+    fills.push({ x: cx, y: cy + 50, color: "#67e8f9" });
+  } else if (/\b(pirate)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy, 50, ink, 4));
+    strokes.push(line(cx - 45, cy - 15, cx + 45, cy - 15, ink, 8));
+    strokes.push(...circleStrokes(cx + 15, cy, 6, ink, 3));
+    strokes.push(line(cx - 15, cy + 15, cx + 5, cy + 15, ink, 3));
+    fills.push({ x: cx, y: cy + 20, color: "#fed7aa" });
+  } else if (/\b(robot)\b/.test(word)) {
+    strokes.push(...rectStrokes(cx - 50, cy - 40, 100, 90, ink, 4));
+    strokes.push(...rectStrokes(cx - 30, cy - 80, 60, 35, ink, 4));
+    strokes.push(...circleStrokes(cx - 15, cy - 62, 6, red, 3));
+    strokes.push(...circleStrokes(cx + 15, cy - 62, 6, red, 3));
+    strokes.push(line(cx - 20, cy, cx + 20, cy, ink, 3));
+    fills.push({ x: cx, y: cy, color: "#cbd5e1" });
+  } else if (/\b(superhero)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy - 40, 30, ink, 3));
+    strokes.push(...rectStrokes(cx - 30, cy - 10, 60, 80, red, 4));
+    strokes.push(...polyStrokes([[cx - 30, cy], [cx - 80, cy + 40], [cx - 30, cy + 30]], red, 3));
+    strokes.push(...polyStrokes([[cx + 30, cy], [cx + 80, cy + 40], [cx + 30, cy + 30]], red, 3));
+  }
+  // --- Nature / objects ---
+  else if (/\b(sun|star)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy, 40, yellow, 4));
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      strokes.push(line(cx + Math.cos(a) * 50, cy + Math.sin(a) * 50, cx + Math.cos(a) * 80, cy + Math.sin(a) * 80, yellow, 4));
+    }
+    fills.push({ x: cx, y: cy, color: "#fde047" });
+  } else if (/\b(moon)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy, 55, yellow, 4));
+    strokes.push(...circleStrokes(cx + 20, cy - 10, 40, "#fffbeb", 4));
+    fills.push({ x: cx - 15, y: cy, color: "#fef08a" });
+  } else if (/\b(tree)\b/.test(word)) {
+    strokes.push(...rectStrokes(cx - 12, cy + 20, 24, 70, brown, 4));
+    strokes.push(...circleStrokes(cx, cy - 10, 55, green, 4));
+    fills.push({ x: cx, y: cy - 10, color: "#4ade80" });
+  } else if (/\b(cloud)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx - 40, cy, 35, "#94a3b8", 3));
+    strokes.push(...circleStrokes(cx + 10, cy - 15, 45, "#94a3b8", 3));
+    strokes.push(...circleStrokes(cx + 50, cy + 5, 32, "#94a3b8", 3));
+  } else if (/\b(volcano)\b/.test(word)) {
+    strokes.push(...polyStrokes([[cx - 100, cy + 80], [cx - 20, cy - 40], [cx + 20, cy - 40], [cx + 100, cy + 80]], brown, 4));
+    strokes.push(...polyStrokes([[cx - 15, cy - 40], [cx, cy - 90], [cx + 15, cy - 40]], red, 3));
+    fills.push({ x: cx, y: cy + 20, color: "#a16207" });
+  } else if (/\b(rainbow)\b/.test(word)) {
+    const cols = [red, orange, yellow, green, blue, "#a855f7"];
+    cols.forEach((c, i) => {
+      strokes.push(...circleStrokes(cx, cy + 40, 100 - i * 12, c, 5, 20).filter((s) => s.y0 < cy + 40 && s.y1 < cy + 40));
+    });
+  } else if (/\b(house)\b/.test(word)) {
+    strokes.push(...rectStrokes(cx - 70, cy - 10, 140, 100, ink, 4));
+    strokes.push(...polyStrokes([[cx - 90, cy - 10], [cx, cy - 90], [cx + 90, cy - 10]], red, 4));
+    strokes.push(...rectStrokes(cx - 15, cy + 30, 30, 60, brown, 3));
+    fills.push({ x: cx, y: cy + 20, color: "#fef3c7" });
+  } else if (/\b(car)\b/.test(word)) {
+    strokes.push(...rectStrokes(cx - 90, cy - 10, 180, 50, blue, 4));
+    strokes.push(...polyStrokes([[cx - 50, cy - 10], [cx - 30, cy - 50], [cx + 40, cy - 50], [cx + 70, cy - 10]], blue, 3));
+    strokes.push(...circleStrokes(cx - 50, cy + 40, 18, ink, 4));
+    strokes.push(...circleStrokes(cx + 50, cy + 40, 18, ink, 4));
+    fills.push({ x: cx, y: cy + 10, color: "#93c5fd" });
+  } else if (/\b(bicycle|bike)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx - 70, cy + 20, 35, ink, 4));
+    strokes.push(...circleStrokes(cx + 70, cy + 20, 35, ink, 4));
+    strokes.push(line(cx - 70, cy + 20, cx + 20, cy + 20, ink, 3));
+    strokes.push(line(cx + 20, cy + 20, cx + 70, cy + 20, ink, 3));
+    strokes.push(line(cx + 20, cy + 20, cx, cy - 40, ink, 3));
+    strokes.push(line(cx, cy - 40, cx - 40, cy + 20, ink, 3));
+  } else if (/\b(airplane|helicopter)\b/.test(word)) {
+    strokes.push(...rectStrokes(cx - 80, cy - 15, 160, 30, ink, 4));
+    strokes.push(...polyStrokes([[cx - 10, cy], [cx - 60, cy - 50], [cx + 10, cy]], ink, 3));
+    strokes.push(...polyStrokes([[cx - 10, cy + 15], [cx - 50, cy + 55], [cx + 10, cy + 15]], ink, 3));
+    if (word.includes("helicopter")) {
+      strokes.push(line(cx - 90, cy - 40, cx + 90, cy - 40, ink, 3));
+    }
+  } else if (/\b(boat|submarine|ship)\b/.test(word)) {
+    strokes.push(...polyStrokes([[cx - 90, cy], [cx - 70, cy + 50], [cx + 70, cy + 50], [cx + 90, cy]], blue, 4));
+    strokes.push(...rectStrokes(cx - 30, cy - 40, 60, 40, ink, 3));
+    fills.push({ x: cx, y: cy + 20, color: "#7dd3fc" });
+  } else if (/\b(apple)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy + 10, 50, red, 4));
+    strokes.push(line(cx, cy - 40, cx + 5, cy - 70, brown, 3));
+    strokes.push(...polyStrokes([[cx + 5, cy - 55], [cx + 35, cy - 70], [cx + 15, cy - 45]], green, 3));
+    fills.push({ x: cx, y: cy + 10, color: "#fca5a5" });
+  } else if (/\b(banana)\b/.test(word)) {
+    strokes.push(...polyStrokes([[cx - 60, cy - 20], [cx - 40, cy + 40], [cx + 20, cy + 50], [cx + 70, cy + 10], [cx + 40, cy - 10], [cx - 20, cy + 10]], yellow, 4));
+    fills.push({ x: cx, y: cy + 15, color: "#fde047" });
+  } else if (/\b(pizza)\b/.test(word)) {
+    strokes.push(...polyStrokes([[cx, cy - 70], [cx - 80, cy + 60], [cx + 80, cy + 60]], orange, 4));
+    strokes.push(...circleStrokes(cx - 15, cy, 8, red, 3));
+    strokes.push(...circleStrokes(cx + 20, cy + 20, 8, red, 3));
+    strokes.push(...circleStrokes(cx - 25, cy + 30, 7, red, 3));
+    fills.push({ x: cx, y: cy + 10, color: "#fdba74" });
+  } else if (/\b(cake|cupcake)\b/.test(word)) {
+    strokes.push(...rectStrokes(cx - 50, cy, 100, 60, pink, 4));
+    strokes.push(...polyStrokes([[cx - 50, cy], [cx - 40, cy - 30], [cx - 20, cy - 10], [cx, cy - 35], [cx + 20, cy - 10], [cx + 40, cy - 30], [cx + 50, cy]], pink, 3, false));
+    strokes.push(line(cx, cy - 35, cx, cy - 60, ink, 2));
+    strokes.push(...circleStrokes(cx, cy - 65, 6, red, 3));
+    fills.push({ x: cx, y: cy + 20, color: "#fbcfe8" });
+  } else if (/\b(hamburger|burger)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy - 25, 55, orange, 4, 20).filter((s) => s.y0 <= cy - 25 || s.y1 <= cy - 25));
+    strokes.push(...rectStrokes(cx - 55, cy - 10, 110, 18, green, 3));
+    strokes.push(...rectStrokes(cx - 55, cy + 8, 110, 18, brown, 3));
+    strokes.push(...circleStrokes(cx, cy + 40, 55, orange, 4, 20).filter((s) => s.y0 >= cy + 40 || s.y1 >= cy + 40));
+  } else if (/\b(watermelon)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy, 70, green, 5));
+    strokes.push(...circleStrokes(cx, cy, 55, red, 3));
+    strokes.push(...circleStrokes(cx - 15, cy - 10, 4, ink, 2));
+    strokes.push(...circleStrokes(cx + 18, cy + 12, 4, ink, 2));
+    fills.push({ x: cx, y: cy, color: "#fca5a5" });
+  } else if (/\b(pineapple)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy + 20, 50, yellow, 4));
+    strokes.push(...polyStrokes([[cx - 20, cy - 30], [cx, cy - 90], [cx + 20, cy - 30]], green, 3));
+    strokes.push(...polyStrokes([[cx - 35, cy - 20], [cx - 10, cy - 75], [cx + 5, cy - 25]], green, 3));
+    fills.push({ x: cx, y: cy + 20, color: "#fde047" });
+  } else if (/\b(phone)\b/.test(word)) {
+    strokes.push(...rectStrokes(cx - 35, cy - 70, 70, 140, ink, 4));
+    strokes.push(...rectStrokes(cx - 25, cy - 55, 50, 100, blue, 3));
+    strokes.push(...circleStrokes(cx, cy + 55, 6, ink, 2));
+  } else if (/\b(book)\b/.test(word)) {
+    strokes.push(...rectStrokes(cx - 60, cy - 50, 120, 100, blue, 4));
+    strokes.push(line(cx, cy - 50, cx, cy + 50, ink, 3));
+    fills.push({ x: cx - 30, y: cy, color: "#93c5fd" });
+  } else if (/\b(chair)\b/.test(word)) {
+    strokes.push(...rectStrokes(cx - 50, cy - 10, 100, 15, brown, 4));
+    strokes.push(line(cx - 50, cy - 10, cx - 50, cy - 70, brown, 4));
+    strokes.push(line(cx + 50, cy - 10, cx + 50, cy - 70, brown, 4));
+    strokes.push(line(cx - 50, cy - 70, cx + 50, cy - 70, brown, 3));
+    strokes.push(line(cx - 40, cy + 5, cx - 40, cy + 70, brown, 3));
+    strokes.push(line(cx + 40, cy + 5, cx + 40, cy + 70, brown, 3));
+  } else if (/\b(hat)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy - 10, 40, ink, 4));
+    strokes.push(line(cx - 80, cy + 20, cx + 80, cy + 20, ink, 6));
+    fills.push({ x: cx, y: cy - 10, color: "#334155" });
+  } else if (/\b(shoe)\b/.test(word)) {
+    strokes.push(...polyStrokes([[cx - 70, cy - 20], [cx + 40, cy - 20], [cx + 80, cy + 30], [cx - 70, cy + 30]], ink, 4));
+    fills.push({ x: cx, y: cy, color: "#94a3b8" });
+  } else if (/\b(ball)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy, 60, orange, 4));
+    strokes.push(line(cx - 60, cy, cx + 60, cy, ink, 2));
+    strokes.push(line(cx, cy - 60, cx, cy + 60, ink, 2));
+    fills.push({ x: cx, y: cy, color: "#fdba74" });
+  } else if (/\b(guitar)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy + 30, 50, brown, 4));
+    strokes.push(...circleStrokes(cx, cy - 5, 30, brown, 3));
+    strokes.push(...rectStrokes(cx - 8, cy - 100, 16, 90, brown, 3));
+    strokes.push(...circleStrokes(cx, cy + 30, 12, ink, 2));
+    fills.push({ x: cx, y: cy + 30, color: "#d6a06a" });
+  } else if (/\b(umbrella)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy, 70, red, 4, 24).filter((s) => s.y0 <= cy && s.y1 <= cy));
+    strokes.push(line(cx, cy, cx, cy + 90, ink, 3));
+    strokes.push(...polyStrokes([[cx, cy + 90], [cx + 20, cy + 100], [cx, cy + 95]], ink, 2));
+  } else if (/\b(toilet)\b/.test(word)) {
+    strokes.push(...rectStrokes(cx - 40, cy - 20, 80, 70, "#94a3b8", 4));
+    strokes.push(...circleStrokes(cx, cy + 5, 28, "#e2e8f0", 3));
+    strokes.push(...rectStrokes(cx - 50, cy - 70, 100, 50, "#94a3b8", 3));
+  } else if (/\b(heart|broken heart)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx - 25, cy - 10, 30, red, 4));
+    strokes.push(...circleStrokes(cx + 25, cy - 10, 30, red, 4));
+    strokes.push(...polyStrokes([[cx - 52, cy], [cx, cy + 70], [cx + 52, cy]], red, 4, false));
+    fills.push({ x: cx, y: cy + 10, color: "#fca5a5" });
+  } else if (/\b(castle|pyramid)\b/.test(word)) {
+    if (word.includes("pyramid")) {
+      strokes.push(...polyStrokes([[cx - 100, cy + 80], [cx, cy - 80], [cx + 100, cy + 80]], yellow, 4));
+      fills.push({ x: cx, y: cy + 20, color: "#fde68a" });
+    } else {
+      strokes.push(...rectStrokes(cx - 80, cy - 20, 160, 100, "#64748b", 4));
+      strokes.push(...rectStrokes(cx - 90, cy - 50, 30, 40, "#64748b", 3));
+      strokes.push(...rectStrokes(cx + 60, cy - 50, 30, 40, "#64748b", 3));
+      strokes.push(...rectStrokes(cx - 20, cy - 70, 40, 50, "#64748b", 3));
+    }
+  } else if (/\b(lighthouse)\b/.test(word)) {
+    strokes.push(...polyStrokes([[cx - 40, cy + 90], [cx - 25, cy - 60], [cx + 25, cy - 60], [cx + 40, cy + 90]], red, 4));
+    strokes.push(...rectStrokes(cx - 30, cy - 90, 60, 30, yellow, 3));
+    fills.push({ x: cx, y: cy + 20, color: "#fca5a5" });
+  } else if (/\b(campfire|fire)\b/.test(word)) {
+    strokes.push(...polyStrokes([[cx - 40, cy + 40], [cx, cy - 50], [cx + 40, cy + 40]], red, 4));
+    strokes.push(...polyStrokes([[cx - 25, cy + 40], [cx, cy - 20], [cx + 25, cy + 40]], orange, 3));
+    strokes.push(line(cx - 50, cy + 45, cx + 50, cy + 45, brown, 5));
+    fills.push({ x: cx, y: cy + 10, color: "#fb923c" });
+  } else if (/\b(wi-?fi|wifi)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy + 40, 8, ink, 3));
+    strokes.push(...circleStrokes(cx, cy + 40, 30, ink, 3, 16).filter((s) => s.y0 <= cy + 40 && s.y1 <= cy + 40));
+    strokes.push(...circleStrokes(cx, cy + 40, 50, ink, 3, 16).filter((s) => s.y0 <= cy + 40 && s.y1 <= cy + 40));
+    strokes.push(...circleStrokes(cx, cy + 40, 70, ink, 3, 16).filter((s) => s.y0 <= cy + 40 && s.y1 <= cy + 40));
+  } else if (/\b(pikachu)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy + 10, 55, yellow, 4));
+    strokes.push(...polyStrokes([[cx - 35, cy - 30], [cx - 50, cy - 90], [cx - 10, cy - 40]], yellow, 3));
+    strokes.push(...polyStrokes([[cx + 35, cy - 30], [cx + 50, cy - 90], [cx + 10, cy - 40]], yellow, 3));
+    strokes.push(...circleStrokes(cx - 18, cy, 6, ink, 3));
+    strokes.push(...circleStrokes(cx + 18, cy, 6, ink, 3));
+    strokes.push(...circleStrokes(cx - 30, cy + 25, 10, red, 2));
+    strokes.push(...circleStrokes(cx + 30, cy + 25, 10, red, 2));
+    fills.push({ x: cx, y: cy + 10, color: "#fde047" });
+  } else if (/\b(astronaut)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy - 40, 40, ink, 4));
+    strokes.push(...circleStrokes(cx, cy - 40, 28, cyan, 3));
+    strokes.push(...rectStrokes(cx - 40, cy, 80, 90, ink, 4));
+    fills.push({ x: cx, y: cy - 40, color: "#e2e8f0" });
+  } else if (/\b(vampire)\b/.test(word)) {
+    strokes.push(...circleStrokes(cx, cy - 30, 35, ink, 3));
+    strokes.push(...rectStrokes(cx - 40, cy, 80, 90, ink, 4));
+    strokes.push(...polyStrokes([[cx - 40, cy], [cx - 90, cy + 80], [cx - 40, cy + 40]], ink, 3));
+    strokes.push(...polyStrokes([[cx + 40, cy], [cx + 90, cy + 80], [cx + 40, cy + 40]], ink, 3));
+    strokes.push(line(cx - 10, cy - 20, cx - 5, cy - 10, ink, 2));
+    strokes.push(line(cx + 5, cy - 10, cx + 10, cy - 20, ink, 2));
+  }
+  // --- Generic fallback from letters / shape keywords ---
+  else {
+    // Try keyword families
+    if (/animal|creature|pet/.test(word)) {
+      strokes.push(...circleStrokes(cx, cy, 50, ink, 4));
+      strokes.push(...circleStrokes(cx - 15, cy - 5, 5, ink, 3));
+      strokes.push(...circleStrokes(cx + 15, cy - 5, 5, ink, 3));
+    } else if (/food|eat|fruit|meal/.test(word)) {
+      strokes.push(...circleStrokes(cx, cy, 55, orange, 4));
+      fills.push({ x: cx, y: cy, color: "#fdba74" });
+    } else if (/vehicle|drive|ride|truck/.test(word)) {
+      strokes.push(...rectStrokes(cx - 80, cy - 10, 160, 50, blue, 4));
+      strokes.push(...circleStrokes(cx - 45, cy + 40, 16, ink, 3));
+      strokes.push(...circleStrokes(cx + 45, cy + 40, 16, ink, 3));
+    } else if (/place|building|city|school|hospital/.test(word)) {
+      strokes.push(...rectStrokes(cx - 70, cy - 40, 140, 120, ink, 4));
+      strokes.push(...rectStrokes(cx - 25, cy + 20, 50, 60, ink, 3));
+    } else {
+      // Draw a rounded blob + write first letter as stick strokes for a hint
+      strokes.push(...circleStrokes(cx, cy, 60, ink, 4));
+      const letter = (raw[0] || "?").toUpperCase();
+      // simple letter-ish marks in the center
+      if ("AEFHIKLMNTVWXYZ".includes(letter)) {
+        strokes.push(line(cx - 20, cy - 30, cx - 20, cy + 30, ink, 5));
+      }
+      if ("ABCDEFHJKLMNPR".includes(letter)) {
+        strokes.push(line(cx - 20, cy - 30, cx + 15, cy - 30, ink, 4));
+      }
+      strokes.push(line(cx - 15, cy, cx + 15, cy, ink, 3));
+      strokes.push(line(cx - 25, cy + 40, cx + 25, cy + 40, ink, 3));
+    }
+  }
+
+  return { strokes, fills };
+}
+
+
 export function SkribblGame({
   room,
   players,
@@ -352,7 +730,7 @@ export function SkribblGame({
   };
 
   // Word selection view for drawer
-  // When the Rally bot is the drawer, the human host streams simple strokes for everyone.
+  // When the Rally bot is the drawer, stream strokes that resemble the chosen word.
   const drawerPlayer = players.find((p) => p.seat === drawerSeat);
   const drawerIsBot = Boolean(
     drawerPlayer &&
@@ -362,73 +740,40 @@ export function SkribblGame({
 
   useEffect(() => {
     if (!wordSelected || !drawerIsBot || !channelRef.current) return;
-    // Only one client drives bot art — prefer seat 1 human, else any non-bot.
-    const humans = players.filter(
-      (p) => p.player_id !== "11111111-1111-1111-1111-111111111111"
-    );
+    const humans = players.filter((p) => !p.player_id.startsWith("11111111-1111-1111-1111-"));
     const driver = humans.find((p) => p.player_id === userId);
     if (!driver) return;
-    // Lowest human seat drives to avoid duplicate streams
     const lowestHuman = Math.min(...humans.map((p) => p.seat));
     if (driver.seat !== lowestHuman) return;
 
     let cancelled = false;
-    const word = String(wordSelected);
-    const palette = ["#000000", "#ef4444", "#3b82f6", "#22c55e", "#eab308", "#a855f7"];
-    const pickColor = () => palette[Math.floor(Math.random() * palette.length)];
-
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-    const broadcastStroke = (x0: number, y0: number, x1: number, y1: number, c: string, size: number) => {
-      drawStroke(x0, y0, x1, y1, c, size);
-      channelRef.current?.send({
-        type: "broadcast",
-        event: "draw",
-        payload: { x0, y0, x1, y1, color: c, size },
-      });
-    };
+    const art = botArtForWord(String(wordSelected));
 
     void (async () => {
-      await sleep(600);
+      await sleep(500);
       if (cancelled) return;
-      // Simple "sketch" based on word length — abstract but looks intentional
-      const cx = 300;
-      const cy = 190;
-      const color = pickColor();
-      // Outline circle / box
-      const steps = 24;
-      let prevX = cx + 80;
-      let prevY = cy;
-      for (let i = 1; i <= steps; i++) {
+      clearCanvasLocal();
+      channelRef.current?.send({ type: "broadcast", event: "clear" });
+      await sleep(200);
+      for (const s of art.strokes) {
         if (cancelled) return;
-        const a = (i / steps) * Math.PI * 2;
-        const x = cx + Math.cos(a) * (70 + (word.length % 5) * 4);
-        const y = cy + Math.sin(a) * (55 + (word.length % 3) * 6);
-        broadcastStroke(prevX, prevY, x, y, color, 5);
-        prevX = x;
-        prevY = y;
-        await sleep(40);
+        drawStroke(s.x0, s.y0, s.x1, s.y1, s.color, s.size);
+        channelRef.current?.send({
+          type: "broadcast",
+          event: "draw",
+          payload: { x0: s.x0, y0: s.y0, x1: s.x1, y1: s.y1, color: s.color, size: s.size },
+        });
+        await sleep(18);
       }
-      // Accent lines
-      for (let k = 0; k < 3 + (word.length % 4); k++) {
+      for (const f of art.fills) {
         if (cancelled) return;
-        const x0 = 80 + Math.random() * 440;
-        const y0 = 60 + Math.random() * 260;
-        const x1 = x0 + (Math.random() - 0.5) * 120;
-        const y1 = y0 + (Math.random() - 0.5) * 120;
-        broadcastStroke(x0, y0, x1, y1, pickColor(), 3 + Math.random() * 4);
         await sleep(80);
-      }
-      // Optional fill splash
-      if (!cancelled && Math.random() > 0.4) {
-        const fx = cx + (Math.random() - 0.5) * 40;
-        const fy = cy + (Math.random() - 0.5) * 40;
-        const fc = pickColor();
-        floodFill(fx, fy, fc);
+        floodFill(f.x, f.y, f.color);
         channelRef.current?.send({
           type: "broadcast",
           event: "fill",
-          payload: { x: fx, y: fy, color: fc },
+          payload: { x: f.x, y: f.y, color: f.color },
         });
       }
     })();
