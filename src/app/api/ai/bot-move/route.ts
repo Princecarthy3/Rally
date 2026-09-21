@@ -150,15 +150,33 @@ export async function POST(request: Request) {
         value = JSON.stringify({ angle, power });
       }
     } else if (gameType === "battleship") {
-      if (state.phase === "placing") {
-        if (!state.placements?.[String(botSeat)]) action = "randomize_fleet";
-      } else {
+      if ((state.phase || "placing") === "placing") {
+        if (!state.placements?.[String(botSeat)]) {
+          action = "auto_deploy"; // randomize + lock in one RPC
+        }
+      } else if ((state.phase || "") === "playing" && Number(state.turn) === botSeat) {
         const fired: Array<{ row: number; col: number }> = state.shots?.[String(botSeat)] || [];
         const used = new Set(fired.map((shot) => `${shot.row},${shot.col}`));
-        const available = Array.from({ length: 64 }, (_, index) => ({ row: Math.floor(index / 8), col: index % 8 }))
-          .filter((shot) => !used.has(`${shot.row},${shot.col}`));
-        if (Number(state.turn) === botSeat && available.length > 0) {
-          const shot = available[Math.floor(Math.random() * available.length)];
+        // Prefer hunting adjacent to hits
+        const hits = fired.filter((s) => (s as { hit?: boolean }).hit);
+        let candidates = Array.from({ length: 64 }, (_, index) => ({
+          row: Math.floor(index / 8),
+          col: index % 8,
+        })).filter((shot) => !used.has(`${shot.row},${shot.col}`));
+        if (hits.length > 0 && difficulty !== "easy") {
+          const adj: typeof candidates = [];
+          for (const h of hits) {
+            for (const [dr, dc] of [[0,1],[0,-1],[1,0],[-1,0]] as const) {
+              const nr = h.row + dr, nc = h.col + dc;
+              if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && !used.has(`${nr},${nc}`)) {
+                adj.push({ row: nr, col: nc });
+              }
+            }
+          }
+          if (adj.length) candidates = adj;
+        }
+        if (candidates.length > 0) {
+          const shot = candidates[Math.floor(Math.random() * candidates.length)];
           action = "fire";
           value = `${shot.row},${shot.col}`;
         }

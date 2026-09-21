@@ -141,6 +141,11 @@ export function GameBoard({
           !s.balls?.[String(botSeat)]?.finished;
       } else if (room.game_type === "uno") {
         isBotTurn = turn === botSeat || (s.challenge && Number(s.challenge.challengerSeat) === botSeat) || (s.unoVulnerableSeat && Number(s.unoVulnerableSeat) !== botSeat);
+      } else if (room.game_type === "battleship") {
+        const phase = s.phase || "placing";
+        const botLocked = Boolean(s.placements?.[String(botSeat)]);
+        if (phase === "placing" && !botLocked) isBotTurn = true;
+        if (phase === "playing" && turn === botSeat) isBotTurn = true;
       }
 
       if (!isBotTurn) return;
@@ -152,7 +157,9 @@ export function GameBoard({
           ? `sk:${s.round || 1}:${typeof s.wordSelected === "string" && s.wordSelected !== "null" ? "draw" : "pick"}`
           : room.game_type === "uno"
             ? `uno:${turn}:${s.drawnCardId || ""}:${s.challenge ? "ch" : ""}:${s.unoVulnerableSeat || ""}`
-            : String(turn);
+            : room.game_type === "battleship"
+              ? `bs:${s.phase || "placing"}:${s.placements?.[String(botSeat)] ? "locked" : "open"}:${turn}`
+              : String(turn);
       const requestKey = `${room.id}:phase:${phaseKey}:bot:${botSeat}`;
       if (pendingBotMoves.current.has(requestKey)) return;
 
