@@ -84,7 +84,13 @@ export function Battleship({
     }
   }, [state.message]);
 
-  const phase = state.phase || "placing";
+  const phase: "placing" | "playing" | "finished" =
+    state.phase === "playing" || state.phase === "finished" || state.phase === "placing"
+      ? state.phase
+      : "placing";
+  const isPlacing = phase === "placing";
+  const isPlaying = phase === "playing";
+  const isFinished = phase === "finished";
   const opponent = players.find((p) => p.seat !== meSeat)?.seat || (meSeat === 1 ? 2 : 1);
   const ownShots = useMemo(() => state.shots?.[String(meSeat)] || [], [state.shots, meSeat]);
   const incoming = useMemo(() => state.shots?.[String(opponent)] || [], [state.shots, opponent]);
@@ -97,21 +103,21 @@ export function Battleship({
   const selectedShip = SHIPS.find((s) => s.id === selected) || SHIPS[0];
   const locked = Boolean(state.placements?.[String(meSeat)]);
   const allPlaced = SHIPS.every((s) => ships[s.id]);
-  const myTurn = phase === "playing" && Number(state.turn) === meSeat;
+  const myTurn = isPlaying && Number(state.turn) === meSeat;
   const mine = state.stats?.[String(meSeat)] || {};
   const theirs = state.stats?.[String(opponent)] || {};
   const opponentName =
     players.find((p) => p.seat === opponent)?.profile?.display_name || `Player ${opponent}`;
 
   async function place(row: number, col: number) {
-    if (phase !== "placing" || locked || busy) return;
+    if (!isPlacing || locked || busy) return;
     sounds.playClickSound();
     await onAct("place_ship", `${selected},${row},${col},${horizontal ? "H" : "V"}`);
     await refresh();
   }
 
   async function randomize() {
-    if (phase !== "placing" || locked || busy) return;
+    if (isPlacing === false || locked || busy) return;
     sounds.playDiceRollSound();
     await onAct("randomize_fleet");
     await refresh();
@@ -174,7 +180,7 @@ export function Battleship({
         ))}
       </div>
 
-      {phase === "placing" && (
+      {isPlacing && (
         <div className="space-y-3 rounded-3xl border-2 border-slate-950 bg-[#f0f9ff] p-4 shadow-[4px_4px_0_#171821]">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -248,7 +254,7 @@ export function Battleship({
         </div>
       )}
 
-      {(phase === "playing" || phase === "finished") && (
+      {(isPlaying || isFinished) && (
         <div className="grid gap-4 lg:grid-cols-2">
           <OceanGrid
             title="My fleet"
@@ -260,7 +266,7 @@ export function Battleship({
           />
           <OceanGrid
             title={
-              phase === "finished"
+              isFinished
                 ? "Enemy waters"
                 : myTurn
                   ? `Enemy waters · fire on ${opponentName}`
@@ -269,7 +275,7 @@ export function Battleship({
             mode="enemy"
             ships={new Set()}
             shots={ownShotMap}
-            disabled={!myTurn || Boolean(busy) || phase === "finished"}
+            disabled={!myTurn || Boolean(busy) || isFinished}
             onCell={(r, c) => void fire(r, c)}
             pulse={pulse}
             highlightTurn={Boolean(myTurn)}
@@ -277,7 +283,7 @@ export function Battleship({
         </div>
       )}
 
-      {phase === "playing" && (
+      {isPlaying && (
         <div
           className={`flex items-center justify-center gap-2 rounded-2xl border-2 border-slate-950 px-4 py-3 text-sm font-black shadow-[3px_3px_0_#171821] ${
             myTurn ? "bg-[#f4dc69]" : "bg-slate-100"
