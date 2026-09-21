@@ -260,19 +260,19 @@ export function Battleship({
           />
           <OceanGrid
             title={
-              myTurn
-                ? `Enemy waters · fire on ${opponentName}`
-                : phase === "finished"
-                  ? "Enemy waters"
+              phase === "finished"
+                ? "Enemy waters"
+                : myTurn
+                  ? `Enemy waters · fire on ${opponentName}`
                   : `Enemy waters · ${opponentName}'s turn`
             }
             mode="enemy"
             ships={new Set()}
             shots={ownShotMap}
-            disabled={!myTurn || busy || phase === "finished"}
+            disabled={!myTurn || Boolean(busy) || phase === "finished"}
             onCell={(r, c) => void fire(r, c)}
             pulse={pulse}
-            highlightTurn={myTurn && phase === "playing"}
+            highlightTurn={Boolean(myTurn)}
           />
         </div>
       )}

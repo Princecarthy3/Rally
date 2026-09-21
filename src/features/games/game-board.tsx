@@ -147,11 +147,13 @@ export function GameBoard({
 
       // Key by room + turn + seat (not state_version) so a cancelled timer can be rescheduled
       // after applyPublicState/refresh re-renders without getting stuck.
-      const skribblPhase =
+      const phaseKey =
         room.game_type === "skribbl"
-          ? `${s.round || 1}:${typeof s.wordSelected === "string" && s.wordSelected !== "null" ? "draw" : "pick"}`
-          : String(turn);
-      const requestKey = `${room.id}:phase:${skribblPhase}:bot:${botSeat}`;
+          ? `sk:${s.round || 1}:${typeof s.wordSelected === "string" && s.wordSelected !== "null" ? "draw" : "pick"}`
+          : room.game_type === "uno"
+            ? `uno:${turn}:${s.drawnCardId || ""}:${s.challenge ? "ch" : ""}:${s.unoVulnerableSeat || ""}`
+            : String(turn);
+      const requestKey = `${room.id}:phase:${phaseKey}:bot:${botSeat}`;
       if (pendingBotMoves.current.has(requestKey)) return;
 
       scheduledKeys.push(requestKey);

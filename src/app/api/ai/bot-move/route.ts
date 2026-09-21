@@ -52,10 +52,18 @@ export async function POST(request: Request) {
         action = "catch_uno";
       } else {
         // Fetch bot's private hand
-        const { data: botHandData } = await supabase.rpc("get_my_uno_hand", { p_room: roomId, p_actor_seat: botSeat });
-        const botHand: any[] = Array.isArray(botHandData) ? botHandData : [];
+        const { data: botHandData, error: handErr } = await supabase.rpc("get_my_uno_hand", {
+          p_room: roomId,
+          p_actor_seat: botSeat,
+        });
+        if (handErr) console.error("UNO bot hand error", handErr);
+        const botHand: any[] = Array.isArray(botHandData)
+          ? botHandData
+          : Array.isArray((botHandData as any)?.hand)
+            ? (botHandData as any).hand
+            : [];
 
-        if (botHand.length <= 2 && !unoCalled[String(botSeat)]) {
+        if (botHand.length === 1 && !unoCalled[String(botSeat)]) {
           action = "call_uno";
         } else if (state.drawnCardId) {
           const drawnCard = botHand.find((c: any) => c.id === state.drawnCardId);
