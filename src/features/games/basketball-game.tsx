@@ -14,7 +14,7 @@ type BBState = {
   winnerSeat?: number;
 };
 
-const MAX_SHOTS = 5;
+const MAX_SHOTS = 10;
 const GRAVITY = 0.45;
 
 export function BasketballGame({
@@ -141,7 +141,7 @@ export function BasketballGame({
       <div className="flex items-center justify-between rounded-2xl border-2 border-slate-950 bg-gradient-to-r from-orange-600 to-amber-500 px-4 py-2 text-white shadow-[3px_3px_0_#171821]">
         <div>
           <p className="text-[10px] font-black uppercase tracking-wider text-orange-100">Basketball</p>
-          <p className="text-sm font-black">Best of {MAX_SHOTS} shots</p>
+          <p className="text-sm font-black">{MAX_SHOTS} shots each — finish your set first</p>
         </div>
         <div className="text-right text-xs font-bold">
           <p>
@@ -159,7 +159,7 @@ export function BasketballGame({
 
       <p className="text-center text-xs font-bold text-slate-600">
         {state.message ||
-          (myTurn ? "Pull back and release to shoot" : "Watch the other player…")}
+          (myTurn ? "Take all 10 of your shots, then the next player goes" : "Watch the other player…")}
       </p>
 
       <div

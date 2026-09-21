@@ -104,7 +104,7 @@ export function MiniGolf({
   const scores = state.scores || {};
   const ball = balls[String(meSeat)];
   const canShoot = state.turn === meSeat && !ball?.finished && !busy;
-  const [aim, setAim] = useState<{ angle: number; power: number } | null>(null);
+  const [aim, setAim] = useState<{ angle: number; power: number; visual: number } | null>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   const hazards = useMemo(() => HOLE_HAZARDS[hole] || HOLE_HAZARDS[1], [hole]);
   const cup = state.cup || { x: 50, y: 12 };
@@ -118,9 +118,10 @@ export function MiniGolf({
     const dy = ((event.clientY - rect.top) / rect.height) * 100 - ball.y;
     // Server accepts radians or degrees; we send radians + power 14-100
     const angle = Math.atan2(dy, dx);
-    const dist = Math.min(45, Math.hypot(dx, dy));
-    const power = Math.max(14, Math.min(100, dist * 2.4));
-    setAim({ angle, power });
+    // Visual aim length stays capped (control feel); power is scaled separately for the server
+    const visual = Math.min(28, Math.hypot(dx, dy));
+    const power = Math.max(14, Math.min(100, Math.hypot(dx, dy) * 2.4));
+    setAim({ angle, power, visual });
   }
 
   async function releaseShot() {
@@ -293,18 +294,29 @@ export function MiniGolf({
 
         {/* Aim line */}
         {aim && ball && (
-          <svg className="pointer-events-none absolute inset-0 h-full w-full">
-            <line
-              x1={`${ball.x}%`}
-              y1={`${ball.y}%`}
-              x2={`${ball.x + Math.cos(aim.angle) * aim.power}%`}
-              y2={`${ball.y + Math.sin(aim.angle) * aim.power}%`}
-              stroke="white"
-              strokeWidth="2"
-              strokeDasharray="4 3"
-              opacity="0.85"
-            />
-          </svg>
+          <>
+            <svg className="pointer-events-none absolute inset-0 h-full w-full">
+              <line
+                x1={`${ball.x}%`}
+                y1={`${ball.y}%`}
+                x2={`${ball.x + Math.cos(aim.angle) * aim.visual}%`}
+                y2={`${ball.y + Math.sin(aim.angle) * aim.visual}%`}
+                stroke="white"
+                strokeWidth="2"
+                strokeDasharray="4 3"
+                opacity="0.85"
+              />
+            </svg>
+            <div
+              className="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-full rounded-lg border-2 border-slate-950 bg-white px-2 py-0.5 text-[11px] font-black shadow-[2px_2px_0_#171821]"
+              style={{
+                left: `${ball.x + Math.cos(aim.angle) * aim.visual}%`,
+                top: `${ball.y + Math.sin(aim.angle) * aim.visual}%`,
+              }}
+            >
+              Power {Math.round(aim.power)}
+            </div>
+          </>
         )}
       </div>
 
