@@ -288,6 +288,9 @@ export function RacingGame({
             speed={myTransform.speed}
           />
         </RacingCanvas>
+        <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_50%_42%,transparent_38%,rgba(3,10,16,.42)_100%)]" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-28 bg-gradient-to-b from-[#07131d]/55 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-36 bg-gradient-to-t from-[#07131d]/70 to-transparent" />
 
         {/* Race HUD */}
         <RacingHUD

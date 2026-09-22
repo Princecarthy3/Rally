@@ -20,8 +20,8 @@ export function ChaseCamera({
 
   useFrame((_, delta) => {
     // 1. Calculate ideal camera offset behind the car
-    const dist = 9.5;
-    const height = 4.2;
+    const dist = 10.8;
+    const height = 4.8;
 
     const idealX = targetPos[0] - Math.sin(targetYaw) * dist;
     const idealZ = targetPos[2] - Math.cos(targetYaw) * dist;

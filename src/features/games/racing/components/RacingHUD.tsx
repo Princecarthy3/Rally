@@ -1,6 +1,6 @@
 "use client";
 
-import { Flag, Gauge, HelpCircle, Trophy } from "lucide-react";
+import { Flag, Gauge, HelpCircle, Map, Trophy } from "lucide-react";
 import { useState } from "react";
 
 type LiveStanding = { seat: number; displayName: string; color: string; finished?: boolean };
@@ -40,10 +40,19 @@ export function RacingHUD({
         paddingRight: "max(0.5rem, env(safe-area-inset-right))",
       }}
     >
-      {/* Top row: leaderboard | timer | CP + help */}
-      <div className="flex items-start justify-between gap-2 px-2 sm:gap-3 sm:px-3">
+      {/* Top row: race identity | leaderboard | timer | checkpoint */}
+      <div className="flex items-start justify-between gap-2 px-2 sm:gap-4 sm:px-4">
+        <div className="hidden min-w-0 items-center gap-3 pt-1 sm:flex">
+          <div className="grid size-10 place-items-center rounded-xl border border-cyan-300/30 bg-[#07131d]/80 text-cyan-300 shadow-lg backdrop-blur-xl">
+            <Map className="size-5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-cyan-300">Rally circuit</p>
+            <p className="text-xs font-bold text-white/70">Pine Ridge · Stage 01</p>
+          </div>
+        </div>
         {/* Live order / leaderboard — always visible */}
-        <div className="pointer-events-auto w-[9.5rem] shrink-0 overflow-hidden rounded-xl border border-white/25 bg-slate-950/85 text-white shadow-xl backdrop-blur-md sm:w-56 sm:rounded-2xl">
+        <div className="pointer-events-auto w-[9.5rem] shrink-0 overflow-hidden rounded-xl border border-white/15 bg-[#07131d]/80 text-white shadow-[0_14px_45px_rgba(0,0,0,.35)] backdrop-blur-xl sm:w-56 sm:rounded-2xl">
           <div className="flex items-center gap-1.5 border-b border-white/10 px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2">
             <Trophy className="h-3.5 w-3.5 shrink-0 text-amber-400 sm:h-5 sm:w-5" />
             <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 sm:text-sm">
@@ -106,7 +115,10 @@ export function RacingHUD({
 
       {/* Speed — bottom center, above touch controls */}
       <div className="pointer-events-none flex flex-col items-center pb-16 sm:pb-4">
-        <div className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-slate-950/80 px-3 py-1 font-black text-white shadow-lg backdrop-blur-md sm:rounded-2xl sm:px-4 sm:py-1.5">
+        <div className="mb-2 h-1 w-36 overflow-hidden rounded-full bg-white/20 sm:w-48">
+          <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-cyan-300 to-amber-300 shadow-[0_0_16px_rgba(103,232,249,.8)]" />
+        </div>
+        <div className="flex items-center gap-1.5 rounded-xl border border-cyan-200/20 bg-[#07131d]/80 px-3 py-1 font-black text-white shadow-[0_12px_35px_rgba(0,0,0,.35)] backdrop-blur-xl sm:rounded-2xl sm:px-4 sm:py-1.5">
           <Gauge className="h-3.5 w-3.5 text-amber-400 sm:h-4 sm:w-4" />
           <span className="text-base text-amber-300 sm:text-lg">{Math.round(speed)}</span>
           <span className="text-[9px] uppercase text-slate-400 sm:text-[10px]">KM/H</span>

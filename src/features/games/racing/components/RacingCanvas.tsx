@@ -5,7 +5,7 @@ import { Suspense, type ReactNode } from "react";
 
 export function RacingCanvas({ children }: { children: ReactNode }) {
   return (
-    <div className="relative h-full w-full bg-gradient-to-b from-sky-400 via-sky-200 to-emerald-800">
+    <div className="relative h-full w-full overflow-hidden bg-[#07131d]">
       <Canvas
         shadows
         dpr={[1, 2]}

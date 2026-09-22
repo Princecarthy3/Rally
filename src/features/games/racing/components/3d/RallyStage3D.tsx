@@ -139,16 +139,17 @@ export const RallyStage3D = memo(function RallyStage3D({ activeCheckpoint = 0 }:
   }), []);
 
   return <group>
-    <color attach="background" args={["#82b9dc"]} />
-    <fog attach="fog" args={["#b7d4df", 70, 205]} />
-    <Sky distance={450000} sunPosition={[90, 70, -80]} inclination={0.52} azimuth={0.18} />
-    <hemisphereLight args={["#d9f3ff", "#31421b", 2.1]} />
-    <directionalLight position={[60, 90, 35]} intensity={2.8} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-110} shadow-camera-right={110} shadow-camera-top={110} shadow-camera-bottom={-110} />
+    <color attach="background" args={["#07131d"]} />
+    <fog attach="fog" args={["#173143", 82, 230]} />
+    <Sky distance={450000} sunPosition={[-80, 34, -120]} inclination={0.32} azimuth={0.2} rayleigh={2.2} turbidity={8} />
+    <hemisphereLight args={["#9ce7ff", "#102018", 2.3]} />
+    <directionalLight position={[-55, 80, -70]} intensity={3.6} color="#ffd3a3" castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-110} shadow-camera-right={110} shadow-camera-top={110} shadow-camera-bottom={-110} />
+    <pointLight position={[0, 24, 0]} intensity={18} distance={150} color="#44d9ff" />
     <mesh geometry={terrainGeometry} rotation={[-Math.PI / 2, 0, 0]} receiveShadow><meshStandardMaterial vertexColors roughness={0.98} /></mesh>
     {/* A wide, high-contrast Grand Prix surface keeps the racing line clear. */}
-    <mesh geometry={shoulderGeometry} receiveShadow><meshStandardMaterial color="#b99a66" roughness={1} /></mesh>
-    <mesh geometry={roadGeometry} receiveShadow><meshStandardMaterial color="#252b31" roughness={0.88} metalness={0.06} /></mesh>
-    <mesh geometry={edgeStripeGeometry}><meshStandardMaterial color="#f8fafc" roughness={0.7} /></mesh>
+    <mesh geometry={shoulderGeometry} receiveShadow><meshStandardMaterial color="#80664a" roughness={1} /></mesh>
+    <mesh geometry={roadGeometry} receiveShadow><meshStandardMaterial color="#18232b" roughness={0.82} metalness={0.12} /></mesh>
+    <mesh geometry={edgeStripeGeometry}><meshStandardMaterial color="#f6d36b" emissive="#2a1d08" emissiveIntensity={0.35} roughness={0.7} /></mesh>
     {gridMarkers.map((marker, index) => {
       const x = marker.x + Math.cos(marker.yaw) * marker.side;
       const z = marker.z - Math.sin(marker.yaw) * marker.side;

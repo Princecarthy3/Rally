@@ -35,14 +35,14 @@ export function RacingTouchControls({
         <button
           {...bindTouch("steerLeft")}
           aria-label="Steer Left"
-          className="touch-none flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-2xl border-2 border-white/30 bg-slate-900/65 text-white shadow-xl backdrop-blur-md active:scale-95 active:bg-amber-500/80 sm:h-20 sm:w-20"
+          className="touch-none flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-2xl border border-white/20 bg-[#07131d]/75 text-white shadow-[0_10px_35px_rgba(0,0,0,.35)] backdrop-blur-xl active:scale-95 active:bg-cyan-400/80 sm:h-20 sm:w-20"
         >
           <ChevronLeft className="h-9 w-9" />
         </button>
         <button
           {...bindTouch("steerRight")}
           aria-label="Steer Right"
-          className="touch-none flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-2xl border-2 border-white/30 bg-slate-900/65 text-white shadow-xl backdrop-blur-md active:scale-95 active:bg-amber-500/80 sm:h-20 sm:w-20"
+          className="touch-none flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-2xl border border-white/20 bg-[#07131d]/75 text-white shadow-[0_10px_35px_rgba(0,0,0,.35)] backdrop-blur-xl active:scale-95 active:bg-cyan-400/80 sm:h-20 sm:w-20"
         >
           <ChevronRight className="h-9 w-9" />
         </button>
