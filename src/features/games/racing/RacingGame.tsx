@@ -241,7 +241,7 @@ export function RacingGame({
 
   return (
     <MobileOrientationOverlay>
-      <div className="fixed inset-0 z-30 h-[100dvh] min-h-screen w-screen overflow-hidden bg-slate-950 touch-none select-none">
+      <div className="fixed inset-0 z-[60] isolate h-screen w-screen overflow-hidden bg-slate-950 touch-none select-none">
         {/* Countdown Overlay */}
         {inCountdown && (
           <RacingCountdown
