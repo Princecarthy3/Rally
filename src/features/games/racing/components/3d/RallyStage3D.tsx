@@ -195,11 +195,11 @@ function BarrierRails() {
 }
 
 export const RallyStage3D = memo(function RallyStage3D({ activeCheckpoint = 0 }: { activeCheckpoint?: number }) {
-  const terrainGeometry = useMemo(createTerrainGeometry, []);
+  const terrainGeometry = useMemo(() => createTerrainGeometry(), []);
   const shoulderGeometry = useMemo(() => createRibbonGeometry(ROAD_HALF_WIDTH + 1.4, 0.02), []);
   const roadGeometry = useMemo(() => createRibbonGeometry(ROAD_HALF_WIDTH, 0.04), []);
   const curbGeometry = useMemo(() => createRibbonGeometry(ROAD_HALF_WIDTH + 0.55, 0.055), []);
-  const centerLineGeometry = useMemo(createCenterLineGeometry, []);
+  const centerLineGeometry = useMemo(() => createCenterLineGeometry(), []);
 
   const forestTrees = useMemo(() => {
     const trees: Array<{ x: number; z: number; scale: number; rotation: number }> = [];
