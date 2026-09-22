@@ -33,23 +33,16 @@ async function requestLandscapeMode(): Promise<boolean> {
     /* orientation lock may be blocked without fullscreen / user gesture */
   }
 
-  // Fallback: some WebViews expose window.screen.orientation only after gesture
+  // Fallback: older WebViews
   try {
-    // @ts-expect-error legacy
-    if (typeof screen.lockOrientation === "function") {
-      // @ts-expect-error legacy
-      return !!screen.lockOrientation("landscape");
-    }
-    // @ts-expect-error legacy
-    if (typeof screen.mozLockOrientation === "function") {
-      // @ts-expect-error legacy
-      return !!screen.mozLockOrientation("landscape");
-    }
-    // @ts-expect-error legacy
-    if (typeof screen.msLockOrientation === "function") {
-      // @ts-expect-error legacy
-      return !!screen.msLockOrientation("landscape");
-    }
+    const legacy = screen as Screen & {
+      lockOrientation?: (o: string) => boolean;
+      mozLockOrientation?: (o: string) => boolean;
+      msLockOrientation?: (o: string) => boolean;
+    };
+    if (typeof legacy.lockOrientation === "function") return !!legacy.lockOrientation("landscape");
+    if (typeof legacy.mozLockOrientation === "function") return !!legacy.mozLockOrientation("landscape");
+    if (typeof legacy.msLockOrientation === "function") return !!legacy.msLockOrientation("landscape");
   } catch {
     /* ignore */
   }
