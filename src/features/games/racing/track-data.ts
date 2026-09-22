@@ -1,39 +1,28 @@
 import { CheckpointData, SurfaceType } from "./types";
 
-// Dirt Forest Stage Track Loop Waypoints [x, y, z]
+// A single, flowing Grand Prix circuit. The route does not cross itself, so
+// every section has a clear racing line and there are no overlapping surfaces.
 export const TRACK_WAYPOINTS: Array<[number, number, number]> = [
-  [0, 0, 0],         // Start Line
-  [0, 0, 40],        // Straight stretch
-  [15, 1.5, 80],     // Gentle right uphill
-  [45, 3.0, 110],    // Sweeping right turn
-  [80, 2.0, 100],    // Crest
-  [110, 0.5, 70],    // Downhill curve
-  [120, 0.0, 30],    // Sharp right hairpin
-  [100, -1.0, -20],  // Lower valley
-  [65, -0.5, -60],   // S-curve entrance
-  [25, 0.5, -80],    // S-curve apex
-  [-25, 2.0, -70],   // Hill climb curve
-  [-65, 3.5, -40],   // High ridge turn
-  [-90, 2.5, 0],     // Downhill sweeping left
-  [-80, 1.0, 45],    // Muddy chicane
-  [-50, 0.2, 75],    // Final sector turn
-  [-20, 0.0, 40],    // Final straight approach
+  [0, 0, 0], [0, 0, 48], [22, 0, 88], [65, 0, 112],
+  [108, 0, 102], [134, 0, 64], [130, 0, 20], [104, 0, -28],
+  [62, 0, -66], [8, 0, -80], [-48, 0, -72], [-94, 0, -42],
+  [-118, 0, 2], [-103, 0, 48], [-68, 0, 82], [-28, 0, 66], [-10, 0, 30]
 ];
 
 // Checkpoint gates along the stage
 export const CHECKPOINTS: CheckpointData[] = [
-  { index: 1, position: [15, 1.5, 80], radius: 14, name: "Forest Gate 1" },
-  { index: 2, position: [110, 0.5, 70], radius: 14, name: "Hairpin Bend" },
-  { index: 3, position: [65, -0.5, -60], radius: 14, name: "Valley Checkpoint" },
-  { index: 4, position: [-65, 3.5, -40], radius: 14, name: "High Ridge" },
+  { index: 1, position: [22, 0, 88], radius: 16, name: "North Bend" },
+  { index: 2, position: [134, 0, 64], radius: 16, name: "East Hairpin" },
+  { index: 3, position: [62, 0, -66], radius: 16, name: "South Curve" },
+  { index: 4, position: [-94, 0, -42], radius: 16, name: "West Bend" },
   { index: 5, position: [0, 0, 0], radius: 12, name: "Finish Arch" }
 ];
 
 export const START_GRID_SLOTS: Array<{ position: [number, number, number]; rotation: number }> = [
-  { position: [-3, 0.1, -12], rotation: 0 },
-  { position: [3, 0.1, -12], rotation: 0 },
-  { position: [-3, 0.1, -22], rotation: 0 },
-  { position: [3, 0.1, -22], rotation: 0 }
+  { position: [-3, 0.1, 8], rotation: 0 },
+  { position: [3, 0.1, 8], rotation: 0 },
+  { position: [-3, 0.1, 1], rotation: 0 },
+  { position: [3, 0.1, 1], rotation: 0 }
 ];
 
 // Surface friction table
@@ -74,7 +63,7 @@ export function getDistanceToTrack(x: number, z: number): { distance: number; su
   const dist = Math.sqrt(minSq);
   // The visible circuit is a Grand Prix-style asphalt surface. Keep this in
   // sync with the rendered road width so the car feels planted on the tarmac.
-  if (dist <= 7.6) return { distance: dist, surface: "asphalt" };
-  if (dist <= 9.5) return { distance: dist, surface: "gravel" };
+  if (dist <= 7.0) return { distance: dist, surface: "asphalt" };
+  if (dist <= 10.0) return { distance: dist, surface: "gravel" };
   return { distance: dist, surface: "grass" };
 }
