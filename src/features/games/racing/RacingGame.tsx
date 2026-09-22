@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
 import { sounds } from "@/lib/audio";
 import { ArcadeVehiclePhysics, KeyInputState } from "./arcade-vehicle";
@@ -39,8 +39,8 @@ export function RacingGame({
   const mePlayer = players.find(p => p.seat === meSeat);
 
   // Local race stage & controls state
-  const [controlsEnabled, setControlsEnabled] = useState(false);
-  const [inCountdown, setInCountdown] = useState(state.stage === "countdown" || state.phase === "countdown");
+  const [controlsEnabled, setControlsEnabled] = useState(() => state.stage === "racing" || state.phase === "racing");
+  const [inCountdown, setInCountdown] = useState(() => state.stage === "countdown" || state.phase === "countdown");
   const [lapTime, setLapTime] = useState(0);
   const [touchState, setTouchState] = useState<TouchInputState>({
     steerLeft: false,
@@ -71,6 +71,16 @@ export function RacingGame({
 
   // Opponent car transforms synchronized via Realtime Broadcast
   const [otherCars, setOtherCars] = useState<Record<number, CarTransform>>({});
+  const raceIsLive = state.stage === "racing" || state.phase === "racing";
+  const canDrive = controlsEnabled || raceIsLive;
+
+  const handleCountdownComplete = useCallback(() => {
+    setInCountdown(false);
+    lapTimeRef.current = 0;
+    setLapTime(0);
+    setControlsEnabled(true);
+    if (isHost) void onAct("start_race");
+  }, [isHost, onAct]);
 
   // Initialize vehicle physics position
   useEffect(() => {
@@ -101,12 +111,24 @@ export function RacingGame({
       setKeyboardSteer((keysRef.current.left ? 1 : 0) - (keysRef.current.right ? 1 : 0));
     }
 
+    function releaseInputs() {
+      keysRef.current = { forward: false, backward: false, left: false, right: false, handbrake: false };
+      setKeyboardSteer(0);
+    }
+    function handleVisibilityChange() {
+      if (document.hidden) releaseInputs();
+    }
+
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", releaseInputs);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", releaseInputs);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -140,9 +162,9 @@ export function RacingGame({
       lastTime = now;
 
       if (physicsRef.current) {
-        const updated = physicsRef.current.update(dt, keysRef.current, touchState, controlsEnabled);
+        const updated = physicsRef.current.update(dt, keysRef.current, touchState, canDrive);
         
-        if (controlsEnabled && !physicsRef.current.finished) {
+        if (canDrive && !physicsRef.current.finished) {
           lapTimeRef.current += dt;
           hudTimer += dt;
           if (hudTimer >= 0.1) {
@@ -168,7 +190,7 @@ export function RacingGame({
         setMyTransform(transformPayload);
 
         // Sound Synthesis updates
-        if (controlsEnabled) {
+        if (canDrive) {
           sounds.playEngineSound(updated.speed / 135);
           if (updated.isDrifting) sounds.playSkidSound();
         }
@@ -202,7 +224,7 @@ export function RacingGame({
       cancelAnimationFrame(animFrame);
       sounds.stopEngineSound();
     };
-  }, [controlsEnabled, meSeat, mePlayer, touchState, channel, onAct]);
+  }, [canDrive, meSeat, mePlayer, touchState, channel, onAct]);
 
   // Live Position Calculation based on progress distance metric
   const livePositions = Object.values(otherCars).concat([myTransform]);
@@ -217,13 +239,7 @@ export function RacingGame({
         {/* Countdown Overlay */}
         {inCountdown && (
           <RacingCountdown
-            onComplete={() => {
-              setInCountdown(false);
-              lapTimeRef.current = 0;
-              setLapTime(0);
-              setControlsEnabled(true);
-              if (isHost) void onAct("start_race");
-            }}
+            onComplete={handleCountdownComplete}
           />
         )}
 

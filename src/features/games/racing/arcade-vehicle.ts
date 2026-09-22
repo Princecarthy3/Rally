@@ -43,7 +43,9 @@ export class ArcadeVehiclePhysics {
     }
 
     const forwardInput = (keys.forward || touch.accelerate ? 1 : 0) - (keys.backward || touch.brake ? 1 : 0);
-    const steerInput = (keys.left || touch.steerLeft ? 1 : 0) - (keys.right || touch.steerRight ? -1 : 0);
+    // Positive is left and negative is right. The previous right-hand term was
+    // negative before subtraction, so both directions turned the car left.
+    const steerInput = (keys.left || touch.steerLeft ? 1 : 0) - (keys.right || touch.steerRight ? 1 : 0);
     const handbrake = keys.handbrake || touch.handbrake;
 
     // Track surface lookup
