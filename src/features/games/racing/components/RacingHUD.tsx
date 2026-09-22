@@ -3,6 +3,8 @@
 import { Flag, Gauge, HelpCircle, Trophy } from "lucide-react";
 import { useState } from "react";
 
+type LiveStanding = { seat: number; displayName: string; color: string; finished?: boolean };
+
 export function RacingHUD({
   position = 1,
   totalPlayers = 4,
@@ -10,6 +12,7 @@ export function RacingHUD({
   checkpoint = 0,
   totalCheckpoints = 5,
   speed = 0,
+  standings = [],
   onExit
 }: {
   position?: number;
@@ -18,6 +21,7 @@ export function RacingHUD({
   checkpoint?: number;
   totalCheckpoints?: number;
   speed?: number;
+  standings?: LiveStanding[];
   onExit?: () => void;
 }) {
   const [showHelp, setShowHelp] = useState(false);
@@ -33,12 +37,20 @@ export function RacingHUD({
       {/* Top Bar Header */}
       <div className="flex items-center justify-between">
         {/* Top-Left: Live Race Position */}
-        <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border-2 border-white/20 bg-slate-900/80 px-4 py-2 font-black text-white shadow-xl backdrop-blur-md">
-          <Trophy className="h-5 w-5 text-amber-400" />
-          <span className="text-sm uppercase tracking-wider text-slate-400">POS</span>
-          <span className="text-xl text-amber-300">
-            {position}<span className="text-xs text-slate-400">/{totalPlayers}</span>
-          </span>
+        <div className="pointer-events-auto w-44 overflow-hidden rounded-2xl border-2 border-white/20 bg-slate-900/80 font-black text-white shadow-xl backdrop-blur-md sm:w-52">
+          <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
+            <Trophy className="h-5 w-5 text-amber-400" />
+            <span className="text-sm uppercase tracking-wider text-slate-400">Live order</span>
+            <span className="ml-auto text-xl text-amber-300">{position}<span className="text-xs text-slate-400">/{totalPlayers}</span></span>
+          </div>
+          <div className="space-y-0.5 p-1.5">
+            {standings.map((standing, index) => <div key={standing.seat} className={`flex items-center gap-2 rounded-lg px-2 py-1 text-xs ${index + 1 === position ? "bg-white/10" : ""}`}>
+              <span className="w-3 text-slate-400">{index + 1}</span>
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: standing.color }} />
+              <span className="min-w-0 flex-1 truncate">{standing.displayName}</span>
+              {standing.finished && <span className="text-[9px] uppercase text-emerald-300">Done</span>}
+            </div>)}
+          </div>
         </div>
 
         {/* Top-Center: Race Timer */}

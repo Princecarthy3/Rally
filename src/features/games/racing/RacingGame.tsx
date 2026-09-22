@@ -228,8 +228,14 @@ export function RacingGame({
 
   // Live Position Calculation based on progress distance metric
   const livePositions = Object.values(otherCars).concat([myTransform]);
-  livePositions.sort((a, b) => b.progressDistance - a.progressDistance);
+  livePositions.sort((a, b) => (b.progressDistance ?? 0) - (a.progressDistance ?? 0));
   const myRank = livePositions.findIndex(c => c.seat === meSeat) + 1;
+  const standings = livePositions.map((car) => ({
+    seat: car.seat,
+    displayName: car.displayName || players.find(player => player.seat === car.seat)?.profile?.display_name || `Player ${car.seat}`,
+    color: colors[(car.seat - 1) % colors.length],
+    finished: car.finished
+  }));
 
   const resultsList = (state.results || []) as RaceResult[];
 
@@ -290,6 +296,7 @@ export function RacingGame({
           checkpoint={myTransform.currentCheckpoint}
           totalCheckpoints={5}
           speed={myTransform.speed}
+          standings={standings}
         />
 
         {/* Touch Controls Overlay */}

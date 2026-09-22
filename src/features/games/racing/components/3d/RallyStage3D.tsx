@@ -69,7 +69,8 @@ function createRoadGeometry(halfWidth: number) {
     const right = left + 1;
     const nextLeft = next * 2;
     const nextRight = nextLeft + 1;
-    indices.push(left, nextLeft, right, right, nextLeft, nextRight);
+    // Winding must face upward; otherwise Three.js culls the road from the chase camera.
+    indices.push(left, right, nextLeft, right, nextRight, nextLeft);
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
@@ -99,7 +100,11 @@ function createEdgeStripeGeometry(innerWidth: number, outerWidth: number) {
     for (let side = 0; side < 2; side += 1) {
       const current = index * 4 + side * 2;
       const following = next * 4 + side * 2;
-      indices.push(current, following, current + 1, current + 1, following, following + 1);
+      if (side === 0) {
+        indices.push(current, following, current + 1, current + 1, following, following + 1);
+      } else {
+        indices.push(current, current + 1, following, current + 1, following + 1, following);
+      }
     }
   }
   const geometry = new THREE.BufferGeometry();
