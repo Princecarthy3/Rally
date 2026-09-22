@@ -1,6 +1,6 @@
 "use client";
 
-import {  useCallback, useEffect, useState, useSyncExternalStore , type ReactNode } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Smartphone } from "lucide-react";
 
 function isPortraitMobileNow(): boolean {

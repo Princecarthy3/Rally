@@ -16,6 +16,7 @@ import { RacingTouchControls } from "./components/RacingTouchControls";
 import { RacingHUD } from "./components/RacingHUD";
 import { RacingCountdown } from "./components/RacingCountdown";
 import { RacingResults } from "./components/RacingResults";
+import { RaceNavSheet, exitRaceFullscreen } from "./components/RaceNavSheet";
 
 const colors = ["#ff9eaa", "#77dce7", "#f4dc69", "#8de2bd"];
 
@@ -310,7 +311,7 @@ export function RacingGame({
             meSeat={meSeat}
             isHost={isHost}
             onRematch={() => onAct("restart")}
-            onExit={() => (window.location.href = "/")}
+            onExit={() => { void exitRaceFullscreen().then(() => { window.location.href = "/"; }); }}
             busy={busy}
           />
         )}
