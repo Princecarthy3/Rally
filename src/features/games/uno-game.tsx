@@ -52,7 +52,7 @@ export function UnoGame({ room, players, meSeat, isMyTurn, onAct }: UnoGameProps
     async function loadHand() {
       if (!supabase || !room.id) return;
       const { data, error } = await supabase.rpc("get_my_uno_hand", { p_room: room.id, p_actor_seat: meSeat });
-      if (active && !error && Array.isArray(data) && data.length > 0) {
+      if (active && !error && Array.isArray(data)) {
         setFetchedHand(data as UnoCard[]);
       }
     }

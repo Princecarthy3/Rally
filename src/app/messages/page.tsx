@@ -32,6 +32,9 @@ function MessagesContent() {
   const [selected, setSelected] = useState<Friend | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
+  const [replyTo, setReplyTo] = useState<{ id: string; body: string; sender_id: string } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const touchStartX = useRef<Record<string, number>>({});
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const loadingMessages = useRef(false);
@@ -142,7 +145,24 @@ function MessagesContent() {
       const { data: key, error: keyError } = await sb.from("friend_message_keys").select("public_key").eq("user_id", selected.id).maybeSingle();
       if (keyError) throw new Error(`Connecting to server… ${keyError.message}`);
       if (!key?.public_key) throw new Error("This friend has not enabled encryption yet.");
-      const encrypted = await encryptMessage(draft.trim(), key.public_key);
+      let bodyToSend = draft.trim();
+      if (replyTo && !editingId) {
+        bodyToSend = `↩ ${replyTo.body.slice(0, 120)}\n\n${bodyToSend}`;
+      }
+      const encrypted = await encryptMessage(bodyToSend, key.public_key);
+      if (editingId) {
+        const { error: editError } = await sb.rpc("edit_encrypted_friend_message", {
+          p_message: editingId,
+          p_ciphertext: encrypted.ciphertext,
+          p_iv: encrypted.iv,
+        });
+        if (editError) throw editError;
+        setEditingId(null);
+        setReplyTo(null);
+        setDraft("");
+        if (selected) await loadMessages(selected);
+        return;
+      }
       const { error: sendError } = await sb.rpc("send_encrypted_friend_message", {
         p_receiver: selected.id,
         p_ciphertext: encrypted.ciphertext,
@@ -235,9 +255,34 @@ function MessagesContent() {
                     </div>
                   </div>
                   {!message.deletedForEveryone && (
-                    <button title="Delete for me" onClick={() => void deleteMessage(message, false)} className="rounded p-1 text-slate-400 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 hover:text-red-600">
-                      <Trash2 size={13} />
-                    </button>
+                    <>
+                      <button
+                        title="Reply"
+                        onClick={() => {
+                          setReplyTo({ id: message.id, body: message.body, sender_id: message.sender_id });
+                          setEditingId(null);
+                        }}
+                        className="rounded p-1 text-slate-400 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 hover:text-[#7357ff]"
+                      >
+                        Reply
+                      </button>
+                      {own && (
+                        <button
+                          title="Edit"
+                          onClick={() => {
+                            setEditingId(message.id);
+                            setDraft(message.body.replace(/^↩ [^\n]+\n\n/, ""));
+                            setReplyTo(null);
+                          }}
+                          className="rounded p-1 text-slate-400 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 hover:text-[#7357ff]"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      <button title="Delete for me" onClick={() => void deleteMessage(message, false)} className="rounded p-1 text-slate-400 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 hover:text-red-600">
+                        <Trash2 size={13} />
+                      </button>
+                    </>
                   )}
                   {own && !message.deletedForEveryone && (
                     <button title="Delete for everyone" onClick={() => void deleteMessage(message, true)} className="rounded p-1 text-slate-400 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 hover:text-red-600">
@@ -255,12 +300,30 @@ function MessagesContent() {
               <p className="mb-1.5 flex items-center gap-1 text-[10px] text-slate-400 font-medium">
                 <Lock size={11} /> End-to-end encrypted chat
               </p>
+              {(replyTo || editingId) && (
+                <div className="mb-2 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold text-slate-600">
+                  <span className="min-w-0 flex-1 truncate">
+                    {editingId ? "Editing message…" : `Replying: ${replyTo?.body?.slice(0, 80)}`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReplyTo(null);
+                      setEditingId(null);
+                      setDraft("");
+                    }}
+                    className="text-slate-500"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
               <div className="flex gap-2">
                 <input
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
                   onKeyDown={(event) => event.key === "Enter" && void send()}
-                  placeholder="Type a message..."
+                  placeholder={editingId ? "Edit message…" : replyTo ? "Write a reply…" : "Type a message..."}
                   className="flex-1 rounded-xl border-2 border-slate-950 px-3 py-2 text-xs sm:text-sm font-bold outline-none focus:ring-2 focus:ring-[#7357ff]"
                 />
                 <button

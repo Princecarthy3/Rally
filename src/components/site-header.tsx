@@ -9,6 +9,7 @@ import { Brand } from "./brand";
 import { useAuth } from "./auth-provider";
 import { SettingsModal } from "./settings-modal";
 import { sounds } from "@/lib/audio";
+import { ensureNotificationPermission, registerRallyServiceWorker, notifyUser } from "@/lib/notifications";
 import { UserAvatar } from "@/components/customization/user-avatar";
 import { NameDisplay } from "@/components/customization/name-display";
 import { CoinWalletModal } from "@/components/customization/coin-wallet-modal";
@@ -36,17 +37,42 @@ export function SiteHeader() {
   const [socialBadge, setSocialBadge] = useState(0);
   const [messageBadge, setMessageBadge] = useState(0);
 
+  
+  useEffect(() => {
+    void registerRallyServiceWorker().then(() => {
+      void ensureNotificationPermission();
+    });
+  }, []);
+
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     if (!supabase || !user) return;
-    const refreshBadge = async () => {
+    const refreshBadge = async (kind?: string) => {
       const { data } = await supabase.rpc("get_social_inbox");
-      setSocialBadge((data || []).length);
+      const rows = data || [];
+      setSocialBadge(rows.length);
+      if (kind === "friend_request") {
+        void notifyUser({
+          title: "New friend request",
+          body: "Someone wants to join your Rally squad.",
+          url: "/friends",
+          tag: "friend-request",
+        });
+      } else if (kind === "game_invite") {
+        void notifyUser({
+          title: "Game invite",
+          body: "A friend invited you to a room.",
+          url: "/friends",
+          tag: "game-invite",
+        });
+      }
     };
     void refreshBadge();
     const channel = supabase.channel(`social-badge:${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "friend_requests", filter: `receiver_id=eq.${user.id}` }, refreshBadge)
-      .on("postgres_changes", { event: "*", schema: "public", table: "game_invites", filter: `receiver_id=eq.${user.id}` }, refreshBadge)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "friend_requests", filter: `receiver_id=eq.${user.id}` }, () => void refreshBadge("friend_request"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "friend_requests", filter: `receiver_id=eq.${user.id}` }, () => void refreshBadge())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "game_invites", filter: `receiver_id=eq.${user.id}` }, () => void refreshBadge("game_invite"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "game_invites", filter: `receiver_id=eq.${user.id}` }, () => void refreshBadge())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user]);
@@ -60,7 +86,12 @@ export function SiteHeader() {
       const total = ((data || []) as { unread_count: number }[]).reduce((sum, row) => sum + Number(row.unread_count), 0);
       if (notify && total > previousTotal) {
         sounds.playMessageSound();
-        if ("Notification" in window && Notification.permission === "granted") new Notification("New Rally message", { body: "You received a new message from a friend." });
+        void notifyUser({
+          title: "New Rally message",
+          body: "You received a new message from a friend.",
+          url: "/messages",
+          tag: "friend-message",
+        });
       }
       previousTotal = total;
       setMessageBadge(total);

@@ -13,8 +13,8 @@ import { ConnectFour } from "./connect-four";
 import { MemoryMatch } from "./memory-match";
 import { MiniGolf } from "./mini-golf";
 import { Battleship } from "./battleship";
-import { UnoGame } from "./uno-game";
 import { RacingGame } from "./racing/RacingGame";
+import { UnoGame } from "./uno-game";
 // pong removed
 
 import { sounds } from "@/lib/audio";
@@ -52,12 +52,21 @@ export function GameBoard({
   // one request so a slow response cannot make the bot play twice.
   const pendingBotMoves = useRef(new Set<string>());
 
+  // Game-specific BGM for this room; restore lobby theme when leaving the board.
+  useEffect(() => {
+    sounds.startGameBgm(room.game_type);
+    return () => {
+      sounds.startLobbyBgm();
+    };
+  }, [room.game_type, room.id]);
+
+
 
   async function act(action: string, value?: string) {
     if (busy || isSpectator) return;
     // Browsers only permit AudioContext playback after a real user gesture.
     // Starting here makes the music begin with the player's first game action.
-    sounds.startBgm();
+    sounds.startGameBgm(room.game_type);
     sounds.playClickSound();
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
@@ -119,8 +128,13 @@ export function GameBoard({
       } else if (room.game_type === "skribbl") {
         const drawerSeat = Number(s.drawerSeat);
         const guessed = (s.guessedSeats || []).map((n: unknown) => Number(n));
-        if (drawerSeat === botSeat && !s.wordSelected) isBotTurn = true;
-        if (drawerSeat !== botSeat && s.wordSelected && !guessed.includes(botSeat)) isBotTurn = true;
+        const hasWord =
+          typeof s.wordSelected === "string" &&
+          s.wordSelected.length > 0 &&
+          s.wordSelected !== "null";
+        if (drawerSeat === botSeat && !hasWord) isBotTurn = true;
+        // Guess only after the word is up and bot has not finished this round
+        if (drawerSeat !== botSeat && hasWord && !guessed.includes(botSeat)) isBotTurn = true;
       } else if (room.game_type === "memory_match") {
         isBotTurn = turn === botSeat;
       } else if (room.game_type === "mini_golf") {
@@ -130,17 +144,31 @@ export function GameBoard({
           !s.balls?.[String(botSeat)]?.finished;
       } else if (room.game_type === "uno") {
         isBotTurn = turn === botSeat || (s.challenge && Number(s.challenge.challengerSeat) === botSeat) || (s.unoVulnerableSeat && Number(s.unoVulnerableSeat) !== botSeat);
+      } else if (room.game_type === "battleship") {
+        const phase = s.phase || "placing";
+        const botLocked = Boolean(s.placements?.[String(botSeat)]);
+        if (phase === "placing" && !botLocked) isBotTurn = true;
+        if (phase === "playing" && turn === botSeat) isBotTurn = true;
       }
 
       if (!isBotTurn) return;
 
       // Key by room + turn + seat (not state_version) so a cancelled timer can be rescheduled
       // after applyPublicState/refresh re-renders without getting stuck.
-      const requestKey = `${room.id}:turn:${turn}:bot:${botSeat}`;
+      const phaseKey =
+        room.game_type === "skribbl"
+          ? `sk:${s.round || 1}:${typeof s.wordSelected === "string" && s.wordSelected !== "null" ? "draw" : "pick"}`
+          : room.game_type === "uno"
+            ? `uno:${turn}:${s.drawnCardId || ""}:${s.challenge ? "ch" : ""}:${s.unoVulnerableSeat || ""}`
+            : room.game_type === "battleship"
+              ? `bs:${s.phase || "placing"}:${s.placements?.[String(botSeat)] ? "locked" : "open"}:${turn}`
+              : String(turn);
+      const requestKey = `${room.id}:phase:${phaseKey}:bot:${botSeat}`;
       if (pendingBotMoves.current.has(requestKey)) return;
 
       scheduledKeys.push(requestKey);
 
+      const delayMs = room.game_type === "skribbl" ? 1400 : 700;
       const timer = setTimeout(() => {
         // Mark in-flight only when the request actually starts
         if (pendingBotMoves.current.has(requestKey)) return;
@@ -154,6 +182,10 @@ export function GameBoard({
             gameType: room.game_type,
             publicState: room.public_state,
             botSeat,
+            difficulty:
+              (typeof window !== "undefined" &&
+                localStorage.getItem(`rally_bot_difficulty_${room.id}`)) ||
+              "medium",
           }),
         })
           .then(async (response) => {
@@ -174,7 +206,7 @@ export function GameBoard({
           .finally(() => {
             pendingBotMoves.current.delete(requestKey);
           });
-      }, 700);
+      }, delayMs);
 
       timers.push(timer);
     });

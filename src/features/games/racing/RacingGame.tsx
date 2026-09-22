@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { sounds } from "@/lib/audio";
 import { ArcadeVehiclePhysics, KeyInputState } from "./arcade-vehicle";
 import { CarTransform, RaceResult, TouchInputState } from "./types";
@@ -41,7 +40,7 @@ export function RacingGame({
 
   // Local race stage & controls state
   const [controlsEnabled, setControlsEnabled] = useState(false);
-  const [inCountdown, setInCountdown] = useState(state.stage === "countdown");
+  const [inCountdown, setInCountdown] = useState(state.stage === "countdown" || state.phase === "countdown");
   const [lapTime, setLapTime] = useState(0);
   const [touchState, setTouchState] = useState<TouchInputState>({
     steerLeft: false,
@@ -58,8 +57,8 @@ export function RacingGame({
     seat: meSeat,
     playerId: mePlayer?.player_id || "",
     displayName: mePlayer?.profile?.display_name || `Player ${meSeat}`,
-    position: START_GRID_SLOTS[meSeat - 1]?.position || [0, 0.1, 0],
-    rotation: [0, START_GRID_SLOTS[meSeat - 1]?.rotation || 0, 0],
+    position: START_GRID_SLOTS[(meSeat - 1) % START_GRID_SLOTS.length]?.position || [0, 0.1, 0],
+    rotation: [0, START_GRID_SLOTS[(meSeat - 1) % START_GRID_SLOTS.length]?.rotation || 0, 0],
     speed: 0,
     isDrifting: false,
     currentCheckpoint: 0,
@@ -265,7 +264,7 @@ export function RacingGame({
         <RacingTouchControls onTouchChange={setTouchState} />
 
         {/* Post-Race Leaderboard Modal */}
-        {(state.stage === "results" || resultsList.length >= players.length) && (
+        {(state.stage === "results" || state.phase === "finished" || resultsList.length >= players.length) && (
           <RacingResults
             results={resultsList}
             players={players}

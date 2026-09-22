@@ -5,8 +5,10 @@ import { generateSkribblWordsAI } from "@/lib/ai/gemini";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { roomId, gameType, publicState, botSeat: rawBotSeat } = body;
+    const { roomId, gameType, publicState, botSeat: rawBotSeat, difficulty: rawDifficulty } = body;
     const botSeat = Number(rawBotSeat);
+    const difficulty =
+      rawDifficulty === "easy" || rawDifficulty === "hard" ? rawDifficulty : "medium";
 
     if (!roomId || !gameType || !Number.isFinite(botSeat)) {
       return NextResponse.json({ error: "Missing roomId, gameType, or botSeat" }, { status: 400 });
@@ -24,6 +26,16 @@ export async function POST(request: Request) {
     let action = "";
     let value: string | null = null;
 
+    // easy: high chance of suboptimal picks; hard: almost always optimal among candidates
+    const blunderChance = difficulty === "easy" ? 0.55 : difficulty === "hard" ? 0.08 : 0.28;
+    const pick = <T,>(best: T, alternatives: T[]): T => {
+      if (alternatives.length === 0) return best;
+      if (Math.random() < blunderChance) {
+        return alternatives[Math.floor(Math.random() * alternatives.length)] ?? best;
+      }
+      return best;
+    };
+
     if (gameType === "rps") {
       action = "choose";
       const choices = ["rock", "paper", "scissors"];
@@ -40,10 +52,18 @@ export async function POST(request: Request) {
         action = "catch_uno";
       } else {
         // Fetch bot's private hand
-        const { data: botHandData } = await supabase.rpc("get_my_uno_hand", { p_room: roomId, p_actor_seat: botSeat });
-        const botHand: any[] = Array.isArray(botHandData) ? botHandData : [];
+        const { data: botHandData, error: handErr } = await supabase.rpc("get_my_uno_hand", {
+          p_room: roomId,
+          p_actor_seat: botSeat,
+        });
+        if (handErr) console.error("UNO bot hand error", handErr);
+        const botHand: any[] = Array.isArray(botHandData)
+          ? botHandData
+          : Array.isArray((botHandData as any)?.hand)
+            ? (botHandData as any).hand
+            : [];
 
-        if (botHand.length <= 2 && !unoCalled[String(botSeat)]) {
+        if (botHand.length === 1 && !unoCalled[String(botSeat)]) {
           action = "call_uno";
         } else if (state.drawnCardId) {
           const drawnCard = botHand.find((c: any) => c.id === state.drawnCardId);
@@ -114,29 +134,67 @@ export async function POST(request: Request) {
           );
           if (available.length > 0) {
             action = "flip";
-            value = String(available[Math.floor(Math.random() * available.length)]);
+            const preferred = available[0];
+            const choice = pick(preferred, available.slice(1));
+            value = String(choice);
           }
         }
       }
     } else if (gameType === "mini_golf") {
       const ball = state.balls?.[String(botSeat)];
-      const cup = state.cup;
-      if (Number(state.turn) === botSeat && ball && cup && !ball.finished) {
+      const cup = state.cup || { x: 86, y: 22 };
+      if (Number(state.turn) === botSeat && ball && !ball.finished) {
         action = "shoot";
-        const angle = Math.atan2(Number(cup.y) - Number(ball.y), Number(cup.x) - Number(ball.x)) * 180 / Math.PI;
-        const power = Math.min(100, Math.max(14, Math.hypot(Number(cup.x) - Number(ball.x), Number(cup.y) - Number(ball.y)) / .46));
+        const dx = Number(cup.x) - Number(ball.x);
+        const dy = Number(cup.y) - Number(ball.y);
+        // radians — server accepts both
+        let angle = Math.atan2(dy, dx);
+        const dist = Math.hypot(dx, dy);
+        // Scale power so the ball roughly reaches the cup (server uses *0.42)
+        let power = Math.min(100, Math.max(18, dist / 0.42));
+        // Difficulty: easy misses aim, hard is accurate
+        const jitter =
+          difficulty === "easy" ? 0.45 : difficulty === "hard" ? 0.06 : 0.2;
+        angle += (Math.random() - 0.5) * jitter;
+        power *= 0.85 + Math.random() * 0.3;
+        power = Math.min(100, Math.max(14, power));
         value = JSON.stringify({ angle, power });
       }
+    } else if (gameType === "basketball") {
+      if (Number(state.turn) === botSeat) {
+        action = "shoot";
+        // skill by difficulty
+        const makeChance = difficulty === "easy" ? 0.35 : difficulty === "hard" ? 0.7 : 0.5;
+        value = Math.random() < makeChance ? "make" : "miss";
+      }
     } else if (gameType === "battleship") {
-      if (state.phase === "placing") {
-        if (!state.placements?.[String(botSeat)]) action = "randomize_fleet";
-      } else {
+      if ((state.phase || "placing") === "placing") {
+        if (!state.placements?.[String(botSeat)]) {
+          action = "auto_deploy"; // randomize + lock in one RPC
+        }
+      } else if ((state.phase || "") === "playing" && Number(state.turn) === botSeat) {
         const fired: Array<{ row: number; col: number }> = state.shots?.[String(botSeat)] || [];
         const used = new Set(fired.map((shot) => `${shot.row},${shot.col}`));
-        const available = Array.from({ length: 64 }, (_, index) => ({ row: Math.floor(index / 8), col: index % 8 }))
-          .filter((shot) => !used.has(`${shot.row},${shot.col}`));
-        if (Number(state.turn) === botSeat && available.length > 0) {
-          const shot = available[Math.floor(Math.random() * available.length)];
+        // Prefer hunting adjacent to hits
+        const hits = fired.filter((s) => (s as { hit?: boolean }).hit);
+        let candidates = Array.from({ length: 64 }, (_, index) => ({
+          row: Math.floor(index / 8),
+          col: index % 8,
+        })).filter((shot) => !used.has(`${shot.row},${shot.col}`));
+        if (hits.length > 0 && difficulty !== "easy") {
+          const adj: typeof candidates = [];
+          for (const h of hits) {
+            for (const [dr, dc] of [[0,1],[0,-1],[1,0],[-1,0]] as const) {
+              const nr = h.row + dr, nc = h.col + dc;
+              if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && !used.has(`${nr},${nc}`)) {
+                adj.push({ row: nr, col: nc });
+              }
+            }
+          }
+          if (adj.length) candidates = adj;
+        }
+        if (candidates.length > 0) {
+          const shot = candidates[Math.floor(Math.random() * candidates.length)];
           action = "fire";
           value = `${shot.row},${shot.col}`;
         }
@@ -190,13 +248,42 @@ export async function POST(request: Request) {
         action = "roll";
       }
     } else if (gameType === "skribbl") {
-      if (state.drawerSeat === botSeat && !state.wordSelected) {
+      const drawer = Number(state.drawerSeat);
+      const selected =
+        typeof state.wordSelected === "string" &&
+        state.wordSelected.length > 0 &&
+        state.wordSelected !== "null"
+          ? state.wordSelected
+          : null;
+      if (drawer === botSeat && !selected) {
         action = "select_word";
-        const aiWords = await generateSkribblWordsAI(`${roomId}:${state.round || 1}`, state.usedWords || []);
-        value = aiWords[0] || "Pikachu";
-      } else if (state.drawerSeat !== botSeat && state.wordSelected) {
+        try {
+          const aiWords = await generateSkribblWordsAI(
+            `${roomId}:${state.round || 1}`,
+            state.usedWords || [],
+            { difficulty: "medium", category: "random" }
+          );
+          value = (aiWords && aiWords[0]) || "Robot";
+        } catch {
+          value = "Robot";
+        }
+      } else if (drawer === botSeat && selected) {
+        // Bot is drawing — no RPC action; client hosts the canvas stream.
+        return NextResponse.json({ message: "Bot is drawing" });
+      } else if (drawer !== botSeat && selected) {
+        const guessed = (state.guessedSeats || []).map((n: unknown) => Number(n));
+        if (guessed.includes(botSeat)) {
+          return NextResponse.json({ message: "Bot already guessed" });
+        }
         action = "guess";
-        value = state.wordSelected;
+        // Easy bots miss more often
+        const missChance = difficulty === "easy" ? 0.55 : difficulty === "hard" ? 0.15 : 0.3;
+        if (Math.random() < missChance) {
+          const decoys = ["cat", "tree", "car", "house", "fish", "sun", "robot", "pizza", "moon"];
+          value = decoys[Math.floor(Math.random() * decoys.length)];
+        } else {
+          value = selected;
+        }
       }
     }
 
@@ -204,7 +291,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "No action required" });
     }
 
-    const rpc = gameType === "uno" ? "play_uno_action" : gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_rps_action" : gameType === "number_guess" ? "play_number_hunt_action" : gameType === "memory_match" ? "play_memory_match_action" : gameType === "mini_golf" ? "play_mini_golf_action" : gameType === "battleship" ? "play_battleship_action" : gameType === "skribbl" ? "play_skribbl_action" : "play_room_action";
+    const rpc = gameType === "uno" ? "play_uno_action" : gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_rps_action" : gameType === "number_guess" ? "play_number_hunt_action" : gameType === "memory_match" ? "play_memory_match_action" : gameType === "mini_golf" ? "play_mini_golf_action" : gameType === "battleship" ? "play_battleship_action" : gameType === "skribbl" ? "play_skribbl_action" : gameType === "basketball" ? "play_basketball_action" : "play_room_action";
     const params = { p_room: roomId, p_action: action, p_value: value, p_actor_seat: botSeat };
     const { data, error } = await supabase.rpc(rpc, params);
 

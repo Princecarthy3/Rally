@@ -183,14 +183,45 @@ function cleanSkribblWords(
  * The words are generated specifically for each game/round,
  * rather than always coming from the same static word bank.
  */
+export type SkribblDifficulty = "easy" | "medium" | "hard";
+export type SkribblCategory =
+  | "random"
+  | "animals"
+  | "food"
+  | "sports"
+  | "technology"
+  | "places"
+  | "vehicles"
+  | "objects"
+  | "movies"
+  | "games"
+  | "nature"
+  | "professions"
+  | "pop_culture";
+
+const DIFFICULTY_GUIDE: Record<SkribblDifficulty, string> = {
+  easy: "Simple single nouns a child can draw (Apple, Dog, House).",
+  medium: "Familiar multi-part things (Volcano, Roller Coaster, Astronaut).",
+  hard: "Richer scenes or compound phrases (Time Machine, Haunted Mansion, Underwater City).",
+};
+
 export async function generateSkribblWordsAI(
   seed?: string,
   excludedWords: string[] = [],
+  options?: {
+    difficulty?: SkribblDifficulty;
+    category?: SkribblCategory | string;
+  },
 ): Promise<string[]> {
   const nonce = seed || crypto.randomUUID();
+  const difficulty: SkribblDifficulty =
+    options?.difficulty === "easy" || options?.difficulty === "hard"
+      ? options.difficulty
+      : "medium";
+  const category = (options?.category || "random").toString().toLowerCase().replace(/\s+/g, "_");
 
-  // Only send the most recent words to the AI.
-  const recentWords = excludedWords.slice(-40);
+  // Only send the most recent words to the AI (per-game used list).
+  const recentWords = excludedWords.slice(-60);
 
   const excluded =
     recentWords.length > 0
@@ -198,49 +229,30 @@ export async function generateSkribblWordsAI(
       : "none";
 
   const prompt = `
-You generate word choices for Rally, a fast multiplayer drawing game.
+Generate 3 unique words or short phrases for a multiplayer drawing game (Skribbl / Pictionary style).
+Category: ${category === "random" ? "Random (mix of everyday drawable topics)" : category}
+Difficulty: ${difficulty}
+Difficulty guide: ${DIFFICULTY_GUIDE[difficulty]}
 
-Generate EXACTLY 3 DIFFERENT drawing prompts for this
-specific game and round.
+Rules:
+- Every item must be drawable in under 80 seconds with simple lines.
+- Do not use abstract concepts, politics, hate, sexual, or unsafe topics.
+- Do not repeat any previously used words (case-insensitive).
+- Do not generate close variations of previously used words (e.g. "cat" then "cats").
+- Keep phrases short (1–3 words).
+- The three options must be clearly different from each other.
+- Recognizable to a general audience.
+- Return ONLY valid JSON. No markdown. No commentary.
 
-Requirements:
+Previously used:
+${JSON.stringify(recentWords)}
 
-- Make them fun and recognizable.
-- They must be easy enough to draw in under 60 seconds.
-- Prefer concrete nouns or short noun phrases.
-- Mix categories such as:
-  objects,
-  animals,
-  food,
-  places,
-  activities,
-  characters,
-  funny concepts.
-- Avoid obscure or highly technical topics.
-- Avoid overly abstract concepts.
-- Avoid political topics.
-- Avoid hateful, sexual, dangerous, or unsafe topics.
-- Do NOT repeat any recently used word.
-- Make the choices different from typical previous rounds.
-- The three choices must be clearly different from one another.
-- Use normal English.
-- Do not explain anything.
+Game nonce (for variety across rooms): ${nonce}
 
-Return ONLY this JSON object:
-
+Return exactly:
 {
-  "words": [
-    "word 1",
-    "word 2",
-    "word 3"
-  ]
+  "words": ["...", "...", "..."]
 }
-
-Game nonce:
-${nonce}
-
-Recently used words:
-${excluded}
 `;
 
   const responseText =
