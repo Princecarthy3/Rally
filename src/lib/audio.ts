@@ -9,6 +9,10 @@ class SoundManager {
   private bgmPlaying: boolean = false;
   private bgmStep: number = 0;
 
+  private engineOsc: OscillatorNode | null = null;
+  private engineGain: GainNode | null = null;
+  private lastSkidTime: number = 0;
+
   constructor() {
     if (typeof window !== "undefined") {
       this.isMuted = localStorage.getItem("rally_muted") === "true";
@@ -657,10 +661,141 @@ class SoundManager {
   }
 
   // =========================================================
+  // RALLY RACING SOUNDS
+  // =========================================================
+
+  public playEngineSound(rpmRatio: number) {
+    if (this.isMuted) {
+      this.stopEngineSound();
+      return;
+    }
+    const ctx = this.initCtx();
+    if (!ctx) return;
+
+    const baseFreq = 65; // Idle rumble Hz
+    const targetFreq = baseFreq + Math.max(0, Math.min(1, rpmRatio)) * 280;
+
+    if (!this.engineOsc || !this.engineGain) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(targetFreq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.08 * this.volume, ctx.currentTime);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      this.engineOsc = osc;
+      this.engineGain = gain;
+    } else {
+      this.engineOsc.frequency.setTargetAtTime(targetFreq, ctx.currentTime, 0.05);
+      this.engineGain.gain.setTargetAtTime(0.08 * this.volume, ctx.currentTime, 0.05);
+    }
+  }
+
+  public stopEngineSound() {
+    if (this.engineOsc) {
+      try {
+        this.engineOsc.stop();
+        this.engineOsc.disconnect();
+      } catch {}
+      this.engineOsc = null;
+      this.engineGain = null;
+    }
+  }
+
+  public playCountdownBeep(isGo: boolean) {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = isGo ? "triangle" : "sine";
+    const freq = isGo ? 880 : 440;
+    osc.frequency.setValueAtTime(freq, now);
+
+    gain.gain.setValueAtTime(0.35 * this.volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + (isGo ? 0.6 : 0.25));
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + (isGo ? 0.6 : 0.25));
+  }
+
+  public playSkidSound() {
+    if (this.isMuted) return;
+    const now = Date.now();
+    if (now - this.lastSkidTime < 180) return;
+    this.lastSkidTime = now;
+
+    const ctx = this.initCtx();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(220, t);
+    osc.frequency.linearRampToValueAtTime(120, t + 0.15);
+
+    gain.gain.setValueAtTime(0.12 * this.volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.15);
+  }
+
+  public playCheckpointSound() {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const notes = [587.33, 880.0];
+    notes.forEach((freq, idx) => {
+      const start = now + idx * 0.08;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.25 * this.volume, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.2);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.2);
+    });
+  }
+
+  public playFinishSound() {
+    if (this.isMuted) return;
+    const ctx = this.initCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((freq, idx) => {
+      const start = now + idx * 0.1;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0.35 * this.volume, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.5);
+    });
+  }
+
+  // =========================================================
   // STOP BGM
   // =========================================================
 
   public stopBgm() {
+    this.stopEngineSound();
     this.bgmPlaying = false;
 
     if (this.bgmInterval) {

@@ -90,7 +90,9 @@ export function GameRoom() {
     setBusy(true);
     setNotice("");
     const startRpc =
-      room.game_type === "ludo"
+      room.game_type === "racing"
+        ? "start_racing_game"
+        : room.game_type === "ludo"
         ? "start_ludo_game"
         : room.game_type === "memory_match"
         ? "start_memory_match"
@@ -226,7 +228,7 @@ export function GameRoom() {
               }}
             />
           ) : (
-            <GameBoard room={room} players={players} userId={user!.id} onlineIds={onlineIds} refresh={refresh} applyPublicState={applyPublicState} isSpectator={isSpectator || spectateMode} />
+            <GameBoard room={room} players={players} userId={user!.id} onlineIds={onlineIds} refresh={refresh} applyPublicState={applyPublicState} isSpectator={isSpectator || spectateMode} channel={channel} />
           )}
 
           {/* Victory Overlay Trigger */}
