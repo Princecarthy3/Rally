@@ -110,6 +110,8 @@ export function GameRoom() {
         ? "start_battleship"
         : room.game_type === "uno"
         ? "start_uno_game"
+        : room.game_type === "rally_racing"
+        ? "start_rally_racing"
         : "start_game";
     const { error } = await supabase!.rpc(startRpc, { p_room: room.id });
     if (error) setNotice(error.message);
