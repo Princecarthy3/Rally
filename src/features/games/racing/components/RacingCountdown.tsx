@@ -1,36 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { sounds } from "@/lib/audio";
 
 export function RacingCountdown({ onComplete }: { onComplete: () => void }) {
   const [count, setCount] = useState<number | string>(3);
+  const onCompleteRef = useRef(onComplete);
 
   useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const schedule = (ms: number, value: number | string, complete = false) => {
+      timers.push(
+        setTimeout(() => {
+          setCount(value);
+          if (complete) {
+            sounds.playCountdownBeep(true);
+            onCompleteRef.current();
+          } else {
+            sounds.playCountdownBeep(false);
+          }
+        }, ms)
+      );
+    };
+
     sounds.playCountdownBeep(false);
-
-    const timer1 = setTimeout(() => {
-      setCount(2);
-      sounds.playCountdownBeep(false);
-    }, 1000);
-
-    const timer2 = setTimeout(() => {
-      setCount(1);
-      sounds.playCountdownBeep(false);
-    }, 2000);
-
-    const timer3 = setTimeout(() => {
-      setCount("GO!");
-      sounds.playCountdownBeep(true);
-      onComplete();
-    }, 3000);
+    schedule(1000, 2);
+    schedule(2000, 1);
+    schedule(3000, "GO!", true);
 
     return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
+      timers.forEach(clearTimeout);
     };
-  }, [onComplete]);
+  }, []);
 
   return (
     <div className="pointer-events-none fixed inset-0 z-40 flex select-none items-center justify-center">

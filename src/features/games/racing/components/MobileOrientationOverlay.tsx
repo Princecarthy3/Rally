@@ -1,7 +1,29 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {  useCallback, useEffect, useState, useSyncExternalStore , type ReactNode } from "react";
 import { Smartphone } from "lucide-react";
+
+function isPortraitMobileNow(): boolean {
+  if (typeof window === "undefined") return false;
+  const isMobileDevice =
+    window.innerWidth <= 900 ||
+    window.matchMedia("(pointer: coarse)").matches ||
+    /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+  const isPortrait = window.innerHeight > window.innerWidth;
+  return isMobileDevice && isPortrait;
+}
+
+function subscribeOrientation(onStoreChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("resize", onStoreChange);
+  window.addEventListener("orientationchange", onStoreChange);
+  document.addEventListener("fullscreenchange", onStoreChange);
+  return () => {
+    window.removeEventListener("resize", onStoreChange);
+    window.removeEventListener("orientationchange", onStoreChange);
+    document.removeEventListener("fullscreenchange", onStoreChange);
+  };
+}
 
 async function requestLandscapeMode(): Promise<boolean> {
   if (typeof window === "undefined" || typeof screen === "undefined") return false;
@@ -30,10 +52,9 @@ async function requestLandscapeMode(): Promise<boolean> {
       return true;
     }
   } catch {
-    /* orientation lock may be blocked without fullscreen / user gesture */
+    /* orientation lock may be blocked */
   }
 
-  // Fallback: older WebViews
   try {
     const legacy = screen as Screen & {
       lockOrientation?: (o: string) => boolean;
@@ -49,33 +70,17 @@ async function requestLandscapeMode(): Promise<boolean> {
   return false;
 }
 
-export function MobileOrientationOverlay({ children }: { children: React.ReactNode }) {
-  const [isPortraitMobile, setIsPortraitMobile] = useState(false);
+export function MobileOrientationOverlay({ children }: { children: ReactNode }) {
+  const isPortraitMobile = useSyncExternalStore(
+    subscribeOrientation,
+    isPortraitMobileNow,
+    () => false
+  );
   const [locking, setLocking] = useState(false);
 
-  const checkOrientation = useCallback(() => {
-    if (typeof window === "undefined") return;
-    const isMobileDevice =
-      window.innerWidth <= 900 ||
-      window.matchMedia("(pointer: coarse)").matches ||
-      /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-    const isPortrait = window.innerHeight > window.innerWidth;
-    setIsPortraitMobile(isMobileDevice && isPortrait);
-  }, []);
-
   useEffect(() => {
-    checkOrientation();
-    // Attempt auto landscape as soon as the race view mounts
-    void requestLandscapeMode().finally(() => checkOrientation());
-
-    window.addEventListener("resize", checkOrientation);
-    window.addEventListener("orientationchange", checkOrientation);
-    document.addEventListener("fullscreenchange", checkOrientation);
-
+    void requestLandscapeMode();
     return () => {
-      window.removeEventListener("resize", checkOrientation);
-      window.removeEventListener("orientationchange", checkOrientation);
-      document.removeEventListener("fullscreenchange", checkOrientation);
       try {
         screen.orientation?.unlock?.();
       } catch {
@@ -89,14 +94,16 @@ export function MobileOrientationOverlay({ children }: { children: React.ReactNo
         /* ignore */
       }
     };
-  }, [checkOrientation]);
+  }, []);
 
-  async function handleEnterLandscape() {
+  const handleEnterLandscape = useCallback(async () => {
     setLocking(true);
-    await requestLandscapeMode();
-    checkOrientation();
-    setLocking(false);
-  }
+    try {
+      await requestLandscapeMode();
+    } finally {
+      setLocking(false);
+    }
+  }, []);
 
   if (isPortraitMobile) {
     return (
@@ -116,7 +123,7 @@ export function MobileOrientationOverlay({ children }: { children: React.ReactNo
         </span>
         <h2 className="mt-4 text-2xl font-black tracking-tight">Rotate your phone</h2>
         <p className="mt-2 max-w-xs text-sm font-semibold text-slate-400">
-          Rally Racing runs in landscape. We’ll lock orientation when the browser allows it.
+          Rally Racing runs in landscape. We&apos;ll lock orientation when the browser allows it.
         </p>
         <button
           type="button"
