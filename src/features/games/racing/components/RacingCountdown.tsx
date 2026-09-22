@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { sounds } from "@/lib/audio";
 
 export function RacingCountdown({ onComplete }: { onComplete: () => void }) {
   const [count, setCount] = useState<number | string>(3);
-  const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     sounds.playCountdownBeep(false);
@@ -24,7 +22,7 @@ export function RacingCountdown({ onComplete }: { onComplete: () => void }) {
     const timer3 = setTimeout(() => {
       setCount("GO!");
       sounds.playCountdownBeep(true);
-      onCompleteRef.current();
+      onComplete();
     }, 3000);
 
     return () => {
@@ -32,7 +30,7 @@ export function RacingCountdown({ onComplete }: { onComplete: () => void }) {
       clearTimeout(timer2);
       clearTimeout(timer3);
     };
-  }, []);
+  }, [onComplete]);
 
   return (
     <div className="pointer-events-none fixed inset-0 z-40 flex select-none items-center justify-center">
