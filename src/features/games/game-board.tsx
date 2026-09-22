@@ -88,8 +88,19 @@ export function GameBoard({
         const extras: Partial<Room> = {};
         if (typeof payload.status === "string") {
           extras.status = payload.status as Room["status"];
+        } else if (room.game_type === "racing" && (action === "restart" || action === "rematch")) {
+          // Racing returns the reset state without the room status. Keep every
+          // client on the lobby immediately while the database update arrives.
+          extras.status = "waiting";
         }
         applyPublicState(nextState, extras);
+        if (room.game_type === "racing" && (action === "restart" || action === "rematch")) {
+          await supabase
+            .from("game_players")
+            .update({ is_ready: true })
+            .eq("room_id", room.id)
+            .like("player_id", "11111111-1111-1111-1111-%");
+        }
       }
       await refresh();
     }
@@ -144,6 +155,9 @@ export function GameBoard({
           !s.balls?.[String(botSeat)]?.finished;
       } else if (room.game_type === "uno") {
         isBotTurn = turn === botSeat || (s.challenge && Number(s.challenge.challengerSeat) === botSeat) || (s.unoVulnerableSeat && Number(s.unoVulnerableSeat) !== botSeat);
+      } else if (room.game_type === "racing") {
+        const results = Array.isArray(s.results) ? s.results : [];
+        isBotTurn = !results.some((result: any) => Number(result?.seat) === botSeat);
       } else if (room.game_type === "battleship") {
         const phase = s.phase || "placing";
         const botLocked = Boolean(s.placements?.[String(botSeat)]);
