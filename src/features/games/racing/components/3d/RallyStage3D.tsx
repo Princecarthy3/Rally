@@ -4,6 +4,12 @@ import { useMemo } from "react";
 import * as THREE from "three";
 import { CHECKPOINTS, getTerrainHeight, TRACK_WAYPOINTS } from "../../track-data";
 
+// Deterministic pseudo-random number generator for React 19 purity compliance
+function pseudoRandom(seed: number): number {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
 export function RallyStage3D({ activeCheckpoint = 0 }: { activeCheckpoint?: number }) {
   // Generate Dirt Road Track Mesh Geometry
   const trackMeshGeometry = useMemo(() => {
@@ -17,12 +23,13 @@ export function RallyStage3D({ activeCheckpoint = 0 }: { activeCheckpoint?: numb
     return new THREE.TubeGeometry(curve, tubularSegments, radius, radialSegments, true);
   }, []);
 
-  // Generate Forest Trees Coordinates
+  // Generate Forest Trees Coordinates deterministically
   const forestTrees = useMemo(() => {
     const trees: Array<{ x: number; z: number; scale: number; rotation: number }> = [];
+    let seedIndex = 1;
+
     for (let x = -140; x <= 140; x += 12) {
       for (let z = -140; z <= 140; z += 12) {
-        // Skip points inside track path radius
         let nearTrack = false;
         for (const wp of TRACK_WAYPOINTS) {
           if (Math.hypot(x - wp[0], z - wp[2]) < 11) {
@@ -30,12 +37,13 @@ export function RallyStage3D({ activeCheckpoint = 0 }: { activeCheckpoint?: numb
             break;
           }
         }
-        if (!nearTrack && Math.random() > 0.35) {
+        const randVal = pseudoRandom(seedIndex++);
+        if (!nearTrack && randVal > 0.35) {
           trees.push({
-            x: x + (Math.random() - 0.5) * 4,
-            z: z + (Math.random() - 0.5) * 4,
-            scale: 0.8 + Math.random() * 0.7,
-            rotation: Math.random() * Math.PI * 2
+            x: x + (pseudoRandom(seedIndex++) - 0.5) * 4,
+            z: z + (pseudoRandom(seedIndex++) - 0.5) * 4,
+            scale: 0.8 + pseudoRandom(seedIndex++) * 0.7,
+            rotation: pseudoRandom(seedIndex++) * Math.PI * 2
           });
         }
       }
@@ -43,15 +51,17 @@ export function RallyStage3D({ activeCheckpoint = 0 }: { activeCheckpoint?: numb
     return trees;
   }, []);
 
-  // Generate Rocks along terrain
+  // Generate Rocks along terrain deterministically
   const rocks = useMemo(() => {
     const items: Array<{ x: number; z: number; scale: number }> = [];
+    let seedIndex = 5000;
+
     for (let i = 0; i < 60; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const radius = 25 + Math.random() * 90;
+      const angle = pseudoRandom(seedIndex++) * Math.PI * 2;
+      const radius = 25 + pseudoRandom(seedIndex++) * 90;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
-      items.push({ x, z, scale: 0.7 + Math.random() * 1.2 });
+      items.push({ x, z, scale: 0.7 + pseudoRandom(seedIndex++) * 1.2 });
     }
     return items;
   }, []);

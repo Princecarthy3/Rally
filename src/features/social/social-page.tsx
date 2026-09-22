@@ -377,6 +377,7 @@ export function SocialPage() {
 
 function Avatar({ player }: { player: Player }) {
   return player.avatar_url ? (
+    /* eslint-disable-next-line @next/next/no-img-element */
     <img src={player.avatar_url} alt="" className="h-10 w-10 rounded-full border-2 border-slate-950 object-cover" />
   ) : (
     <span className="grid h-10 w-10 place-items-center rounded-full border-2 border-slate-950 bg-[#f4dc69] text-sm font-black">

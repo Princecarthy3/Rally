@@ -22,12 +22,11 @@ export function OtherCar3D({
   const targetPos = useRef(new THREE.Vector3(...position));
   const targetRot = useRef(new THREE.Euler(...rotation));
 
-  // Keep target refs synchronized
-  targetPos.current.set(...position);
-  targetRot.current.set(...rotation);
-
   useFrame((_, delta) => {
     if (!groupRef.current) return;
+
+    targetPos.current.set(...position);
+    targetRot.current.set(...rotation);
 
     // Smooth network position interpolation (lerp)
     groupRef.current.position.lerp(targetPos.current, Math.min(1, delta * 18));

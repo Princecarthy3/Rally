@@ -220,7 +220,7 @@ export function RacingGame({
             speed={myTransform.speed}
             isDrifting={myTransform.isDrifting}
             color={colors[(meSeat - 1) % colors.length]}
-            steerAngle={(keysRef.current.left || touchState.steerLeft ? 1 : 0) - (keysRef.current.right || touchState.steerRight ? -1 : 0)}
+            steerAngle={(touchState.steerLeft ? 1 : 0) - (touchState.steerRight ? -1 : 0)}
           />
 
           {/* Opponent Rival Cars */}

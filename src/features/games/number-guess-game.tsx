@@ -13,7 +13,7 @@ export function NumberGuessGame({ room, players, meSeat, onAct, busy }: {
   const pickerSeat = state.pickerSeat || 1;
   const targetPicked = Boolean(state.targetPicked);
   const guesses = (state.guesses || {}) as Record<string, number>;
-  const guessResults = (state.guessResults || {}) as Record<string, { guess: number; correct: boolean }>;
+  const guessResults = useMemo(() => (state.guessResults || {}) as Record<string, { guess: number; correct: boolean }>, [state.guessResults]);
   const [selected, setSelected] = useState<number | null>(null);
   const [choiceNotice, setChoiceNotice] = useState("");
   const seenChoices = useRef<Record<string, number>>({});

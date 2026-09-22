@@ -172,6 +172,7 @@ export function useRoom(code: string, userId?: string, options?: { spectate?: bo
       supabase.removeChannel(ch);
       setChannel(null);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh, room?.id, supabase, userId, spectate, isSpectator]);
 
   // Live poll while waiting, playing, or spectating so boards update even if Realtime lags.
@@ -188,6 +189,7 @@ export function useRoom(code: string, userId?: string, options?: { spectate?: bo
       void refresh();
     }, intervalMs);
     return () => window.clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh, room?.status, userId, spectate, isSpectator]);
 
   const applyPublicState = useCallback((publicState: Room["public_state"], extras?: Partial<Room>) => {

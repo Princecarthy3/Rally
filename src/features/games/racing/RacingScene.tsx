@@ -28,7 +28,10 @@ export function RacingScene({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const remotesRef = useRef(remotes);
-  remotesRef.current = remotes;
+
+  useEffect(() => {
+    remotesRef.current = remotes;
+  }, [remotes]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
