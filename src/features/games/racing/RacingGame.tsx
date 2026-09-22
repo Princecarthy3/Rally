@@ -58,8 +58,10 @@ function useLandscapeLock(active: boolean) {
     window.addEventListener("resize", check);
     window.addEventListener("orientationchange", check);
     try {
-      // @ts-expect-error optional API
-      screen.orientation?.lock?.("landscape").catch(() => {});
+      const orient = screen.orientation as ScreenOrientation & {
+        lock?: (orientation: string) => Promise<void>;
+      };
+      void orient.lock?.("landscape")?.catch(() => {});
     } catch {
       /* ignore */
     }
@@ -67,7 +69,6 @@ function useLandscapeLock(active: boolean) {
       window.removeEventListener("resize", check);
       window.removeEventListener("orientationchange", check);
       try {
-        // @ts-expect-error optional API
         screen.orientation?.unlock?.();
       } catch {
         /* ignore */
