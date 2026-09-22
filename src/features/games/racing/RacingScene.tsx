@@ -1,143 +1,8 @@
 "use client";
 
-import { Canvas, useFrame } from "@react-three/fiber";
-import { PerspectiveCamera } from "@react-three/drei";
-import { useMemo, useRef } from "react";
-import * as THREE from "three";
-import { CHECKPOINT_INDICES, TRACK_CENTERLINE, type Vec3 } from "./track";
+import { useEffect, useRef, type MutableRefObject } from "react";
+import { CHECKPOINT_INDICES, TRACK_CENTERLINE } from "./track";
 import type { VehicleState } from "./vehicle";
-
-const CAR_COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#eab308"];
-
-function TrackMesh() {
-  const points = useMemo(
-    () => TRACK_CENTERLINE.map((p) => new THREE.Vector3(p[0], 0.05, p[2])),
-    []
-  );
-  const curve = useMemo(() => new THREE.CatmullRomCurve3(points), [points]);
-  const roadGeo = useMemo(() => {
-    const shape = new THREE.Shape();
-    shape.moveTo(-5, -0.5);
-    shape.lineTo(5, -0.5);
-    shape.lineTo(5, 0.5);
-    shape.lineTo(-5, 0.5);
-    shape.closePath();
-    return new THREE.ExtrudeGeometry(shape, {
-      steps: 80,
-      bevelEnabled: false,
-      extrudePath: curve,
-    });
-  }, [curve]);
-
-  return (
-    <group>
-      <mesh geometry={roadGeo} receiveShadow>
-        <meshStandardMaterial color="#8B7355" roughness={0.95} />
-      </mesh>
-      {/* Grass plane */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, -190]} receiveShadow>
-        <planeGeometry args={[220, 420]} />
-        <meshStandardMaterial color="#3d7a3a" />
-      </mesh>
-      {TRACK_CENTERLINE.filter((_, i) => i % 2 === 0).map((p, i) => (
-        <group key={i}>
-          <mesh position={[p[0] - 14, 2, p[2]]}>
-            <cylinderGeometry args={[0.4, 0.6, 4, 6]} />
-            <meshStandardMaterial color="#5c4033" />
-          </mesh>
-          <mesh position={[p[0] - 14, 5, p[2]]}>
-            <sphereGeometry args={[2.2, 6, 6]} />
-            <meshStandardMaterial color="#1f6b2e" />
-          </mesh>
-          <mesh position={[p[0] + 14, 2, p[2]]}>
-            <cylinderGeometry args={[0.4, 0.6, 4, 6]} />
-            <meshStandardMaterial color="#5c4033" />
-          </mesh>
-          <mesh position={[p[0] + 14, 5, p[2]]}>
-            <sphereGeometry args={[2.2, 6, 6]} />
-            <meshStandardMaterial color="#1f6b2e" />
-          </mesh>
-        </group>
-      ))}
-      {CHECKPOINT_INDICES.map((idx, i) => {
-        const p = TRACK_CENTERLINE[idx];
-        const isFinish = i === CHECKPOINT_INDICES.length - 1;
-        return (
-          <mesh key={i} position={[p[0], 1.5, p[2]]}>
-            <boxGeometry args={[12, 3, 0.4]} />
-            <meshStandardMaterial
-              color={isFinish ? "#f8fafc" : "#fbbf24"}
-              transparent
-              opacity={0.55}
-            />
-          </mesh>
-        );
-      })}
-    </group>
-  );
-}
-
-function CarMesh({
-  state,
-  stateRef,
-  color,
-  isLocal,
-}: {
-  state?: VehicleState;
-  stateRef?: React.MutableRefObject<VehicleState>;
-  color: string;
-  isLocal?: boolean;
-}) {
-  const ref = useRef<THREE.Group>(null);
-  useFrame(() => {
-    if (!ref.current) return;
-    const s = stateRef?.current || state;
-    if (!s) return;
-    ref.current.position.set(s.x, s.y, s.z);
-    ref.current.rotation.y = s.rotY;
-  });
-  return (
-    <group ref={ref}>
-      <mesh position={[0, 0.35, 0]} castShadow>
-        <boxGeometry args={[1.6, 0.5, 3.2]} />
-        <meshStandardMaterial color={color} metalness={0.3} roughness={0.5} />
-      </mesh>
-      <mesh position={[0, 0.75, -0.2]} castShadow>
-        <boxGeometry args={[1.4, 0.45, 1.6]} />
-        <meshStandardMaterial color="#0f172a" />
-      </mesh>
-      {[
-        [-0.75, 0.25, 1.0],
-        [0.75, 0.25, 1.0],
-        [-0.75, 0.25, -1.0],
-        [0.75, 0.25, -1.0],
-      ].map((pos, i) => (
-        <mesh key={i} position={pos as Vec3} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.32, 0.32, 0.25, 10]} />
-          <meshStandardMaterial color="#111" />
-        </mesh>
-      ))}
-      {isLocal && (
-        <pointLight position={[0, 2, 0]} intensity={0.4} distance={12} color="#fff7ed" />
-      )}
-    </group>
-  );
-}
-
-function ChaseCamera({ target }: { target: React.MutableRefObject<VehicleState> }) {
-  const cam = useRef<THREE.PerspectiveCamera>(null);
-  useFrame(() => {
-    if (!cam.current) return;
-    const v = target.current;
-    const back = 10 + Math.min(6, Math.abs(v.speed) * 0.12);
-    const height = 4.5;
-    const lx = v.x - Math.sin(v.rotY) * back;
-    const lz = v.z + Math.cos(v.rotY) * back;
-    cam.current.position.lerp(new THREE.Vector3(lx, height, lz), 0.08);
-    cam.current.lookAt(v.x, v.y + 1, v.z);
-  });
-  return <PerspectiveCamera ref={cam} makeDefault fov={60} near={0.5} far={500} />;
-}
 
 export type RemoteRacer = {
   seat: number;
@@ -149,52 +14,152 @@ export type RemoteRacer = {
   finished?: boolean;
 };
 
+const CAR_COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#eab308"];
+
+/** Canvas 2D chase view — no Three.js (avoids flaky npm installs). */
 export function RacingScene({
   localRef,
   remotes,
   localSeat,
 }: {
-  localRef: React.MutableRefObject<VehicleState>;
+  localRef: MutableRefObject<VehicleState>;
   remotes: RemoteRacer[];
   localSeat: number;
 }) {
-  return (
-    <Canvas
-      shadows
-      dpr={[1, 1.5]}
-      gl={{ antialias: true, powerPreference: "high-performance" }}
-      style={{ width: "100%", height: "100%", touchAction: "none" }}
-    >
-      <color attach="background" args={["#87CEEB"]} />
-      <ambientLight intensity={0.65} />
-      <directionalLight
-        castShadow
-        position={[40, 60, 20]}
-        intensity={1.1}
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-      />
-      <fog attach="fog" args={["#a8d4f0", 60, 220]} />
-      <ChaseCamera target={localRef} />
-      <TrackMesh />
-      <CarMesh stateRef={localRef} color={CAR_COLORS[(localSeat - 1) % 4]} isLocal />
-      {remotes
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const remotesRef = useRef(remotes);
+  remotesRef.current = remotes;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let raf = 0;
+    const draw = () => {
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const w = canvas.clientWidth || 640;
+      const h = canvas.clientHeight || 400;
+      if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const v = localRef.current;
+      const scale = 3.2;
+      const camX = v.x;
+      const camZ = v.z;
+
+      const sky = ctx.createLinearGradient(0, 0, 0, h * 0.45);
+      sky.addColorStop(0, "#7dd3fc");
+      sky.addColorStop(1, "#bbf7d0");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "#3d7a3a";
+      ctx.fillRect(0, h * 0.35, w, h);
+
+      const worldToScreen = (x: number, z: number) => {
+        const dx = (x - camX) * scale;
+        const dz = (z - camZ) * scale;
+        const c = Math.cos(-v.rotY);
+        const s = Math.sin(-v.rotY);
+        const rx = dx * c - dz * s;
+        const rz = dx * s + dz * c;
+        return { sx: w / 2 + rx, sy: h * 0.62 + rz };
+      };
+
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "#8B7355";
+      ctx.lineWidth = 28;
+      ctx.beginPath();
+      TRACK_CENTERLINE.forEach((p, i) => {
+        const { sx, sy } = worldToScreen(p[0], p[2]);
+        if (i === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      });
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 10]);
+      ctx.beginPath();
+      TRACK_CENTERLINE.forEach((p, i) => {
+        const { sx, sy } = worldToScreen(p[0], p[2]);
+        if (i === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      TRACK_CENTERLINE.forEach((p, i) => {
+        if (i % 2 !== 0) return;
+        for (const side of [-1, 1] as const) {
+          const { sx, sy } = worldToScreen(p[0] + side * 12, p[2]);
+          ctx.fillStyle = "#5c4033";
+          ctx.fillRect(sx - 2, sy - 10, 4, 12);
+          ctx.beginPath();
+          ctx.fillStyle = "#166534";
+          ctx.arc(sx, sy - 14, 8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      CHECKPOINT_INDICES.forEach((idx, i) => {
+        const p = TRACK_CENTERLINE[idx];
+        const { sx, sy } = worldToScreen(p[0], p[2]);
+        const finish = i === CHECKPOINT_INDICES.length - 1;
+        ctx.fillStyle = finish ? "rgba(248,250,252,0.7)" : "rgba(251,191,36,0.65)";
+        ctx.fillRect(sx - 18, sy - 4, 36, 8);
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 10px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillText(finish ? "FINISH" : `CP${i}`, sx, sy - 8);
+      });
+
+      const drawCar = (x: number, z: number, rotY: number, color: string, label?: string) => {
+        const { sx, sy } = worldToScreen(x, z);
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(rotY - v.rotY);
+        ctx.fillStyle = color;
+        ctx.fillRect(-7, -12, 14, 24);
+        ctx.fillStyle = "#0f172a";
+        ctx.fillRect(-5, -4, 10, 10);
+        ctx.fillStyle = "#111";
+        ctx.fillRect(-9, -10, 3, 6);
+        ctx.fillRect(6, -10, 3, 6);
+        ctx.fillRect(-9, 4, 3, 6);
+        ctx.fillRect(6, 4, 3, 6);
+        if (label) {
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 9px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillText(label, 0, -16);
+        }
+        ctx.restore();
+      };
+
+      remotesRef.current
         .filter((r) => r.seat !== localSeat)
-        .map((r) => (
-          <CarMesh
-            key={r.seat}
-            state={{
-              x: r.x,
-              y: r.y,
-              z: r.z,
-              rotY: r.rotY,
-              speed: r.speed,
-              vx: 0,
-              vz: 0,
-            }}
-            color={CAR_COLORS[(r.seat - 1) % 4]}
-          />
-        ))}
-    </Canvas>
+        .forEach((r) => {
+          drawCar(r.x, r.z, r.rotY, CAR_COLORS[(r.seat - 1) % 4], `P${r.seat}`);
+        });
+      drawCar(v.x, v.z, v.rotY, CAR_COLORS[(localSeat - 1) % 4], "YOU");
+
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [localRef, localSeat]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="h-full w-full touch-none"
+      style={{ display: "block", background: "#87CEEB" }}
+    />
   );
 }
