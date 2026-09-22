@@ -96,11 +96,8 @@ function createEdgeStripeGeometry(innerWidth: number, outerWidth: number) {
     for (let side = 0; side < 2; side += 1) {
       const current = index * 4 + side * 2;
       const following = next * 4 + side * 2;
-      if (side === 0) {
-        indices.push(current, following, current + 1, current + 1, following, following + 1);
-      } else {
-        indices.push(current, current + 1, following, current + 1, following + 1, following);
-      }
+      if (side === 0) indices.push(current, following, current + 1, current + 1, following, following + 1);
+      else indices.push(current, current + 1, following, current + 1, following + 1, following);
     }
   }
   const geometry = new THREE.BufferGeometry();
@@ -110,11 +107,40 @@ function createEdgeStripeGeometry(innerWidth: number, outerWidth: number) {
   return geometry;
 }
 
+function createCenterLineGeometry() {
+  const points = getTrackSamples();
+  const vertices: number[] = [];
+  const indices: number[] = [];
+  const dashLength = 7;
+  for (let index = 0; index < points.length; index += 1) {
+    if (Math.floor(index / 5) % 2 === 1) continue;
+    const previous = points[(index - 1 + points.length) % points.length];
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    const direction = new THREE.Vector2(next.x - previous.x, next.z - previous.z).normalize();
+    const perpendicular = new THREE.Vector2(-direction.y, direction.x).multiplyScalar(0.12);
+    const forward = direction.clone().multiplyScalar(dashLength * 0.42);
+    const start = new THREE.Vector2(current.x, current.z).sub(forward);
+    const end = new THREE.Vector2(current.x, current.z).add(forward);
+    vertices.push(start.x - perpendicular.x, getTerrainHeight(start.x - perpendicular.x, start.y - perpendicular.y) + 0.09, start.y - perpendicular.y);
+    vertices.push(start.x + perpendicular.x, getTerrainHeight(start.x + perpendicular.x, start.y + perpendicular.y) + 0.09, start.y + perpendicular.y);
+    vertices.push(end.x - perpendicular.x, getTerrainHeight(end.x - perpendicular.x, end.y - perpendicular.y) + 0.09, end.y - perpendicular.y);
+    vertices.push(end.x + perpendicular.x, getTerrainHeight(end.x + perpendicular.x, end.y + perpendicular.y) + 0.09, end.y + perpendicular.y);
+    const base = vertices.length / 3 - 4;
+    indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setIndex(indices);
+  return geometry;
+}
+
 export const RallyStage3D = memo(function RallyStage3D({ activeCheckpoint = 0 }: { activeCheckpoint?: number }) {
   const terrainGeometry = useMemo(createTerrainGeometry, []);
   const shoulderGeometry = useMemo(() => createRoadGeometry(ROAD_HALF_WIDTH + 1.15), []);
   const roadGeometry = useMemo(() => createRoadGeometry(ROAD_HALF_WIDTH), []);
   const edgeStripeGeometry = useMemo(() => createEdgeStripeGeometry(ROAD_HALF_WIDTH - 0.22, ROAD_HALF_WIDTH), []);
+  const centerLineGeometry = useMemo(createCenterLineGeometry, []);
   const gridMarkers = useMemo(() => {
     const points = getTrackSamples();
     return Array.from({ length: 10 }, (_, index) => {
@@ -149,6 +175,7 @@ export const RallyStage3D = memo(function RallyStage3D({ activeCheckpoint = 0 }:
     {/* A wide, high-contrast Grand Prix surface keeps the racing line clear. */}
     <mesh geometry={shoulderGeometry} receiveShadow><meshStandardMaterial color="#80664a" roughness={1} /></mesh>
     <mesh geometry={roadGeometry} receiveShadow><meshStandardMaterial color="#18232b" roughness={0.82} metalness={0.12} /></mesh>
+    <mesh geometry={centerLineGeometry}><meshStandardMaterial color="#f6f1d1" emissive="#5c4d20" emissiveIntensity={0.3} roughness={0.65} /></mesh>
     <mesh geometry={edgeStripeGeometry}><meshStandardMaterial color="#f6d36b" emissive="#2a1d08" emissiveIntensity={0.35} roughness={0.7} /></mesh>
     {gridMarkers.map((marker, index) => {
       const x = marker.x + Math.cos(marker.yaw) * marker.side;
