@@ -7,7 +7,7 @@ import { CHECKPOINTS, getTerrainHeight, TRACK_WAYPOINTS } from "../../track-data
 
 const STAGE_SIZE = 320;
 const TERRAIN_SEGMENTS = 96;
-const ROAD_HALF_WIDTH = 6.4;
+const ROAD_HALF_WIDTH = 7.2;
 
 function pseudoRandom(seed: number): number {
   const x = Math.sin(seed * 12.9898) * 43758.5453;
@@ -33,9 +33,7 @@ function createTerrainGeometry() {
   return geometry;
 }
 
-function createRoadGeometry() {
-  const vertices: number[] = [];
-  const indices: number[] = [];
+function getTrackSamples() {
   const samplesPerSegment = 14;
   const points: Array<{ x: number; z: number }> = [];
   for (let index = 0; index < TRACK_WAYPOINTS.length; index += 1) {
@@ -46,6 +44,13 @@ function createRoadGeometry() {
       points.push({ x: THREE.MathUtils.lerp(start[0], end[0], progress), z: THREE.MathUtils.lerp(start[2], end[2], progress) });
     }
   }
+  return points;
+}
+
+function createRoadGeometry(halfWidth: number) {
+  const vertices: number[] = [];
+  const indices: number[] = [];
+  const points = getTrackSamples();
   for (let index = 0; index < points.length; index += 1) {
     const previous = points[(index - 1 + points.length) % points.length];
     const current = points[index];
@@ -53,8 +58,8 @@ function createRoadGeometry() {
     const direction = new THREE.Vector2(next.x - previous.x, next.z - previous.z).normalize();
     const perpendicular = new THREE.Vector2(-direction.y, direction.x);
     for (const side of [-1, 1]) {
-      const x = current.x + perpendicular.x * ROAD_HALF_WIDTH * side;
-      const z = current.z + perpendicular.y * ROAD_HALF_WIDTH * side;
+      const x = current.x + perpendicular.x * halfWidth * side;
+      const z = current.z + perpendicular.y * halfWidth * side;
       vertices.push(x, getTerrainHeight(x, z) + 0.025, z);
     }
   }
@@ -73,9 +78,50 @@ function createRoadGeometry() {
   return geometry;
 }
 
+function createEdgeStripeGeometry(innerWidth: number, outerWidth: number) {
+  const points = getTrackSamples();
+  const vertices: number[] = [];
+  const indices: number[] = [];
+  for (let index = 0; index < points.length; index += 1) {
+    const previous = points[(index - 1 + points.length) % points.length];
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    const direction = new THREE.Vector2(next.x - previous.x, next.z - previous.z).normalize();
+    const perpendicular = new THREE.Vector2(-direction.y, direction.x);
+    for (const side of [-1, 1]) for (const width of [innerWidth, outerWidth]) {
+      const x = current.x + perpendicular.x * width * side;
+      const z = current.z + perpendicular.y * width * side;
+      vertices.push(x, getTerrainHeight(x, z) + 0.065, z);
+    }
+  }
+  for (let index = 0; index < points.length; index += 1) {
+    const next = (index + 1) % points.length;
+    for (let side = 0; side < 2; side += 1) {
+      const current = index * 4 + side * 2;
+      const following = next * 4 + side * 2;
+      indices.push(current, following, current + 1, current + 1, following, following + 1);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 export const RallyStage3D = memo(function RallyStage3D({ activeCheckpoint = 0 }: { activeCheckpoint?: number }) {
   const terrainGeometry = useMemo(createTerrainGeometry, []);
-  const roadGeometry = useMemo(createRoadGeometry, []);
+  const shoulderGeometry = useMemo(() => createRoadGeometry(ROAD_HALF_WIDTH + 1.15), []);
+  const roadGeometry = useMemo(() => createRoadGeometry(ROAD_HALF_WIDTH), []);
+  const edgeStripeGeometry = useMemo(() => createEdgeStripeGeometry(ROAD_HALF_WIDTH - 0.22, ROAD_HALF_WIDTH), []);
+  const gridMarkers = useMemo(() => {
+    const points = getTrackSamples();
+    return Array.from({ length: 10 }, (_, index) => {
+      const point = points[index * 2];
+      const next = points[(index * 2 + 1) % points.length];
+      return { x: point.x, z: point.z, yaw: Math.atan2(next.x - point.x, next.z - point.z), side: index % 2 === 0 ? -2.9 : 2.9 };
+    });
+  }, []);
   const forestTrees = useMemo(() => {
     const trees: Array<{ x: number; z: number; scale: number; rotation: number }> = [];
     let seed = 1;
@@ -98,7 +144,18 @@ export const RallyStage3D = memo(function RallyStage3D({ activeCheckpoint = 0 }:
     <hemisphereLight args={["#d9f3ff", "#31421b", 2.1]} />
     <directionalLight position={[60, 90, 35]} intensity={2.8} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-110} shadow-camera-right={110} shadow-camera-top={110} shadow-camera-bottom={-110} />
     <mesh geometry={terrainGeometry} rotation={[-Math.PI / 2, 0, 0]} receiveShadow><meshStandardMaterial vertexColors roughness={0.98} /></mesh>
-    <mesh geometry={roadGeometry} receiveShadow><meshStandardMaterial color="#9b6337" roughness={1} /></mesh>
+    {/* A wide, high-contrast Grand Prix surface keeps the racing line clear. */}
+    <mesh geometry={shoulderGeometry} receiveShadow><meshStandardMaterial color="#b99a66" roughness={1} /></mesh>
+    <mesh geometry={roadGeometry} receiveShadow><meshStandardMaterial color="#252b31" roughness={0.88} metalness={0.06} /></mesh>
+    <mesh geometry={edgeStripeGeometry}><meshStandardMaterial color="#f8fafc" roughness={0.7} /></mesh>
+    {gridMarkers.map((marker, index) => {
+      const x = marker.x + Math.cos(marker.yaw) * marker.side;
+      const z = marker.z - Math.sin(marker.yaw) * marker.side;
+      return <mesh key={index} position={[x, getTerrainHeight(x, z) + 0.09, z]} rotation={[0, marker.yaw, 0]}>
+      <boxGeometry args={[1.35, 0.035, 3.4]} />
+      <meshStandardMaterial color="#f8fafc" roughness={0.7} />
+      </mesh>;
+    })}
 
     {forestTrees.map((tree, index) => <group key={index} position={[tree.x, getTerrainHeight(tree.x, tree.z), tree.z]} scale={tree.scale} rotation={[0, tree.rotation, 0]}>
       <mesh position={[0, 1.3, 0]} castShadow><cylinderGeometry args={[0.22, 0.38, 2.6, 7]} /><meshStandardMaterial color="#5a351e" roughness={1} /></mesh>

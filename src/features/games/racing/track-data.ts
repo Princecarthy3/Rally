@@ -72,7 +72,9 @@ export function getDistanceToTrack(x: number, z: number): { distance: number; su
   }
   
   const dist = Math.sqrt(minSq);
-  if (dist <= 7.0) return { distance: dist, surface: "dirt" };
+  // The visible circuit is a Grand Prix-style asphalt surface. Keep this in
+  // sync with the rendered road width so the car feels planted on the tarmac.
+  if (dist <= 7.0) return { distance: dist, surface: "asphalt" };
   if (dist <= 10.0) return { distance: dist, surface: "gravel" };
   return { distance: dist, surface: "grass" };
 }
