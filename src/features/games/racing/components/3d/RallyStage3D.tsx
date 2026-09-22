@@ -1,166 +1,126 @@
 "use client";
 
-import { useMemo } from "react";
+import { Sky, Sparkles } from "@react-three/drei";
+import { memo, useMemo } from "react";
 import * as THREE from "three";
 import { CHECKPOINTS, getTerrainHeight, TRACK_WAYPOINTS } from "../../track-data";
 
-// Deterministic pseudo-random number generator for React 19 purity compliance
+const STAGE_SIZE = 320;
+const TERRAIN_SEGMENTS = 96;
+const ROAD_HALF_WIDTH = 6.4;
+
 function pseudoRandom(seed: number): number {
-  const x = Math.sin(seed) * 10000;
+  const x = Math.sin(seed * 12.9898) * 43758.5453;
   return x - Math.floor(x);
 }
 
-export function RallyStage3D({ activeCheckpoint = 0 }: { activeCheckpoint?: number }) {
-  // Generate Dirt Road Track Mesh Geometry
-  const trackMeshGeometry = useMemo(() => {
-    const points = TRACK_WAYPOINTS.map(p => new THREE.Vector3(p[0], p[1] + 0.05, p[2]));
-    const curve = new THREE.CatmullRomCurve3(points, true, "centripetal");
-    
-    // Create track ribbon mesh
-    const tubularSegments = 240;
-    const radius = 6.5; // Track width
-    const radialSegments = 8;
-    return new THREE.TubeGeometry(curve, tubularSegments, radius, radialSegments, true);
-  }, []);
+function createTerrainGeometry() {
+  const geometry = new THREE.PlaneGeometry(STAGE_SIZE, STAGE_SIZE, TERRAIN_SEGMENTS, TERRAIN_SEGMENTS);
+  const positions = geometry.attributes.position;
+  const colors: number[] = [];
+  const color = new THREE.Color();
+  for (let index = 0; index < positions.count; index += 1) {
+    const x = positions.getX(index);
+    const z = -positions.getY(index);
+    // A PlaneGeometry is rotated onto XZ below; its local Z becomes world height.
+    positions.setZ(index, getTerrainHeight(x, z) - 0.12);
+    const shade = 0.82 + pseudoRandom(index + 90) * 0.18;
+    color.setRGB(0.19 * shade, 0.42 * shade, 0.15 * shade);
+    colors.push(color.r, color.g, color.b);
+  }
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
 
-  // Generate Forest Trees Coordinates deterministically
+function createRoadGeometry() {
+  const vertices: number[] = [];
+  const indices: number[] = [];
+  const samplesPerSegment = 14;
+  const points: Array<{ x: number; z: number }> = [];
+  for (let index = 0; index < TRACK_WAYPOINTS.length; index += 1) {
+    const start = TRACK_WAYPOINTS[index];
+    const end = TRACK_WAYPOINTS[(index + 1) % TRACK_WAYPOINTS.length];
+    for (let sample = 0; sample < samplesPerSegment; sample += 1) {
+      const progress = sample / samplesPerSegment;
+      points.push({ x: THREE.MathUtils.lerp(start[0], end[0], progress), z: THREE.MathUtils.lerp(start[2], end[2], progress) });
+    }
+  }
+  for (let index = 0; index < points.length; index += 1) {
+    const previous = points[(index - 1 + points.length) % points.length];
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    const direction = new THREE.Vector2(next.x - previous.x, next.z - previous.z).normalize();
+    const perpendicular = new THREE.Vector2(-direction.y, direction.x);
+    for (const side of [-1, 1]) {
+      const x = current.x + perpendicular.x * ROAD_HALF_WIDTH * side;
+      const z = current.z + perpendicular.y * ROAD_HALF_WIDTH * side;
+      vertices.push(x, getTerrainHeight(x, z) + 0.025, z);
+    }
+  }
+  for (let index = 0; index < points.length; index += 1) {
+    const next = (index + 1) % points.length;
+    const left = index * 2;
+    const right = left + 1;
+    const nextLeft = next * 2;
+    const nextRight = nextLeft + 1;
+    indices.push(left, nextLeft, right, right, nextLeft, nextRight);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+export const RallyStage3D = memo(function RallyStage3D({ activeCheckpoint = 0 }: { activeCheckpoint?: number }) {
+  const terrainGeometry = useMemo(createTerrainGeometry, []);
+  const roadGeometry = useMemo(createRoadGeometry, []);
   const forestTrees = useMemo(() => {
     const trees: Array<{ x: number; z: number; scale: number; rotation: number }> = [];
-    let seedIndex = 1;
-
-    for (let x = -140; x <= 140; x += 12) {
-      for (let z = -140; z <= 140; z += 12) {
-        let nearTrack = false;
-        for (const wp of TRACK_WAYPOINTS) {
-          if (Math.hypot(x - wp[0], z - wp[2]) < 11) {
-            nearTrack = true;
-            break;
-          }
-        }
-        const randVal = pseudoRandom(seedIndex++);
-        if (!nearTrack && randVal > 0.35) {
-          trees.push({
-            x: x + (pseudoRandom(seedIndex++) - 0.5) * 4,
-            z: z + (pseudoRandom(seedIndex++) - 0.5) * 4,
-            scale: 0.8 + pseudoRandom(seedIndex++) * 0.7,
-            rotation: pseudoRandom(seedIndex++) * Math.PI * 2
-          });
-        }
-      }
+    let seed = 1;
+    for (let x = -145; x <= 145; x += 11) for (let z = -145; z <= 145; z += 11) {
+      const nearest = Math.min(...TRACK_WAYPOINTS.map(([trackX, , trackZ]) => Math.hypot(x - trackX, z - trackZ)));
+      if (nearest > 16 && pseudoRandom(seed++) > 0.42) trees.push({ x: x + (pseudoRandom(seed++) - 0.5) * 5, z: z + (pseudoRandom(seed++) - 0.5) * 5, scale: 0.72 + pseudoRandom(seed++) * 0.72, rotation: pseudoRandom(seed++) * Math.PI * 2 });
     }
     return trees;
   }, []);
+  const rocks = useMemo(() => Array.from({ length: 72 }, (_, index) => {
+    const angle = pseudoRandom(index + 5000) * Math.PI * 2;
+    const radius = 24 + pseudoRandom(index + 7000) * 118;
+    return { x: Math.cos(angle) * radius, z: Math.sin(angle) * radius, scale: 0.45 + pseudoRandom(index + 9000) * 1.25 };
+  }), []);
 
-  // Generate Rocks along terrain deterministically
-  const rocks = useMemo(() => {
-    const items: Array<{ x: number; z: number; scale: number }> = [];
-    let seedIndex = 5000;
+  return <group>
+    <color attach="background" args={["#82b9dc"]} />
+    <fog attach="fog" args={["#b7d4df", 70, 205]} />
+    <Sky distance={450000} sunPosition={[90, 70, -80]} inclination={0.52} azimuth={0.18} />
+    <hemisphereLight args={["#d9f3ff", "#31421b", 2.1]} />
+    <directionalLight position={[60, 90, 35]} intensity={2.8} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-110} shadow-camera-right={110} shadow-camera-top={110} shadow-camera-bottom={-110} />
+    <mesh geometry={terrainGeometry} rotation={[-Math.PI / 2, 0, 0]} receiveShadow><meshStandardMaterial vertexColors roughness={0.98} /></mesh>
+    <mesh geometry={roadGeometry} receiveShadow><meshStandardMaterial color="#9b6337" roughness={1} /></mesh>
 
-    for (let i = 0; i < 60; i++) {
-      const angle = pseudoRandom(seedIndex++) * Math.PI * 2;
-      const radius = 25 + pseudoRandom(seedIndex++) * 90;
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
-      items.push({ x, z, scale: 0.7 + pseudoRandom(seedIndex++) * 1.2 });
-    }
-    return items;
-  }, []);
+    {forestTrees.map((tree, index) => <group key={index} position={[tree.x, getTerrainHeight(tree.x, tree.z), tree.z]} scale={tree.scale} rotation={[0, tree.rotation, 0]}>
+      <mesh position={[0, 1.3, 0]} castShadow><cylinderGeometry args={[0.22, 0.38, 2.6, 7]} /><meshStandardMaterial color="#5a351e" roughness={1} /></mesh>
+      <mesh position={[0, 3.25, 0]} castShadow><coneGeometry args={[2.1, 3.8, 7]} /><meshStandardMaterial color={index % 3 === 0 ? "#1e5a34" : "#276b39"} flatShading /></mesh>
+      <mesh position={[0, 4.8, 0]} castShadow><coneGeometry args={[1.45, 2.8, 7]} /><meshStandardMaterial color="#3b8547" flatShading /></mesh>
+    </group>)}
+    {rocks.map((rock, index) => <mesh key={index} position={[rock.x, getTerrainHeight(rock.x, rock.z) + rock.scale * 0.45, rock.z]} scale={rock.scale} castShadow receiveShadow><dodecahedronGeometry args={[0.95, 1]} /><meshStandardMaterial color="#7c786c" roughness={1} flatShading /></mesh>)}
+    <Sparkles count={90} scale={[260, 24, 260]} size={2.5} speed={0.16} color="#fff0bf" />
 
-  return (
-    <group>
-      {/* Lighting & Environment Fog */}
-      <ambientLight intensity={0.8} />
-      <directionalLight
-        position={[60, 80, 50]}
-        intensity={1.4}
-        castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-      />
-      <fog attach="fog" args={["#cce0ff", 40, 180]} />
-
-      {/* Ground Grass Plane */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.2, 0]} receiveShadow>
-        <planeGeometry args={[350, 350, 64, 64]} />
-        <meshStandardMaterial color="#4d8b31" roughness={0.9} metalness={0.1} />
-      </mesh>
-
-      {/* Dirt Rally Road Mesh */}
-      <mesh geometry={trackMeshGeometry} receiveShadow>
-        <meshStandardMaterial color="#8b5a2b" roughness={0.95} metalness={0.05} side={THREE.DoubleSide} />
-      </mesh>
-
-      {/* Low-Poly Forest Trees */}
-      {forestTrees.map((tree, idx) => {
-        const y = getTerrainHeight(tree.x, tree.z);
-        return (
-          <group key={idx} position={[tree.x, y, tree.z]} scale={tree.scale} rotation={[0, tree.rotation, 0]}>
-            {/* Trunk */}
-            <mesh position={[0, 1.2, 0]} castShadow>
-              <cylinderGeometry args={[0.3, 0.45, 2.4, 6]} />
-              <meshStandardMaterial color="#4a2e18" />
-            </mesh>
-            {/* Foliage Layers */}
-            <mesh position={[0, 3.2, 0]} castShadow>
-              <coneGeometry args={[2.0, 3.5, 6]} />
-              <meshStandardMaterial color="#1e5c2b" flatShading />
-            </mesh>
-            <mesh position={[0, 4.8, 0]} castShadow>
-              <coneGeometry args={[1.5, 2.8, 6]} />
-              <meshStandardMaterial color="#2d7a3e" flatShading />
-            </mesh>
-          </group>
-        );
-      })}
-
-      {/* Terrain Rocks */}
-      {rocks.map((rock, idx) => {
-        const y = getTerrainHeight(rock.x, rock.z);
-        return (
-          <mesh key={idx} position={[rock.x, y + 0.4, rock.z]} scale={rock.scale} castShadow>
-            <dodecahedronGeometry args={[1.2, 1]} />
-            <meshStandardMaterial color="#6b7280" roughness={0.8} flatShading />
-          </mesh>
-        );
-      })}
-
-      {/* Start Arch & Checkpoint Rings */}
-      {CHECKPOINTS.map((cp) => {
-        const isCurrent = cp.index === (activeCheckpoint % CHECKPOINTS.length) + 1;
-        const isFinish = cp.index === CHECKPOINTS.length;
-
-        return (
-          <group key={cp.index} position={cp.position}>
-            {/* Arch Pillars */}
-            <mesh position={[-6, 3, 0]} castShadow>
-              <boxGeometry args={[0.8, 6, 0.8]} />
-              <meshStandardMaterial color={isFinish ? "#ef4444" : "#3b82f6"} />
-            </mesh>
-            <mesh position={[6, 3, 0]} castShadow>
-              <boxGeometry args={[0.8, 6, 0.8]} />
-              <meshStandardMaterial color={isFinish ? "#ef4444" : "#3b82f6"} />
-            </mesh>
-
-            {/* Arch Banner */}
-            <mesh position={[0, 5.8, 0]}>
-              <boxGeometry args={[12.8, 1.2, 0.4]} />
-              <meshStandardMaterial color={isFinish ? "#dc2626" : isCurrent ? "#10b981" : "#2563eb"} />
-            </mesh>
-
-            {/* Illuminated Checkpoint Ring */}
-            <mesh position={[0, 2.5, 0]} rotation={[0, 0, 0]}>
-              <torusGeometry args={[cp.radius * 0.45, 0.25, 12, 32]} />
-              <meshStandardMaterial
-                color={isFinish ? "#ff4d4d" : isCurrent ? "#34d399" : "#60a5fa"}
-                emissive={isCurrent ? "#10b981" : "#1d4ed8"}
-                emissiveIntensity={isCurrent ? 0.8 : 0.2}
-                transparent
-                opacity={0.8}
-              />
-            </mesh>
-          </group>
-        );
-      })}
-    </group>
-  );
-}
+    {CHECKPOINTS.map((checkpoint, index) => {
+      const previous = CHECKPOINTS[(index - 1 + CHECKPOINTS.length) % CHECKPOINTS.length].position;
+      const next = CHECKPOINTS[(index + 1) % CHECKPOINTS.length].position;
+      const yaw = Math.atan2(next[0] - previous[0], next[2] - previous[2]);
+      const isCurrent = checkpoint.index === (activeCheckpoint % CHECKPOINTS.length) + 1;
+      const isFinish = checkpoint.index === CHECKPOINTS.length;
+      const accent = isFinish ? "#f04444" : isCurrent ? "#4ee7a0" : "#53a8ff";
+      return <group key={checkpoint.index} position={[checkpoint.position[0], getTerrainHeight(checkpoint.position[0], checkpoint.position[2]), checkpoint.position[2]]} rotation={[0, yaw, 0]}>
+        <mesh position={[-6, 3.1, 0]} castShadow><boxGeometry args={[0.75, 6.2, 0.75]} /><meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.13} /></mesh>
+        <mesh position={[6, 3.1, 0]} castShadow><boxGeometry args={[0.75, 6.2, 0.75]} /><meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.13} /></mesh>
+        <mesh position={[0, 5.9, 0]} castShadow><boxGeometry args={[12.7, 1.05, 0.5]} /><meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={isCurrent ? 0.42 : 0.12} /></mesh>
+        <mesh position={[0, 2.7, 0]}><torusGeometry args={[checkpoint.radius * 0.36, 0.16, 10, 32]} /><meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={isCurrent ? 1.25 : 0.3} transparent opacity={0.9} /></mesh>
+      </group>;
+    })}
+  </group>;
+});

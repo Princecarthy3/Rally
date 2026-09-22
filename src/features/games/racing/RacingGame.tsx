@@ -49,10 +49,12 @@ export function RacingGame({
     brake: false,
     handbrake: false
   });
+  const [keyboardSteer, setKeyboardSteer] = useState(0);
 
   // Local vehicle physics instance
   const physicsRef = useRef<ArcadeVehiclePhysics | null>(null);
   const keysRef = useRef<KeyInputState>({ forward: false, backward: false, left: false, right: false, handbrake: false });
+  const lapTimeRef = useRef(0);
   const [myTransform, setMyTransform] = useState<CarTransform>({
     seat: meSeat,
     playerId: mePlayer?.player_id || "",
@@ -74,24 +76,29 @@ export function RacingGame({
   useEffect(() => {
     const slot = START_GRID_SLOTS[(meSeat - 1) % START_GRID_SLOTS.length];
     physicsRef.current = new ArcadeVehiclePhysics(slot.position, slot.rotation);
+    lapTimeRef.current = 0;
   }, [meSeat]);
 
   // Handle Keyboard Inputs
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      if (["w", "W", "a", "A", "s", "S", "d", "D", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
       if (e.key === "w" || e.key === "W" || e.key === "ArrowUp") keysRef.current.forward = true;
       if (e.key === "s" || e.key === "S" || e.key === "ArrowDown") keysRef.current.backward = true;
       if (e.key === "a" || e.key === "A" || e.key === "ArrowLeft") keysRef.current.left = true;
       if (e.key === "d" || e.key === "D" || e.key === "ArrowRight") keysRef.current.right = true;
       if (e.key === " ") keysRef.current.handbrake = true;
+      setKeyboardSteer((keysRef.current.left ? 1 : 0) - (keysRef.current.right ? 1 : 0));
     }
 
     function handleKeyUp(e: KeyboardEvent) {
+      if (["w", "W", "a", "A", "s", "S", "d", "D", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
       if (e.key === "w" || e.key === "W" || e.key === "ArrowUp") keysRef.current.forward = false;
       if (e.key === "s" || e.key === "S" || e.key === "ArrowDown") keysRef.current.backward = false;
       if (e.key === "a" || e.key === "A" || e.key === "ArrowLeft") keysRef.current.left = false;
       if (e.key === "d" || e.key === "D" || e.key === "ArrowRight") keysRef.current.right = false;
       if (e.key === " ") keysRef.current.handbrake = false;
+      setKeyboardSteer((keysRef.current.left ? 1 : 0) - (keysRef.current.right ? 1 : 0));
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -126,6 +133,7 @@ export function RacingGame({
     let animFrame: number;
     let lastTime = performance.now();
     let broadcastTimer = 0;
+    let hudTimer = 0;
 
     function loop(now: number) {
       const dt = Math.min(0.05, (now - lastTime) / 1000);
@@ -135,7 +143,12 @@ export function RacingGame({
         const updated = physicsRef.current.update(dt, keysRef.current, touchState, controlsEnabled);
         
         if (controlsEnabled && !physicsRef.current.finished) {
-          setLapTime(prev => prev + dt);
+          lapTimeRef.current += dt;
+          hudTimer += dt;
+          if (hudTimer >= 0.1) {
+            hudTimer = 0;
+            setLapTime(lapTimeRef.current);
+          }
         }
 
         const transformPayload: CarTransform = {
@@ -148,7 +161,7 @@ export function RacingGame({
           isDrifting: updated.isDrifting,
           currentCheckpoint: physicsRef.current.currentCheckpoint,
           progressDistance: physicsRef.current.progressDistance,
-          lapTime,
+          lapTime: lapTimeRef.current,
           finished: physicsRef.current.finished
         };
 
@@ -164,7 +177,8 @@ export function RacingGame({
         if (physicsRef.current.currentCheckpoint === 5 && !physicsRef.current.finished) {
           physicsRef.current.finished = true;
           sounds.playFinishSound();
-          void onAct("finish", String(lapTime));
+          setLapTime(lapTimeRef.current);
+          void onAct("finish", String(lapTimeRef.current));
         }
 
         // Broadcast transform every 33ms (30 Hz)
@@ -188,7 +202,7 @@ export function RacingGame({
       cancelAnimationFrame(animFrame);
       sounds.stopEngineSound();
     };
-  }, [controlsEnabled, meSeat, mePlayer, touchState, channel, lapTime, onAct]);
+  }, [controlsEnabled, meSeat, mePlayer, touchState, channel, onAct]);
 
   // Live Position Calculation based on progress distance metric
   const livePositions = Object.values(otherCars).concat([myTransform]);
@@ -205,6 +219,8 @@ export function RacingGame({
           <RacingCountdown
             onComplete={() => {
               setInCountdown(false);
+              lapTimeRef.current = 0;
+              setLapTime(0);
               setControlsEnabled(true);
               if (isHost) void onAct("start_race");
             }}
@@ -220,7 +236,7 @@ export function RacingGame({
             speed={myTransform.speed}
             isDrifting={myTransform.isDrifting}
             color={colors[(meSeat - 1) % colors.length]}
-            steerAngle={(touchState.steerLeft ? 1 : 0) - (touchState.steerRight ? -1 : 0)}
+            steerAngle={keyboardSteer || (touchState.steerLeft ? 1 : 0) - (touchState.steerRight ? 1 : 0)}
           />
 
           {/* Opponent Rival Cars */}

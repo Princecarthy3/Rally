@@ -2,7 +2,7 @@
 
 import type { Room, RoomPlayer } from "@/features/rooms/types";
 import { Bell, LockKeyhole, Search } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export function NumberGuessGame({ room, players, meSeat, onAct, busy }: {
   room: Room; players: RoomPlayer[]; meSeat: number; isMyTurn: boolean;
@@ -29,7 +29,8 @@ export function NumberGuessGame({ room, players, meSeat, onAct, busy }: {
       seenChoices.current = {};
     }
 
-    const newChoices = Object.entries(guessResults)
+    const entries = Object.entries(guessResults) as Array<[string, { guess: number; correct: boolean }]>;
+    const newChoices = entries
       .filter(([seat, result]) => seenChoices.current[seat] !== result.guess)
       .map(([seat, result]) => {
         seenChoices.current[seat] = result.guess;
@@ -43,6 +44,8 @@ export function NumberGuessGame({ room, players, meSeat, onAct, busy }: {
       return () => window.clearTimeout(timeout);
     }
   }, [guessResults, players, round]);
+
+  const resultEntries = Object.entries(guessResults) as Array<[string, { guess: number; correct: boolean }]>;
 
   return <div className="mx-auto max-w-2xl space-y-5 text-center">
     <div className="flex items-center justify-between gap-3 border-b-2 border-slate-200 pb-3 text-left">
@@ -59,6 +62,6 @@ export function NumberGuessGame({ room, players, meSeat, onAct, busy }: {
       <button disabled={!selected || busy} onClick={choose} className="arcade-button mx-auto bg-[#7357ff] text-white shadow-[4px_4px_0_#171821]">{isPicker ? <><LockKeyhole size={16}/> SET {selected || ""}</> : <><Search size={16}/> GUESS {selected || ""}</>}</button>
     </>}
     {targetPicked && !isPicker && myGuess && <div className="rounded-2xl border-2 border-slate-950 bg-emerald-50 p-6 font-bold">Your guess, {myGuess}, is locked. Waiting for the other hunters…</div>}
-    {Object.keys(guessResults).length > 0 && <section className="rounded-2xl border-2 border-slate-950 bg-slate-50 p-4 text-left shadow-[3px_3px_0_#171821]"><h4 className="text-xs font-black uppercase tracking-wider text-slate-600">Round activity</h4><div className="mt-3 space-y-2">{Object.entries(guessResults).map(([seat, result]) => <div key={seat} className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm font-bold ${result.correct ? "border-emerald-500 bg-emerald-100 text-emerald-900" : "border-slate-200 bg-white"}`}><span>{players.find((player) => String(player.seat) === seat)?.profile?.display_name || `Player ${seat}`} picked {result.guess}</span><span>{result.correct ? "🎯 Found it!" : "✗ Not this time"}</span></div>)}</div></section>}
+    {resultEntries.length > 0 && <section className="rounded-2xl border-2 border-slate-950 bg-slate-50 p-4 text-left shadow-[3px_3px_0_#171821]"><h4 className="text-xs font-black uppercase tracking-wider text-slate-600">Round activity</h4><div className="mt-3 space-y-2">{resultEntries.map(([seat, result]) => <div key={seat} className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm font-bold ${result.correct ? "border-emerald-500 bg-emerald-100 text-emerald-900" : "border-slate-200 bg-white"}`}><span>{players.find((player) => String(player.seat) === seat)?.profile?.display_name || `Player ${seat}`} picked {result.guess}</span><span>{result.correct ? "🎯 Found it!" : "✗ Not this time"}</span></div>)}</div></section>}
   </div>;
 }
