@@ -28,6 +28,13 @@ const COLOR_MAP = {
   wild: { bg: "bg-slate-900", text: "text-purple-400", border: "border-purple-500", badgeBg: "bg-purple-500/20", hex: "#8b5cf6" },
 };
 
+function brandRallyMessage(message: string) {
+  return message
+    .replace(/\bUNO\b/g, "Rally")
+    .replace(/\buno\b/g, "Rally")
+    .replace(/Uno/g, "Rally");
+}
+
 export function UnoGame({ room, players, meSeat, isMyTurn, onAct }: UnoGameProps) {
   const state = (room.public_state || {}) as Record<string, any>;
   const turn = state.turn || 1;
@@ -145,7 +152,7 @@ export function UnoGame({ room, players, meSeat, isMyTurn, onAct }: UnoGameProps
         <div className="flex items-center gap-3">
           <span className="text-3xl">🃏</span>
           <div>
-            <h3 className="font-black text-sm uppercase tracking-wider text-amber-400">Classic UNO</h3>
+            <h3 className="font-black text-sm uppercase tracking-wider text-amber-400">Rally Cards</h3>
             <p className="text-xs text-slate-300 flex items-center gap-1.5 mt-0.5">
               Active Color:
               <span className={`font-black uppercase px-2 py-0.5 rounded-full text-[11px] ${COLOR_MAP[activeColor]?.bg} text-white`}>
@@ -162,7 +169,7 @@ export function UnoGame({ room, players, meSeat, isMyTurn, onAct }: UnoGameProps
             <span className="hidden sm:inline">{direction === 1 ? "Clockwise" : "Counter-Clockwise"}</span>
           </div>
 
-          {/* Call UNO Button */}
+          {/* Call Rally Button */}
           {myHand.length <= 2 && (
             <button
               onClick={handleCallUno}
@@ -172,7 +179,7 @@ export function UnoGame({ room, players, meSeat, isMyTurn, onAct }: UnoGameProps
                   : "bg-gradient-to-r from-red-600 to-amber-500 text-white hover:scale-105 animate-bounce cursor-pointer shadow-red-500/50"
               }`}
             >
-              {unoCalled[meSeat] ? "UNO Called! 🎉" : "CALL UNO! 📣"}
+              {unoCalled[meSeat] ? "Rally Called! 🎉" : "CALL RALLY! 📣"}
             </button>
           )}
         </div>
@@ -221,7 +228,7 @@ export function UnoGame({ room, players, meSeat, isMyTurn, onAct }: UnoGameProps
         {/* Status Message Banner */}
         {state.message && (
           <div className="bg-slate-900/90 border border-slate-700 text-amber-300 text-xs sm:text-sm font-black px-4 py-2.5 rounded-2xl text-center shadow-inner max-w-xl w-full">
-            {state.message}
+            {brandRallyMessage(String(state.message))}
           </div>
         )}
 
@@ -246,7 +253,7 @@ export function UnoGame({ room, players, meSeat, isMyTurn, onAct }: UnoGameProps
                   </span>
                   {unoCalled[p.seat] && (
                     <span className="text-[9px] bg-red-600 text-white font-black px-1.5 py-0.5 rounded-md animate-pulse">
-                      UNO
+                      RALLY
                     </span>
                   )}
                 </div>
@@ -260,13 +267,13 @@ export function UnoGame({ room, players, meSeat, isMyTurn, onAct }: UnoGameProps
                   <span className="text-amber-300">{score} pts</span>
                 </div>
 
-                {/* Catch UNO button for opponent vulnerability */}
+                {/* Catch Rally button for opponent vulnerability */}
                 {isVulnerable && p.seat !== meSeat && (
                   <button
                     onClick={() => handleCatchUno(p.seat)}
                     className="mt-2 w-full bg-red-600 hover:bg-red-700 text-white text-[10px] font-black py-1 px-2 rounded-xl animate-bounce shadow-md uppercase tracking-wider"
                   >
-                    CATCH UNO! 🚨
+                    CATCH RALLY! 🚨
                   </button>
                 )}
               </div>
