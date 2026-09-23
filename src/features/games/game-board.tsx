@@ -72,7 +72,7 @@ export function GameBoard({
     if (!supabase) return;
     setBusy(true);
     setError("");
-    const rpc = room.game_type === "racing" ? "play_racing_action" : room.game_type === "uno" ? "play_uno_action" : room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "memory_match" ? "play_memory_match_action" : room.game_type === "mini_golf" ? "play_mini_golf_action" : room.game_type === "battleship" ? "play_battleship_action" : room.game_type === "skribbl" ? "play_skribbl_action" : "play_room_action";
+    const rpc = room.game_type === "racing" || room.game_type === "rally_racing" ? "play_racing_action" : room.game_type === "uno" ? "play_uno_action" : room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "memory_match" ? "play_memory_match_action" : room.game_type === "mini_golf" ? "play_mini_golf_action" : room.game_type === "battleship" ? "play_battleship_action" : room.game_type === "skribbl" ? "play_skribbl_action" : "play_room_action";
     const params = { p_room: room.id, p_action: action, p_value: value ?? null };
     const { data, error } = await supabase.rpc(rpc, params);
     if (error) {
@@ -88,10 +88,9 @@ export function GameBoard({
         const extras: Partial<Room> = {};
         if (typeof payload.status === "string") {
           extras.status = payload.status as Room["status"];
-        } else if (room.game_type === "racing" && (action === "restart" || action === "rematch")) {
-          // Racing returns the reset state without the room status. Keep every
-          // client on the lobby immediately while the database update arrives.
-          extras.status = "waiting";
+        } else if ((room.game_type === "racing" || room.game_type === "rally_racing") && (action === "restart" || action === "rematch")) {
+          // Rematch jumps straight back into the countdown lineup.
+          extras.status = "playing";
         }
         applyPublicState(nextState, extras);
         if (room.game_type === "racing" && (action === "restart" || action === "rematch")) {
@@ -230,6 +229,57 @@ export function GameBoard({
       timers.push(timer);
     });
 
+    // Racing bots finish only after simulated lap time — schedule retries.
+    if (room.game_type === "racing" || room.game_type === "rally_racing") {
+      for (const delay of [5000, 10000, 15000, 25000, 40000, 55000]) {
+        const retryTimer = setTimeout(() => {
+          botPlayers.forEach((botPlayer) => {
+            const botSeat = Number(botPlayer.seat);
+            const results = Array.isArray(s.results) ? s.results : [];
+            const stage = String(s.stage || s.phase || "");
+            if (stage !== "racing" && stage !== "playing") return;
+            if (results.some((result: any) => Number(result?.seat) === botSeat)) return;
+            const requestKey = `${room.id}:race-retry:${botSeat}:${delay}`;
+            if (pendingBotMoves.current.has(requestKey)) return;
+            pendingBotMoves.current.add(requestKey);
+            fetch("/api/ai/bot-move", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                roomId: room.id,
+                gameType: room.game_type,
+                publicState: room.public_state,
+                botSeat,
+                difficulty:
+                  (typeof window !== "undefined" &&
+                    localStorage.getItem(`rally_bot_difficulty_${room.id}`)) ||
+                  "medium",
+              }),
+            })
+              .then(async (response) => {
+                const body = await response.json().catch(() => ({}));
+                if (!response.ok) throw body;
+                if (body?.newState && typeof body.newState === "object" && applyPublicState) {
+                  const payload = body.newState as Record<string, unknown>;
+                  const nextState = (
+                    payload.public_state && typeof payload.public_state === "object"
+                      ? payload.public_state
+                      : payload
+                  ) as Room["public_state"];
+                  applyPublicState(nextState);
+                }
+                await refresh();
+              })
+              .catch(() => undefined)
+              .finally(() => {
+                pendingBotMoves.current.delete(requestKey);
+              });
+          });
+        }, delay);
+        timers.push(retryTimer);
+      }
+    }
+
     return () => {
       timers.forEach((t) => clearTimeout(t));
       // Do not leave pending locks for timers that never started
@@ -254,7 +304,11 @@ export function GameBoard({
     applyPublicState,
   ]);
 
-  if (room.status === "completed") {
+  if (
+    room.status === "completed" &&
+    room.game_type !== "racing" &&
+    room.game_type !== "rally_racing"
+  ) {
     return <Result room={room} players={players} me={me} winningSeats={winningSeats} refresh={refresh} />;
   }
 
@@ -623,8 +677,13 @@ function DiceDash({ state, players, mySeat, roll, busy }: { state: Room["public_
 }
 
 function deriveWinners(room: Room, players: RoomPlayer[]) {
-  const state = room.public_state;
+  const state = room.public_state as Record<string, any>;
   if (typeof state.winnerSeat === "number") return [state.winnerSeat];
+  if ((room.game_type === "racing" || room.game_type === "rally_racing") && Array.isArray(state.results) && state.results.length > 0) {
+    const sorted = [...state.results].sort((a: any, b: any) => Number(a.time || 99999) - Number(b.time || 99999));
+    const seat = Number(sorted[0]?.seat);
+    return Number.isFinite(seat) ? [seat] : [];
+  }
   if (room.game_type === "mini_golf") {
     const values = players.map((p) => Number(state.scores?.[p.seat] || 0));
     const lowest = Math.min(...values);
@@ -698,31 +757,47 @@ function Result({
   async function rematch() {
     if (!supabase) return;
     setBusy(true);
-    const { error } = await supabase.rpc("rematch_room", { p_room: room.id });
-    if (error) {
-      // Fallback: direct table updates if RPC is outdated/fails
-      await supabase.from("game_players").update({ is_ready: false, score: 0 }).eq("room_id", room.id);
+    if (room.game_type === "racing" || room.game_type === "rally_racing") {
+      const { data, error } = await supabase.rpc("play_racing_action", {
+        p_room: room.id,
+        p_action: "restart",
+        p_value: null,
+      });
+      if (error) {
+        console.error("Racing rematch failed", error);
+      } else if (data && typeof data === "object") {
+        // state applied via refresh below
+      }
       await supabase
         .from("game_players")
         .update({ is_ready: true })
         .eq("room_id", room.id)
         .like("player_id", "11111111-1111-1111-1111-%");
-      await supabase
-        .from("game_rooms")
-        .update({
-          status: "waiting",
-          public_state: {},
-          state_version: room.state_version + 1,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", room.id);
     } else {
-      // Ensure all bots in the room are set to is_ready=true after rematch_room RPC runs
-      await supabase
-        .from("game_players")
-        .update({ is_ready: true })
-        .eq("room_id", room.id)
-        .like("player_id", "11111111-1111-1111-1111-%");
+      const { error } = await supabase.rpc("rematch_room", { p_room: room.id });
+      if (error) {
+        await supabase.from("game_players").update({ is_ready: false, score: 0 }).eq("room_id", room.id);
+        await supabase
+          .from("game_players")
+          .update({ is_ready: true })
+          .eq("room_id", room.id)
+          .like("player_id", "11111111-1111-1111-1111-%");
+        await supabase
+          .from("game_rooms")
+          .update({
+            status: "waiting",
+            public_state: {},
+            state_version: room.state_version + 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", room.id);
+      } else {
+        await supabase
+          .from("game_players")
+          .update({ is_ready: true })
+          .eq("room_id", room.id)
+          .like("player_id", "11111111-1111-1111-1111-%");
+      }
     }
     await refresh();
     setBusy(false);
