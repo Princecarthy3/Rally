@@ -72,7 +72,7 @@ export function GameBoard({
     if (!supabase) return;
     setBusy(true);
     setError("");
-    const rpc = room.game_type === "racing" || room.game_type === "rally_racing" ? "play_racing_action" : room.game_type === "uno" ? "play_uno_action" : room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "memory_match" ? "play_memory_match_action" : room.game_type === "mini_golf" ? "play_mini_golf_action" : room.game_type === "battleship" ? "play_battleship_action" : room.game_type === "skribbl" ? "play_skribbl_action" : "play_room_action";
+    const rpc = room.game_type === "racing" ? "play_racing_action" : room.game_type === "uno" ? "play_uno_action" : room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "memory_match" ? "play_memory_match_action" : room.game_type === "mini_golf" ? "play_mini_golf_action" : room.game_type === "battleship" ? "play_battleship_action" : room.game_type === "skribbl" ? "play_skribbl_action" : "play_room_action";
     const params = { p_room: room.id, p_action: action, p_value: value ?? null };
     const { data, error } = await supabase.rpc(rpc, params);
     if (error) {
@@ -88,7 +88,7 @@ export function GameBoard({
         const extras: Partial<Room> = {};
         if (typeof payload.status === "string") {
           extras.status = payload.status as Room["status"];
-        } else if ((room.game_type === "racing" || room.game_type === "rally_racing") && (action === "restart" || action === "rematch")) {
+        } else if ((room.game_type === "racing") && (action === "restart" || action === "rematch")) {
           // Rematch jumps straight back into the countdown lineup.
           extras.status = "playing";
         }
@@ -154,7 +154,7 @@ export function GameBoard({
           !s.balls?.[String(botSeat)]?.finished;
       } else if (room.game_type === "uno") {
         isBotTurn = turn === botSeat || (s.challenge && Number(s.challenge.challengerSeat) === botSeat) || (s.unoVulnerableSeat && Number(s.unoVulnerableSeat) !== botSeat);
-      } else if (room.game_type === "racing" || room.game_type === "rally_racing") {
+      } else if (room.game_type === "racing") {
         const results = Array.isArray(s.results) ? s.results : [];
         const stage = String(s.stage || s.phase || "");
         isBotTurn =
@@ -178,7 +178,7 @@ export function GameBoard({
             ? `uno:${turn}:${s.drawnCardId || ""}:${s.challenge ? "ch" : ""}:${s.unoVulnerableSeat || ""}`
             : room.game_type === "battleship"
               ? `bs:${s.phase || "placing"}:${s.placements?.[String(botSeat)] ? "locked" : "open"}:${turn}`
-              : room.game_type === "racing" || room.game_type === "rally_racing"
+              : room.game_type === "racing"
                 ? `race:${s.stage || s.phase || ""}:${Array.isArray(s.results) ? s.results.length : 0}:${Math.floor(Number(s.start_time || 0))}`
               : String(turn);
       const requestKey = `${room.id}:phase:${phaseKey}:bot:${botSeat}`;
@@ -230,7 +230,7 @@ export function GameBoard({
     });
 
     // Racing bots finish only after simulated lap time — schedule retries.
-    if (room.game_type === "racing" || room.game_type === "rally_racing") {
+    if (room.game_type === "racing") {
       for (const delay of [5000, 10000, 15000, 25000, 40000, 55000]) {
         const retryTimer = setTimeout(() => {
           botPlayers.forEach((botPlayer) => {
@@ -304,11 +304,7 @@ export function GameBoard({
     applyPublicState,
   ]);
 
-  if (
-    room.status === "completed" &&
-    room.game_type !== "racing" &&
-    room.game_type !== "rally_racing"
-  ) {
+  if (room.status === "completed" && room.game_type !== "racing") {
     return <Result room={room} players={players} me={me} winningSeats={winningSeats} refresh={refresh} />;
   }
 
@@ -679,7 +675,7 @@ function DiceDash({ state, players, mySeat, roll, busy }: { state: Room["public_
 function deriveWinners(room: Room, players: RoomPlayer[]) {
   const state = room.public_state as Record<string, any>;
   if (typeof state.winnerSeat === "number") return [state.winnerSeat];
-  if ((room.game_type === "racing" || room.game_type === "rally_racing") && Array.isArray(state.results) && state.results.length > 0) {
+  if ((room.game_type === "racing") && Array.isArray(state.results) && state.results.length > 0) {
     const sorted = [...state.results].sort((a: any, b: any) => Number(a.time || 99999) - Number(b.time || 99999));
     const seat = Number(sorted[0]?.seat);
     return Number.isFinite(seat) ? [seat] : [];
@@ -757,7 +753,7 @@ function Result({
   async function rematch() {
     if (!supabase) return;
     setBusy(true);
-    if (room.game_type === "racing" || room.game_type === "rally_racing") {
+    if (room.game_type === "racing") {
       const { data, error } = await supabase.rpc("play_racing_action", {
         p_room: room.id,
         p_action: "restart",

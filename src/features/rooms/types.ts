@@ -19,6 +19,13 @@ export type PublicGameState = {
   mode?: string;
   pairs?: number;
   cols?: number;
+  // Rally Racing
+  stage?: string;
+  phase?: string;
+  results?: Array<{ seat?: number; player_id?: string; position?: number; time?: number; finished_at?: string }>;
+  checkpoints?: Record<string, number>;
+  checkpointCount?: number;
+  start_time?: number | null;
 };
 export type Room = { id:string; code:string; game_type:GameKey; host_id:string; status:RoomStatus; max_players:number; public_state:PublicGameState; state_version:number; match_number:number; created_at:string; updated_at:string };
 export type RoomPlayer = {

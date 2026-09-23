@@ -275,9 +275,15 @@ export function RacingGame({
     finished: car.finished
   }));
 
-  const resultsList = ([...(state.results || [])] as RaceResult[]).sort(
-    (a, b) => Number(a.time || 99999) - Number(b.time || 99999)
-  );
+  const resultsList: RaceResult[] = ([...(state.results || [])] as RaceResult[])
+    .map((r) => ({
+      seat: Number(r.seat),
+      player_id: String(r.player_id || ""),
+      position: Number(r.position || 0),
+      time: Number(r.time || 0),
+      finished_at: r.finished_at,
+    }))
+    .sort((a, b) => a.time - b.time);
 
   return (
     <MobileOrientationOverlay>
