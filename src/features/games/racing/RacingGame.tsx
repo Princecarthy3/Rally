@@ -90,6 +90,43 @@ export function RacingGame({
     lapTimeRef.current = 0;
   }, [meSeat]);
 
+  // When host starts a rematch, public_state jumps back to countdown — reset local race.
+  useEffect(() => {
+    const stage = String(state.stage || state.phase || "");
+    if (stage !== "countdown" && stage !== "lobby" && stage !== "racing") return;
+    const slot = START_GRID_SLOTS[(meSeat - 1) % START_GRID_SLOTS.length];
+    const timer = window.setTimeout(() => {
+      if (stage === "countdown" || stage === "lobby") {
+        physicsRef.current = new ArcadeVehiclePhysics(slot.position, slot.rotation);
+        if (physicsRef.current) {
+          physicsRef.current.finished = false;
+          physicsRef.current.currentCheckpoint = 0;
+          physicsRef.current.progressDistance = 0;
+        }
+        lapTimeRef.current = 0;
+        setLapTime(0);
+        setControlsEnabled(false);
+        setInCountdown(true);
+        setOtherCars({});
+        setMyTransform((prev) => ({
+          ...prev,
+          position: slot?.position || [0, 0.1, 0],
+          rotation: [0, slot?.rotation || 0, 0],
+          speed: 0,
+          isDrifting: false,
+          currentCheckpoint: 0,
+          progressDistance: 0,
+          lapTime: 0,
+          finished: false,
+        }));
+      } else if (stage === "racing") {
+        setInCountdown(false);
+        setControlsEnabled(true);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [state.stage, state.phase, meSeat]);
+
   // Handle Keyboard Inputs
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -238,7 +275,9 @@ export function RacingGame({
     finished: car.finished
   }));
 
-  const resultsList = (state.results || []) as RaceResult[];
+  const resultsList = ([...(state.results || [])] as RaceResult[]).sort(
+    (a, b) => Number(a.time || 99999) - Number(b.time || 99999)
+  );
 
   return (
     <MobileOrientationOverlay>
@@ -307,7 +346,7 @@ export function RacingGame({
         <RacingTouchControls onTouchChange={setTouchState} />
 
         {/* Post-Race Leaderboard Modal */}
-        {(state.stage === "results" || state.phase === "finished" || resultsList.length >= players.length) && (
+        {(state.stage === "results" || state.phase === "finished") && resultsList.length > 0 && (
           <RacingResults
             results={resultsList}
             players={players}

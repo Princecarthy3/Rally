@@ -155,9 +155,12 @@ export function GameBoard({
           !s.balls?.[String(botSeat)]?.finished;
       } else if (room.game_type === "uno") {
         isBotTurn = turn === botSeat || (s.challenge && Number(s.challenge.challengerSeat) === botSeat) || (s.unoVulnerableSeat && Number(s.unoVulnerableSeat) !== botSeat);
-      } else if (room.game_type === "racing") {
+      } else if (room.game_type === "racing" || room.game_type === "rally_racing") {
         const results = Array.isArray(s.results) ? s.results : [];
-        isBotTurn = !results.some((result: any) => Number(result?.seat) === botSeat);
+        const stage = String(s.stage || s.phase || "");
+        isBotTurn =
+          (stage === "racing" || stage === "playing") &&
+          !results.some((result: any) => Number(result?.seat) === botSeat);
       } else if (room.game_type === "battleship") {
         const phase = s.phase || "placing";
         const botLocked = Boolean(s.placements?.[String(botSeat)]);
@@ -176,6 +179,8 @@ export function GameBoard({
             ? `uno:${turn}:${s.drawnCardId || ""}:${s.challenge ? "ch" : ""}:${s.unoVulnerableSeat || ""}`
             : room.game_type === "battleship"
               ? `bs:${s.phase || "placing"}:${s.placements?.[String(botSeat)] ? "locked" : "open"}:${turn}`
+              : room.game_type === "racing" || room.game_type === "rally_racing"
+                ? `race:${s.stage || s.phase || ""}:${Array.isArray(s.results) ? s.results.length : 0}:${Math.floor(Number(s.start_time || 0))}`
               : String(turn);
       const requestKey = `${room.id}:phase:${phaseKey}:bot:${botSeat}`;
       if (pendingBotMoves.current.has(requestKey)) return;
