@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       return best;
     };
 
-    if (gameType === "racing" || gameType === "rally_racing") {
+    if (gameType === "racing") {
       const results = Array.isArray(state.results) ? state.results : [];
       const stage = String(state.stage || state.phase || "");
       // Only finish during a live race, after a realistic elapsed time.
@@ -312,7 +312,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "No action required" });
     }
 
-    const rpc = gameType === "racing" || gameType === "rally_racing" ? "play_racing_action" : gameType === "tic_tac_toe" || gameType === "connect_four" || gameType === "dots_boxes" ? "play_room_action" : gameType === "uno" ? "play_uno_action" : gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_rps_action" : gameType === "number_guess" ? "play_number_hunt_action" : gameType === "memory_match" ? "play_memory_match_action" : gameType === "mini_golf" ? "play_mini_golf_action" : gameType === "battleship" ? "play_battleship_action" : gameType === "skribbl" ? "play_skribbl_action" : gameType === "basketball" ? "play_basketball_action" : "play_room_action";
+    const rpc = gameType === "racing" ? "play_racing_action" : gameType === "tic_tac_toe" || gameType === "connect_four" || gameType === "dots_boxes" ? "play_room_action" : gameType === "uno" ? "play_uno_action" : gameType === "ludo" ? "play_ludo_action" : gameType === "rps" ? "play_rps_action" : gameType === "number_guess" ? "play_number_hunt_action" : gameType === "memory_match" ? "play_memory_match_action" : gameType === "mini_golf" ? "play_mini_golf_action" : gameType === "battleship" ? "play_battleship_action" : gameType === "skribbl" ? "play_skribbl_action" : gameType === "basketball" ? "play_basketball_action" : "play_room_action";
     const params = { p_room: roomId, p_action: action, p_value: value, p_actor_seat: botSeat };
     const { data, error } = await supabase.rpc(rpc, params);
 
