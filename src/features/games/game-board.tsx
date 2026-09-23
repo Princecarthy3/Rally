@@ -99,6 +99,11 @@ export function GameBoard({
             .update({ is_ready: true })
             .eq("room_id", room.id)
             .like("player_id", "11111111-1111-1111-1111-%");
+          try {
+            void channel?.send?.({ type: "broadcast", event: "rematch", payload: { roomId: room.id, racing: true } });
+          } catch {
+            /* ignore */
+          }
         }
       }
       await refresh();
@@ -305,7 +310,17 @@ export function GameBoard({
   ]);
 
   if (room.status === "completed" && room.game_type !== "racing") {
-    return <Result room={room} players={players} me={me} winningSeats={winningSeats} refresh={refresh} />;
+    return (
+      <Result
+        room={room}
+        players={players}
+        me={me}
+        winningSeats={winningSeats}
+        refresh={refresh}
+        applyPublicState={applyPublicState}
+        channel={channel}
+      />
+    );
   }
 
   return (
@@ -713,12 +728,16 @@ function Result({
   me,
   winningSeats,
   refresh,
+  applyPublicState,
+  channel,
 }: {
   room: Room;
   players: RoomPlayer[];
   me?: RoomPlayer;
   winningSeats: number[];
   refresh: () => Promise<void>;
+  applyPublicState?: (publicState: Room["public_state"], extras?: Partial<Room>) => void;
+  channel?: { send?: (args: { type: string; event: string; payload?: Record<string, unknown> }) => Promise<unknown> | unknown } | null;
 }) {
   const supabase = getSupabaseBrowserClient();
   const [busy, setBusy] = useState(false);
@@ -753,22 +772,42 @@ function Result({
   async function rematch() {
     if (!supabase) return;
     setBusy(true);
+
+    const jumpToLobby = () => {
+      applyPublicState?.({} as Room["public_state"], {
+        status: "waiting",
+        public_state: {} as Room["public_state"],
+      });
+      try {
+        void channel?.send?.({ type: "broadcast", event: "rematch", payload: { roomId: room.id } });
+      } catch {
+        /* channel may be offline — poll/realtime still recover */
+      }
+    };
+
     if (room.game_type === "racing") {
-      const { data, error } = await supabase.rpc("play_racing_action", {
+      const { error } = await supabase.rpc("play_racing_action", {
         p_room: room.id,
         p_action: "restart",
         p_value: null,
       });
       if (error) {
         console.error("Racing rematch failed", error);
-      } else if (data && typeof data === "object") {
-        // state applied via refresh below
       }
       await supabase
         .from("game_players")
         .update({ is_ready: true })
         .eq("room_id", room.id)
         .like("player_id", "11111111-1111-1111-1111-%");
+      // Racing rematch goes to countdown (playing). Broadcast so peers leave Result UI.
+      applyPublicState?.({ stage: "countdown", phase: "countdown", results: [] } as Room["public_state"], {
+        status: "playing",
+      });
+      try {
+        void channel?.send?.({ type: "broadcast", event: "rematch", payload: { roomId: room.id, racing: true } });
+      } catch {
+        /* ignore */
+      }
     } else {
       const { error } = await supabase.rpc("rematch_room", { p_room: room.id });
       if (error) {
@@ -794,7 +833,9 @@ function Result({
           .eq("room_id", room.id)
           .like("player_id", "11111111-1111-1111-1111-%");
       }
+      jumpToLobby();
     }
+
     await refresh();
     setBusy(false);
   }

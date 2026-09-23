@@ -76,6 +76,16 @@ export function GameRoom() {
   }, [channel]);
 
   // Track daily missions on match completion
+  // Clear victory overlay when rematch returns the room to lobby / next match.
+  useEffect(() => {
+    if (room?.status && room.status !== "completed") {
+      setShowVictory(false);
+    }
+    if (room?.status === "completed") {
+      setShowVictory(true);
+    }
+  }, [room?.status]);
+
   useEffect(() => {
     if (room?.status === "completed" && user?.id && supabase) {
       void supabase.rpc("track_mission_progress", { p_mission_type: "play_game", p_amount: 1 });

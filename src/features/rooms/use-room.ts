@@ -128,10 +128,15 @@ export function useRoom(code: string, userId?: string, options?: { spectate?: bo
       if (payload.eventType === "DELETE") return;
       const nextRoom = payload.new as Room;
       setRoom((currentRoom) => {
-        if (currentRoom && nextRoom.state_version < currentRoom.state_version) {
+        if (!currentRoom) return nextRoom;
+        // Always accept a rematch transition back to the lobby even if local
+        // optimistic state_version briefly raced ahead of the server row.
+        const rematchTransition =
+          currentRoom.status === "completed" && nextRoom.status === "waiting";
+        if (!rematchTransition && nextRoom.state_version < currentRoom.state_version) {
           return currentRoom;
         }
-        return nextRoom;
+        return { ...currentRoom, ...nextRoom };
       });
       // Spectators (and anyone whose optimistic version raced ahead) re-fetch so the
       // board always matches the committed public_state without a manual refresh.
@@ -149,6 +154,23 @@ export function useRoom(code: string, userId?: string, options?: { spectate?: bo
       .on("presence", { event: "sync" }, () => {
         const state = ch.presenceState();
         setOnlineIds(Object.keys(state));
+      })
+      .on("broadcast", { event: "rematch" }, (msg) => {
+        // Host pressed rematch — jump every client to lobby / lineup without waiting on poll.
+        const racing = Boolean((msg as { payload?: { racing?: boolean } })?.payload?.racing);
+        setRoom((current) =>
+          current
+            ? {
+                ...current,
+                status: racing ? "playing" : "waiting",
+                public_state: (racing
+                  ? { stage: "countdown", phase: "countdown", results: [] }
+                  : {}) as Room["public_state"],
+                state_version: current.state_version + 1,
+              }
+            : current
+        );
+        void refresh();
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
@@ -175,22 +197,24 @@ export function useRoom(code: string, userId?: string, options?: { spectate?: bo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh, room?.id, supabase, userId, spectate, isSpectator]);
 
-  // Live poll while waiting, playing, or spectating so boards update even if Realtime lags.
+  // Live poll in every room status (including completed) so rematch flips to
+  // the lobby immediately even when Realtime is delayed.
   useEffect(() => {
     if (!room || !userId) return;
-    const live =
-      room.status === "waiting" ||
-      room.status === "playing" ||
-      spectate ||
-      isSpectator;
-    if (!live) return;
-    const intervalMs = spectate || isSpectator ? 1500 : room.status === "playing" ? 2000 : 3000;
+    const intervalMs =
+      spectate || isSpectator
+        ? 1200
+        : room.status === "completed"
+          ? 1200
+          : room.status === "playing"
+            ? 2000
+            : 2500;
     const interval = window.setInterval(() => {
       void refresh();
     }, intervalMs);
     return () => window.clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refresh, room?.status, userId, spectate, isSpectator]);
+  }, [refresh, room?.status, room?.id, userId, spectate, isSpectator]);
 
   const applyPublicState = useCallback((publicState: Room["public_state"], extras?: Partial<Room>) => {
     setRoom((current) => {
