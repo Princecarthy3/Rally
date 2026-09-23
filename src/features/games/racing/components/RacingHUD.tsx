@@ -11,6 +11,8 @@ export function RacingHUD({
   lapTime = 0,
   checkpoint = 0,
   totalCheckpoints = 5,
+  lap = 1,
+  totalLaps = 3,
   speed = 0,
   standings = [],
 }: {
@@ -19,6 +21,8 @@ export function RacingHUD({
   lapTime?: number;
   checkpoint?: number;
   totalCheckpoints?: number;
+  lap?: number;
+  totalLaps?: number;
   speed?: number;
   standings?: LiveStanding[];
   onExit?: () => void;
@@ -100,7 +104,7 @@ export function RacingHUD({
           <div className="pointer-events-auto flex items-center gap-1.5 rounded-xl border border-white/25 bg-slate-950/85 px-2 py-1.5 text-white shadow-xl backdrop-blur-md sm:rounded-2xl sm:px-3 sm:py-2">
             <Flag className="h-3.5 w-3.5 text-amber-400 sm:h-4 sm:w-4" />
             <span className="text-[10px] font-black sm:text-xs">
-              CP {Math.min(checkpoint + 1, totalCheckpoints)}/{totalCheckpoints}
+              LAP {Math.min(lap, totalLaps)}/{totalLaps} · CP {Math.min(checkpoint + 1, totalCheckpoints)}/{totalCheckpoints}
             </span>
           </div>
           <button

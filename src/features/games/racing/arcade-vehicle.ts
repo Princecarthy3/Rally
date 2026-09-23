@@ -1,5 +1,5 @@
 import { CarTransform, TouchInputState } from "./types";
-import { CHECKPOINTS, getDistanceToTrack, getTerrainHeight, SURFACE_FRICTION, TRACK_WAYPOINTS } from "./track-data";
+import { CHECKPOINTS, getDistanceToTrack, getTerrainHeight, SURFACE_FRICTION, TOTAL_LAPS } from "./track-data";
 
 export interface KeyInputState {
   forward: boolean;
@@ -15,6 +15,7 @@ export class ArcadeVehiclePhysics {
   public speed: number = 0; // km/h
   public isDrifting: boolean = false;
   public currentCheckpoint: number = 0;
+  public currentLap: number = 1;
   public progressDistance: number = 0;
   public finished: boolean = false;
   public finishTime: number = 0;
@@ -131,7 +132,16 @@ export class ArcadeVehiclePhysics {
       }
     }
 
-    // Total distance metric for live rank position
-    this.progressDistance = this.currentCheckpoint * 10000 + (this.speed > 0 ? this.position[2] : 0);
+    // Crossing the finish gate completes a lap. Keep the checkpoint at zero for
+    // the next lap so racers must drive the full circuit every time.
+    if (this.currentCheckpoint === CHECKPOINTS.length && this.currentLap < TOTAL_LAPS) {
+      this.currentLap += 1;
+      this.currentCheckpoint = 0;
+    } else if (this.currentCheckpoint === CHECKPOINTS.length && this.currentLap === TOTAL_LAPS) {
+      this.finished = true;
+    }
+
+    // Total distance metric for live rank position: lap dominates checkpoint.
+    this.progressDistance = (this.currentLap - 1) * CHECKPOINTS.length * 10000 + this.currentCheckpoint * 10000 + (this.speed > 0 ? this.position[2] : 0);
   }
 }

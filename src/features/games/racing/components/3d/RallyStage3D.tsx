@@ -5,7 +5,7 @@ import { memo, useMemo } from "react";
 import * as THREE from "three";
 import { CHECKPOINTS, getTerrainHeight, TRACK_WAYPOINTS } from "../../track-data";
 
-const STAGE_SIZE = 320;
+const STAGE_SIZE = 600;
 const TERRAIN_SEGMENTS = 96;
 const ROAD_HALF_WIDTH = 7.2;
 
@@ -152,7 +152,7 @@ export const RallyStage3D = memo(function RallyStage3D({ activeCheckpoint = 0 }:
   const forestTrees = useMemo(() => {
     const trees: Array<{ x: number; z: number; scale: number; rotation: number }> = [];
     let seed = 1;
-    for (let x = -145; x <= 145; x += 11) for (let z = -145; z <= 145; z += 11) {
+    for (let x = -285; x <= 285; x += 13) for (let z = -285; z <= 285; z += 13) {
       const nearest = Math.min(...TRACK_WAYPOINTS.map(([trackX, , trackZ]) => Math.hypot(x - trackX, z - trackZ)));
       if (nearest > 16 && pseudoRandom(seed++) > 0.42) trees.push({ x: x + (pseudoRandom(seed++) - 0.5) * 5, z: z + (pseudoRandom(seed++) - 0.5) * 5, scale: 0.72 + pseudoRandom(seed++) * 0.72, rotation: pseudoRandom(seed++) * Math.PI * 2 });
     }
@@ -192,7 +192,7 @@ export const RallyStage3D = memo(function RallyStage3D({ activeCheckpoint = 0 }:
       <mesh position={[0, 4.8, 0]} castShadow><coneGeometry args={[1.45, 2.8, 7]} /><meshStandardMaterial color="#3b8547" flatShading /></mesh>
     </group>)}
     {rocks.map((rock, index) => <mesh key={index} position={[rock.x, getTerrainHeight(rock.x, rock.z) + rock.scale * 0.45, rock.z]} scale={rock.scale} castShadow receiveShadow><dodecahedronGeometry args={[0.95, 1]} /><meshStandardMaterial color="#7c786c" roughness={1} flatShading /></mesh>)}
-    <Sparkles count={90} scale={[260, 24, 260]} size={2.5} speed={0.16} color="#fff0bf" />
+    <Sparkles count={150} scale={[520, 30, 520]} size={2.5} speed={0.16} color="#fff0bf" />
 
     {CHECKPOINTS.map((checkpoint, index) => {
       const previous = CHECKPOINTS[(index - 1 + CHECKPOINTS.length) % CHECKPOINTS.length].position;
