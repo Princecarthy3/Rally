@@ -38,11 +38,24 @@ export async function POST(request: Request) {
 
     if (gameType === "racing" || gameType === "rally_racing") {
       const results = Array.isArray(state.results) ? state.results : [];
-      if (!results.some((result: any) => Number(result?.seat) === botSeat)) {
-        action = "finish";
-        const baseTime = 42 + botSeat * 1.8;
-        const variance = difficulty === "easy" ? 8 : difficulty === "hard" ? 2 : 5;
-        value = String(baseTime + Math.random() * variance);
+      const stage = String(state.stage || state.phase || "");
+      // Only finish during a live race, after a realistic elapsed time.
+      // Ranking is by time, so finishing early with a long time still loses.
+      if (
+        (stage === "racing" || stage === "playing") &&
+        !results.some((result: any) => Number(result?.seat) === botSeat)
+      ) {
+        const baseTime =
+          difficulty === "easy" ? 55 + botSeat * 2.5 : difficulty === "hard" ? 38 + botSeat * 1.2 : 46 + botSeat * 1.8;
+        const variance = difficulty === "easy" ? 10 : difficulty === "hard" ? 3 : 6;
+        const botTime = baseTime + Math.random() * variance;
+        const startTime = Number(state.start_time || 0);
+        const elapsed = startTime > 0 ? Date.now() / 1000 - startTime : 0;
+        // Wait until the simulated lap would complete so the human can finish first.
+        if (startTime > 0 && elapsed >= botTime * 0.92) {
+          action = "finish";
+          value = String(Number(botTime.toFixed(2)));
+        }
       }
     } else if (gameType === "rps") {
       action = "choose";
