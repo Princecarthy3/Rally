@@ -39,7 +39,7 @@ export function GameRoom() {
   const [showBotPicker, setShowBotPicker] = useState(false);
   const [notice, setNotice] = useState("");
   const [activeEmotes, setActiveEmotes] = useState<Array<{ seat: number; emote: string; senderName?: string; id: number }>>([]);
-  const [showVictory, setShowVictory] = useState(true);
+  const [victoryDismissedFor, setVictoryDismissedFor] = useState<string | null>(null);
 
   // Player Card Modal State
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
@@ -76,16 +76,6 @@ export function GameRoom() {
   }, [channel]);
 
   // Track daily missions on match completion
-  // Clear victory overlay when rematch returns the room to lobby / next match.
-  useEffect(() => {
-    if (room?.status && room.status !== "completed") {
-      setShowVictory(false);
-    }
-    if (room?.status === "completed") {
-      setShowVictory(true);
-    }
-  }, [room?.status]);
-
   useEffect(() => {
     if (room?.status === "completed" && user?.id && supabase) {
       void supabase.rpc("track_mission_progress", { p_mission_type: "play_game", p_amount: 1 });
@@ -263,12 +253,12 @@ export function GameRoom() {
           )}
 
           {/* Victory Overlay Trigger */}
-          {room?.status === "completed" && winningPlayer && showVictory && (
+          {room?.status === "completed" && winningPlayer && victoryDismissedFor !== `${room.id}:${room.match_number}` && (
             <VictoryAnimationOverlay
               winnerName={winningPlayer.profile?.display_name || `Player ${winningPlayer.seat}`}
               isMe={winningPlayer.player_id === user?.id}
               equippedVictory={winningPlayer.customization?.victory}
-              onDismiss={() => setShowVictory(false)}
+              onDismiss={() => setVictoryDismissedFor(`${room.id}:${room.match_number}`)}
             />
           )}
 
