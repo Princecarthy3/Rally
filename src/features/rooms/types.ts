@@ -4,7 +4,7 @@ import type { ShopItem } from "@/lib/customization";
 export type RoomStatus = "waiting" | "playing" | "completed" | "cancelled";
 export type PublicGameState = {
   turn?: number; round?: number; message?: string; winnerSeat?: number | null; winners?: number[];
-  scores?: Record<string, number>; shots?: Record<string, number>; choices?: Record<string, string>;
+  scores?: Record<string, number>; shots?: Record<string, number>; arrows?: number; totalArrows?: number; choices?: Record<string, string>;
   guesses?: Array<{ seat:number; value:number; hint:string }>; board?: string[]; positions?: Record<string, number>;
   revealed?: boolean;
   history?: Array<any>; tries?: Record<string, number>; drawerSeat?: number; targetPicked?: boolean; wordSelected?: string | null;
