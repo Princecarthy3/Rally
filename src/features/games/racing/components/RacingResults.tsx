@@ -32,7 +32,7 @@ export function RacingResults({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 p-4 select-none backdrop-blur-xl">
+    <div className="pointer-events-auto fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur-xl" style={{ touchAction: "auto" }}>
       <div className="w-full max-w-lg rounded-3xl border-2 border-white/20 bg-slate-900 p-6 text-white shadow-2xl">
         {/* Header Title */}
         <div className="text-center">
@@ -90,8 +90,18 @@ export function RacingResults({
         {/* Action Buttons: REMATCH & EXIT */}
         <div className="mt-6 grid grid-cols-2 gap-3">
           <button
-            onClick={onExit}
-            className="flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-slate-800 py-3 text-xs font-black text-slate-300 transition-all hover:bg-slate-700 active:scale-95"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onExit();
+            }}
+            onPointerUp={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onExit();
+            }}
+            className="pointer-events-auto flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-slate-800 py-3 text-xs font-black text-slate-300 transition-all hover:bg-slate-700 active:scale-95"
           >
             <LogOut className="h-4 w-4" />
             <span>EXIT RACE</span>
@@ -99,9 +109,19 @@ export function RacingResults({
 
           {isHost ? (
             <button
-              onClick={onRematch}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!busy) onRematch();
+              }}
+              onPointerUp={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!busy) onRematch();
+              }}
               disabled={busy}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-amber-500 py-3 text-xs font-black text-slate-950 shadow-lg transition-all hover:bg-amber-400 active:scale-95 disabled:opacity-50"
+              className="pointer-events-auto flex items-center justify-center gap-2 rounded-2xl bg-amber-500 py-3 text-xs font-black text-slate-950 shadow-lg transition-all hover:bg-amber-400 active:scale-95 disabled:opacity-50"
             >
               <RotateCcw className="h-4 w-4" />
               <span>REMATCH</span>

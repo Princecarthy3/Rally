@@ -39,20 +39,28 @@ export async function POST(request: Request) {
     if (gameType === "racing") {
       const results = Array.isArray(state.results) ? state.results : [];
       const stage = String(state.stage || state.phase || "");
-      // Only finish during a live race, after a realistic elapsed time.
-      // Ranking is by time, so finishing early with a long time still loses.
       if (
         (stage === "racing" || stage === "playing") &&
         !results.some((result: any) => Number(result?.seat) === botSeat)
       ) {
-        const baseTime =
-          difficulty === "easy" ? 55 + botSeat * 2.5 : difficulty === "hard" ? 38 + botSeat * 1.2 : 46 + botSeat * 1.8;
-        const variance = difficulty === "easy" ? 10 : difficulty === "hard" ? 3 : 6;
-        const botTime = baseTime + Math.random() * variance;
+        // Times are for a full 3-lap stage so humans can beat the bot fairly.
+        const laps = Math.max(1, Number(state.lapCount || 3));
+        const perLap =
+          difficulty === "easy" ? 58 + botSeat * 2 : difficulty === "hard" ? 42 + botSeat * 1.2 : 50 + botSeat * 1.6;
+        const variance = (difficulty === "easy" ? 12 : difficulty === "hard" ? 4 : 8) * laps;
+        let botTime = perLap * laps + Math.random() * variance;
+        // If a human already finished, never invent a faster time than them.
+        const humanTimes = results
+          .filter((result: any) => Number(result?.seat) !== botSeat)
+          .map((result: any) => Number(result?.time))
+          .filter((time: number) => Number.isFinite(time) && time > 0);
+        if (humanTimes.length > 0) {
+          const bestHuman = Math.min(...humanTimes);
+          botTime = Math.max(botTime, bestHuman + 4 + Math.random() * 10);
+        }
         const startTime = Number(state.start_time || 0);
         const elapsed = startTime > 0 ? Date.now() / 1000 - startTime : 0;
-        // Wait until the simulated lap would complete so the human can finish first.
-        if (startTime > 0 && elapsed >= botTime * 0.92) {
+        if (startTime > 0 && elapsed >= botTime * 0.95) {
           action = "finish";
           value = String(Number(botTime.toFixed(2)));
         }

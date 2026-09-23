@@ -46,6 +46,13 @@ export function GameBoard({
   const state = room.public_state || {};
   const game = gameByKey[room.game_type];
   const [busy, setBusy] = useState(false);
+  const [racingLeftToResults, setRacingLeftToResults] = useState(false);
+  useEffect(() => {
+    if (room.status !== "completed") {
+      const id = window.setTimeout(() => setRacingLeftToResults(false), 0);
+      return () => window.clearTimeout(id);
+    }
+  }, [room.status]);
   const [error, setError] = useState("");
   const [guess, setGuess] = useState("");
   // A room update can reach several clients at once. Keep each bot/state pair to
@@ -309,7 +316,7 @@ export function GameBoard({
     applyPublicState,
   ]);
 
-  if (room.status === "completed" && room.game_type !== "racing") {
+  if (room.status === "completed" && (room.game_type !== "racing" || racingLeftToResults)) {
     return (
       <Result
         room={room}
@@ -413,7 +420,7 @@ export function GameBoard({
             <UnoGame room={room} players={players} meSeat={me?.seat || 1} isMyTurn={state.turn === me?.seat} onAct={act} />
           )}
           {room.game_type === "racing" && (
-            <RacingGame room={room} players={players} meSeat={me?.seat || 1} onAct={act} busy={busy} channel={channel} />
+            <RacingGame room={room} players={players} meSeat={me?.seat || 1} onAct={act} busy={busy} channel={channel} onLeaveRace={() => setRacingLeftToResults(true)} />
           )}
         </div>
 
@@ -741,6 +748,13 @@ function Result({
 }) {
   const supabase = getSupabaseBrowserClient();
   const [busy, setBusy] = useState(false);
+  const [racingLeftToResults, setRacingLeftToResults] = useState(false);
+  useEffect(() => {
+    if (room.status !== "completed") {
+      const id = window.setTimeout(() => setRacingLeftToResults(false), 0);
+      return () => window.clearTimeout(id);
+    }
+  }, [room.status]);
   const winners = players.filter((p) => winningSeats.includes(p.seat));
   const draw = winningSeats.length === 0 || winningSeats.length === players.length;
   const isWin = !draw && me?.seat !== undefined && winningSeats.includes(me.seat);

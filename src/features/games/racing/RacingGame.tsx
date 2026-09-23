@@ -26,7 +26,8 @@ export function RacingGame({
   meSeat,
   onAct,
   busy,
-  channel
+  channel,
+  onLeaveRace,
 }: {
   room: Room;
   players: RoomPlayer[];
@@ -34,6 +35,7 @@ export function RacingGame({
   onAct: (action: string, value?: string) => Promise<void>;
   busy?: boolean;
   channel?: any;
+  onLeaveRace?: () => void;
 }) {
   const state = (room.public_state || {}) as Record<string, any>;
   const isHost = room.host_id === players.find(p => p.seat === meSeat)?.player_id;
@@ -363,7 +365,12 @@ export function RacingGame({
             meSeat={meSeat}
             isHost={isHost}
             onRematch={() => onAct("restart")}
-            onExit={() => { void exitRaceFullscreen().then(() => { window.location.href = "/"; }); }}
+            onExit={() => {
+              void exitRaceFullscreen().finally(() => {
+                if (onLeaveRace) onLeaveRace();
+                else window.location.href = "/";
+              });
+            }}
             busy={busy}
           />
         )}
