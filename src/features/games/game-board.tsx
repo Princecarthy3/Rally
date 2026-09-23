@@ -748,13 +748,6 @@ function Result({
 }) {
   const supabase = getSupabaseBrowserClient();
   const [busy, setBusy] = useState(false);
-  const [racingLeftToResults, setRacingLeftToResults] = useState(false);
-  useEffect(() => {
-    if (room.status !== "completed") {
-      const id = window.setTimeout(() => setRacingLeftToResults(false), 0);
-      return () => window.clearTimeout(id);
-    }
-  }, [room.status]);
   const winners = players.filter((p) => winningSeats.includes(p.seat));
   const draw = winningSeats.length === 0 || winningSeats.length === players.length;
   const isWin = !draw && me?.seat !== undefined && winningSeats.includes(me.seat);
