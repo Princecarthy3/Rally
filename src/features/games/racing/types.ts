@@ -9,6 +9,7 @@ export interface CarTransform {
   speed: number; // km/h
   isDrifting: boolean;
   currentCheckpoint: number;
+  currentLap: number;
   progressDistance: number;
   lapTime: number;
   finished: boolean;

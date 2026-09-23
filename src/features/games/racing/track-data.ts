@@ -3,19 +3,22 @@ import { CheckpointData, SurfaceType } from "./types";
 // A single, flowing Grand Prix circuit. The route does not cross itself, so
 // every section has a clear racing line and there are no overlapping surfaces.
 export const TRACK_WAYPOINTS: Array<[number, number, number]> = [
-  [0, 0, 0], [0, 0, 48], [22, 0, 88], [65, 0, 112],
-  [108, 0, 102], [134, 0, 64], [130, 0, 20], [104, 0, -28],
-  [62, 0, -66], [8, 0, -80], [-48, 0, -72], [-94, 0, -42],
-  [-118, 0, 2], [-103, 0, 48], [-68, 0, 82], [-28, 0, 66], [-10, 0, 30]
+  [0, 0, 0], [0, 0, 70], [34, 0, 132], [102, 0, 170],
+  [182, 0, 158], [238, 0, 112], [250, 0, 42], [224, 0, -30],
+  [164, 0, -86], [88, 0, -126], [12, 0, -142], [-72, 0, -128],
+  [-148, 0, -92], [-218, 0, -34], [-244, 0, 38], [-220, 0, 106],
+  [-164, 0, 150], [-94, 0, 130], [-42, 0, 82], [-16, 0, 34]
 ];
+
+export const TOTAL_LAPS = 3;
 
 // Checkpoint gates along the stage
 export const CHECKPOINTS: CheckpointData[] = [
-  { index: 1, position: [22, 0, 88], radius: 16, name: "North Bend" },
-  { index: 2, position: [134, 0, 64], radius: 16, name: "East Hairpin" },
-  { index: 3, position: [62, 0, -66], radius: 16, name: "South Curve" },
-  { index: 4, position: [-94, 0, -42], radius: 16, name: "West Bend" },
-  { index: 5, position: [0, 0, 0], radius: 12, name: "Finish Arch" }
+  { index: 1, position: [34, 0, 132], radius: 20, name: "North Ridge" },
+  { index: 2, position: [238, 0, 112], radius: 20, name: "East Hairpin" },
+  { index: 3, position: [12, 0, -142], radius: 20, name: "South Sweep" },
+  { index: 4, position: [-218, 0, -34], radius: 20, name: "West Canyon" },
+  { index: 5, position: [0, 0, 0], radius: 16, name: "Start / Finish" }
 ];
 
 export const START_GRID_SLOTS: Array<{ position: [number, number, number]; rotation: number }> = [

@@ -65,6 +65,7 @@ export function RacingGame({
     speed: 0,
     isDrifting: false,
     currentCheckpoint: 0,
+    currentLap: 1,
     progressDistance: 0,
     lapTime: 0,
     finished: false
@@ -183,6 +184,7 @@ export function RacingGame({
           speed: updated.speed,
           isDrifting: updated.isDrifting,
           currentCheckpoint: physicsRef.current.currentCheckpoint,
+          currentLap: physicsRef.current.currentLap,
           progressDistance: physicsRef.current.progressDistance,
           lapTime: lapTimeRef.current,
           finished: physicsRef.current.finished
@@ -196,9 +198,9 @@ export function RacingGame({
           if (updated.isDrifting) sounds.playSkidSound();
         }
 
-        // Checkpoint completion RPC trigger
-        if (physicsRef.current.currentCheckpoint === 5 && !physicsRef.current.finished) {
-          physicsRef.current.finished = true;
+        // Finish only after the final checkpoint of the third lap.
+        if (physicsRef.current.finished && physicsRef.current.finishTime === 0) {
+          physicsRef.current.finishTime = performance.now();
           sounds.playFinishSound();
           setLapTime(lapTimeRef.current);
           void onAct("finish", String(lapTimeRef.current));
@@ -299,6 +301,8 @@ export function RacingGame({
           lapTime={lapTime}
           checkpoint={myTransform.currentCheckpoint}
           totalCheckpoints={5}
+          lap={myTransform.currentLap}
+          totalLaps={3}
           speed={myTransform.speed}
           standings={standings}
         />
