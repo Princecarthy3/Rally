@@ -418,6 +418,8 @@ export function RallyCombatGame({
 
   // Mouse Attack Listeners
   const handlePointerDown = (e: React.PointerEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("button, a, input, textarea, select")) return;
     if (e.button === 0) handleAttack("light");
     else if (e.button === 2) handleAttack("heavy");
   };
@@ -453,34 +455,37 @@ export function RallyCombatGame({
       >
         {/* Pre-Match Character Archetype Picker Modal */}
         {!characterConfirmed && (
-          <div className="fixed inset-0 z-[90] grid place-items-center bg-slate-950/90 p-4 backdrop-blur-md">
-            <div className="w-full max-w-3xl rounded-3xl border-4 border-slate-950 bg-white p-6 sm:p-8 shadow-2xl text-center space-y-6">
-              <div>
-                <span className="text-5xl sm:text-6xl">⚔️</span>
-                <h2 className="text-3xl sm:text-4xl font-black uppercase text-slate-950 mt-2">Choose Your Fighter</h2>
-                <p className="text-xs font-bold text-slate-500">Select an archetype to enter the 3D Rally Combat arena</p>
+          <div className="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-slate-950/90 p-3 backdrop-blur-md sm:p-6">
+            <div className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl flex-col overflow-y-auto rounded-3xl border-4 border-slate-950 bg-white p-4 shadow-2xl sm:max-h-[calc(100dvh-3rem)] sm:p-8">
+              <div className="shrink-0 text-center">
+                <span className="text-4xl sm:text-6xl">⚔️</span>
+                <h2 className="mt-1 text-2xl font-black uppercase text-slate-950 sm:mt-2 sm:text-4xl">Choose Your Fighter</h2>
+                <p className="mt-1 text-[11px] font-bold text-slate-500 sm:text-xs">Select a fighter, then confirm to enter the 3D Rally Combat arena</p>
               </div>
 
-              {/* Roster Archetypes Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-left">
+              <div className="mt-4 grid grid-cols-2 gap-2 text-left sm:mt-6 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
                 {(["balanced", "speed", "power", "defender"] as CharacterArchetype[]).map((arch) => {
                   const cfg = CHARACTERS[arch];
                   const isSelected = selectedArchetype === arch;
                   return (
                     <button
                       key={arch}
-                      onClick={() => confirmCharacter(arch)}
-                      className={`rounded-2xl border-2 border-slate-950 p-4 text-left transition hover:scale-105 cursor-pointer shadow-[3px_3px_0_#171821] ${
-                        isSelected ? "bg-rose-100 ring-4 ring-rose-500" : "bg-slate-50 hover:bg-slate-100"
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => setSelectedArchetype(arch)}
+                      className={`min-h-[178px] rounded-2xl border-2 border-slate-950 p-3 text-left transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-400 sm:min-h-[230px] sm:p-4 ${
+                        isSelected
+                          ? "bg-rose-100 ring-4 ring-rose-500 shadow-[3px_3px_0_#171821]"
+                          : "bg-slate-50 shadow-[2px_2px_0_#171821] hover:bg-slate-100"
                       }`}
                     >
-                      <span className="text-3xl block">{cfg.modelIcon}</span>
-                      <strong className="mt-2 block text-sm font-black text-slate-950">{cfg.name}</strong>
-                      <span className="text-[10px] font-bold text-slate-600 block uppercase">{cfg.title}</span>
-                      <p className="mt-2 text-[11px] font-medium text-slate-700 leading-tight">{cfg.description}</p>
-                      <div className="mt-3 border-t border-slate-200 pt-2 text-[10px] font-black text-slate-800 space-y-0.5">
+                      <span className="block text-2xl sm:text-3xl">{cfg.modelIcon}</span>
+                      <strong className="mt-1 block text-xs font-black text-slate-950 sm:mt-2 sm:text-sm">{cfg.name}</strong>
+                      <span className="block text-[9px] font-bold uppercase text-slate-600 sm:text-[10px]">{cfg.title}</span>
+                      <p className="mt-1 line-clamp-3 text-[10px] font-medium leading-tight text-slate-700 sm:mt-2 sm:text-[11px]">{cfg.description}</p>
+                      <div className="mt-2 border-t border-slate-200 pt-2 text-[9px] font-black text-slate-800 sm:mt-3 sm:text-[10px]">
                         <p>HP: {cfg.hp}</p>
-                        <p>Special: {cfg.specialName}</p>
+                        <p className="truncate">Special: {cfg.specialName}</p>
                       </div>
                     </button>
                   );
@@ -488,8 +493,9 @@ export function RallyCombatGame({
               </div>
 
               <button
+                type="button"
                 onClick={() => confirmCharacter(selectedArchetype)}
-                className="arcade-button w-full sm:w-auto bg-[#ff3366] text-white px-10 py-4 text-sm font-black shadow-[4px_4px_0_#171821]"
+                className="arcade-button mx-auto mt-4 w-full shrink-0 bg-[#ff3366] px-6 py-3 text-xs font-black text-white shadow-[4px_4px_0_#171821] sm:mt-6 sm:w-auto sm:px-10 sm:py-4 sm:text-sm"
               >
                 ENTER ARENA ⚔️
               </button>
