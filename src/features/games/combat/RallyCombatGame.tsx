@@ -80,8 +80,39 @@ export function RallyCombatGame({
     };
   });
 
-  // Opponent Fighters map synced via Supabase Realtime Broadcast
+  // Keep every client on the same deterministic arena layout before the first packet arrives.
   const [allFighters, setAllFighters] = useState<Record<number, FighterTransform>>({});
+  useEffect(() => {
+    setAllFighters((current) => {
+      const next = { ...current };
+      for (const player of players) {
+        if (player.seat === meSeat || next[player.seat]) continue;
+        const config = getCharacterConfig("balanced");
+        next[player.seat] = {
+          seat: player.seat,
+          playerId: player.player_id,
+          displayName: player.profile?.display_name || `Player ${player.seat}`,
+          archetype: "balanced",
+          position: START_POSITIONS[(player.seat - 1) % START_POSITIONS.length],
+          rotationY: player.seat % 2 === 0 ? Math.PI : 0,
+          hp: config.maxHp,
+          maxHp: config.maxHp,
+          isBlocking: false,
+          isDodging: false,
+          attackState: "idle",
+          animState: "idle",
+          comboCount: 0,
+          specialCooldownRemaining: 0,
+          dodgeCooldownRemaining: 0,
+          isEliminated: false,
+          kills: 0,
+          damageDealt: 0,
+          damageReceived: 0,
+        };
+      }
+      return next;
+    });
+  }, [players, meSeat]);
 
   // Spectator State
   const [spectateTargetSeat, setSpectateTargetSeat] = useState<number>(meSeat);
@@ -126,36 +157,38 @@ export function RallyCombatGame({
     setCharacterConfirmed(true);
   };
 
-  // One short, host-owned countdown. Clients only enter combat from the room phase,
-  // preventing two players from simulating different match clocks.
+  // The room row is the source of truth. Only the host commits the start once;
+  // every client renders the same absolute deadline instead of starting a local timer.
+  const countdownStartedRef = useRef(false);
   useEffect(() => {
     if (!characterConfirmed) return;
     const phase = String(state.phase || state.stage || "countdown");
     if (phase === "racing" || phase === "playing" || phase === "combat") {
-      const syncTimer = window.setTimeout(() => {
-        setCountdownText("");
-        setInCountdown(false);
-        setFightActive(true);
-      }, 0);
-      return () => window.clearTimeout(syncTimer);
+      setCountdownText("");
+      setInCountdown(false);
+      setFightActive(true);
+      return;
     }
-    if (!isHost) return;
-    const startedAt = performance.now();
+    if (!isHost || countdownStartedRef.current) return;
+
+    countdownStartedRef.current = true;
+    const startedAt = Date.now();
+    const duration = 3200;
     const timer = window.setInterval(() => {
-      const elapsed = performance.now() - startedAt;
-      const remaining = Math.ceil((1800 - elapsed) / 600);
+      const remainingMs = Math.max(0, startedAt + duration - Date.now());
+      const remaining = Math.ceil(remainingMs / 1000);
       if (remaining > 0) {
         setCountdownText(String(remaining));
         sounds.playCountdownBeep(false);
-      } else {
-        window.clearInterval(timer);
-        sounds.playCountdownBeep(true);
-        setCountdownText("FIGHT!");
-        setInCountdown(false);
-        setFightActive(true);
-        void onAct("start_fight");
-        window.setTimeout(() => setCountdownText(""), 450);
+        return;
       }
+      window.clearInterval(timer);
+      sounds.playCountdownBeep(true);
+      setCountdownText("FIGHT!");
+      setInCountdown(false);
+      setFightActive(true);
+      void onAct("start_fight");
+      window.setTimeout(() => setCountdownText(""), 500);
     }, 100);
     return () => window.clearInterval(timer);
   }, [characterConfirmed, isHost, onAct, state.phase, state.stage]);
