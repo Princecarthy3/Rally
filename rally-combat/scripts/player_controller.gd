@@ -155,6 +155,20 @@ func _trigger_hitbox(damage: float, knockback: float, active_time: float) -> voi
 			kb_dir.y = 0.4
 			target.take_damage(damage, kb_dir * (knockback * 8.0), seat_number)
 
+func apply_remote_state(remote_position: Vector3, remote_rotation_y: float, remote_hp: float, remote_state: String) -> void:
+	global_position = global_position.lerp(remote_position, 0.35)
+	rotation.y = lerp_angle(rotation.y, remote_rotation_y, 0.35)
+	current_health = clampf(remote_hp, 0.0, config.max_health)
+	attack_state = remote_state
+	if current_health <= 0.0:
+		apply_remote_elimination()
+
+func apply_remote_elimination() -> void:
+	is_alive = false
+	attack_state = "eliminated"
+	velocity = Vector3.ZERO
+	mesh_instance.visible = false
+
 func take_damage(raw_damage: float, knockback_vector: Vector3, attacker_seat: int) -> void:
 	if not is_alive or is_dodging:
 		return

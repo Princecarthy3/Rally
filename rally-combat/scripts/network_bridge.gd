@@ -17,6 +17,13 @@ func _ready() -> void:
 		if window:
 			window.onGodotNetworkEvent = callback_ref
 
+func send_player_ready(seat: int, arena_id: String) -> void:
+	if not js_bridge_available:
+		return
+	var window = JavaScriptBridge.get_interface("window")
+	if window and window.has_method("sendRallyCombatReady"):
+		window.sendRallyCombatReady(seat, arena_id)
+
 func send_player_transform(seat: int, pos: Vector3, rot_y: float, hp: float, state: String) -> void:
 	if not js_bridge_available:
 		return

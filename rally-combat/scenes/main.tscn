@@ -4,8 +4,10 @@
 [ext_resource type="PackedScene" uid="uid://d1ranv0aw0x4y" path="res://scenes/camera.tscn" id="2_camera"]
 [ext_resource type="PackedScene" uid="uid://6de2t21ds3e6" path="res://scenes/hud.tscn" id="3_hud"]
 [ext_resource type="Script" uid="uid://dmopswrsismp5" path="res://scripts/network_bridge.gd" id="4_network"]
+[ext_resource type="Script" path="res://scripts/main.gd" id="5_main"]
 
 [node name="Main" type="Node3D" unique_id=763666334]
+script = ExtResource("5_main")
 
 [node name="Arena" parent="." unique_id=1601885800 instance=ExtResource("1_arena")]
 

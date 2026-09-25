@@ -163,11 +163,6 @@ wait_time = 0.8
 autostart = true
 one_shot = false
 
-func _on_FlickerTimer_timeout():
-	pass
-
-[connection signal="timeout" from="FlickerTimer" to="." method="_on_FlickerTimer_timeout"]
-
 [node name="ArenaReadme" type="Node" parent="."]
 metadata/shared_arena_note = "Every fighter is spawned under Main in this single arena instance."
 

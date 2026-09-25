@@ -6,7 +6,16 @@
 radius = 0.5
 height = 1.8
 
+[sub_resource type="StandardMaterial3D" id="FighterMaterial"]
+albedo_color = Color(0.03, 0.12, 0.24, 1)
+metallic = 0.7
+roughness = 0.2
+emission_enabled = true
+emission = Color(0.02, 0.35, 1, 1)
+emission_energy_multiplier = 2.2
+
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]
+material = SubResource("FighterMaterial")
 radius = 0.5
 height = 1.8
 
