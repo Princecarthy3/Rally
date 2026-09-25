@@ -62,7 +62,7 @@ func _apply_remote_state(payload: Variant) -> void:
 	fighter.apply_remote_state(position, _payload_float(payload, "rotation_y", fighter.rotation.y), _payload_float(payload, "hp", fighter.current_health), str(_payload_value(payload, "state", "idle")))
 
 func _apply_remote_hit(payload: Variant) -> void:
-	var victim := fighters.get(_payload_int(payload, "victim_seat", 0))
+	var victim: PlayerController = fighters.get(_payload_int(payload, "victim_seat", 0)) as PlayerController
 	if is_instance_valid(victim) and victim.seat_number == local_seat:
 		victim.take_damage(_payload_float(payload, "damage", 0.0), Vector3.ZERO, _payload_int(payload, "attacker_seat", 0))
 

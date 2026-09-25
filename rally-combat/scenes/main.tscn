@@ -9,7 +9,7 @@
 [node name="Main" type="Node3D" unique_id=763666334]
 script = ExtResource("5_main")
 
-[node name="Arena" parent="." unique_id=1601885800 instance=ExtResource("1_arena")]
+[node name="Arena" parent="." instance=ExtResource("1_arena")]
 
 [node name="DynamicCamera" parent="." unique_id=271698186 instance=ExtResource("2_camera")]
 

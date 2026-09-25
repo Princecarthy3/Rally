@@ -166,9 +166,6 @@ one_shot = false
 [node name="ArenaReadme" type="Node" parent="."]
 metadata/shared_arena_note = "Every fighter is spawned under Main in this single arena instance."
 
-[sub_resource type="BoxShape3D" id="Unused"]
-size = Vector3(1, 1, 1)
-
 [node name="BarrierEast" type="StaticBody3D" parent="."]
 position = Vector3(14, 2, 0)
 rotation_degrees = Vector3(0, 90, 0)
@@ -254,7 +251,7 @@ size = Vector2(6, 0.6)
 metadata/contract = "one arena, shared coordinates"
 
 [node name="WorldOrigin" type="Marker3D" parent="."]
-position = Vector3.ZERO
+position = Vector3(0, 0, 0)
 
 [node name="FloorShadow" type="Decal" parent="."]
 position = Vector3(0, 0.9, 0)
