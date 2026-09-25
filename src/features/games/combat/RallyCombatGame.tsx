@@ -97,7 +97,9 @@ export function RallyCombatGame({
     jump: false,
   });
   const touchInputsRef = useRef<TouchCombatInputs>(touchInputs);
-  touchInputsRef.current = touchInputs;
+  useEffect(() => {
+    touchInputsRef.current = touchInputs;
+  }, [touchInputs]);
 
   // Local Physics & Controls Refs
   const keysRef = useRef({
@@ -419,21 +421,6 @@ export function RallyCombatGame({
   };
 
   
-  // Fire attacks from mobile buttons (edge-triggered via effect)
-  useEffect(() => {
-    if (!fightActive) return;
-    if (touchInputs.lightAttack) handleAttack("light");
-  }, [touchInputs.lightAttack, fightActive]);
-
-  useEffect(() => {
-    if (!fightActive) return;
-    if (touchInputs.heavyAttack) handleAttack("heavy");
-  }, [touchInputs.heavyAttack, fightActive]);
-
-  useEffect(() => {
-    if (!fightActive) return;
-    if (touchInputs.special) handleAttack("special");
-  }, [touchInputs.special, fightActive]);
 
   // Mouse Attack Listeners
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -557,6 +544,7 @@ export function RallyCombatGame({
         {/* Mobile Landscape Touch Controls */}
         <CombatTouchControls
           onInputsChange={setTouchInputs}
+          onAttack={handleAttack}
           specialName={CHARACTERS[myFighter.archetype].specialName}
           specialCooldown={myFighter.specialCooldownRemaining}
         />

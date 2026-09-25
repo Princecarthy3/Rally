@@ -26,10 +26,12 @@ function subscribePointer(onStoreChange: () => void) {
 
 export function CombatTouchControls({
   onInputsChange,
+  onAttack,
   specialName,
   specialCooldown,
 }: {
   onInputsChange: (inputs: TouchCombatInputs) => void;
+  onAttack?: (type: "light" | "heavy" | "special") => void;
   specialName: string;
   specialCooldown: number;
 }) {
@@ -110,6 +112,21 @@ export function CombatTouchControls({
     onPointerCancel: () => push({ [key]: false } as Partial<TouchCombatInputs>),
   });
 
+  const attackBtn = (type: "light" | "heavy" | "special", key: keyof TouchCombatInputs) => ({
+    onPointerDown: (e: ReactPointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+      push({ [key]: true } as Partial<TouchCombatInputs>);
+      onAttack?.(type);
+    },
+    onPointerUp: (e: ReactPointerEvent) => {
+      e.preventDefault();
+      push({ [key]: false } as Partial<TouchCombatInputs>);
+    },
+    onPointerCancel: () => push({ [key]: false } as Partial<TouchCombatInputs>),
+  });
+
   const specialReady = specialCooldown <= 0;
 
   return (
@@ -162,14 +179,14 @@ export function CombatTouchControls({
         </button>
         <button
           type="button"
-          {...hold("lightAttack")}
+          {...attackBtn("light", "lightAttack")}
           className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-rose-300/50 bg-rose-600 text-[11px] font-black text-white shadow-lg active:scale-95"
         >
           LIGHT
         </button>
         <button
           type="button"
-          {...hold("heavyAttack")}
+          {...attackBtn("heavy", "heavyAttack")}
           className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-violet-300/50 bg-violet-600 text-[11px] font-black text-white shadow-lg active:scale-95"
         >
           HEAVY
@@ -183,7 +200,7 @@ export function CombatTouchControls({
         </button>
         <button
           type="button"
-          {...hold("special")}
+          {...attackBtn("special", "special")}
           disabled={!specialReady}
           className={`col-span-3 mt-0.5 flex h-11 items-center justify-center rounded-2xl border-2 text-xs font-black shadow-lg active:scale-[0.98] disabled:opacity-40 ${
             specialReady
