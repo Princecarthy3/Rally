@@ -2,7 +2,7 @@
 
 import { Room, RoomPlayer } from "@/features/rooms/types";
 import { sounds } from "@/lib/audio";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CHARACTERS, getCharacterConfig } from "./character-config";
 import { CombatCanvas } from "./components/CombatCanvas";
 import { CombatHUD } from "./components/CombatHUD";
@@ -81,38 +81,39 @@ export function RallyCombatGame({
   });
 
   // Keep every client on the same deterministic arena layout before the first packet arrives.
-  const [allFighters, setAllFighters] = useState<Record<number, FighterTransform>>({});
-  useEffect(() => {
-    setAllFighters((current) => {
-      const next = { ...current };
-      for (const player of players) {
-        if (player.seat === meSeat || next[player.seat]) continue;
-        const config = getCharacterConfig("balanced");
-        next[player.seat] = {
-          seat: player.seat,
-          playerId: player.player_id,
-          displayName: player.profile?.display_name || `Player ${player.seat}`,
-          archetype: "balanced",
-          position: START_POSITIONS[(player.seat - 1) % START_POSITIONS.length],
-          rotationY: player.seat % 2 === 0 ? Math.PI : 0,
-          hp: config.maxHp,
-          maxHp: config.maxHp,
-          isBlocking: false,
-          isDodging: false,
-          attackState: "idle",
-          animState: "idle",
-          comboCount: 0,
-          specialCooldownRemaining: 0,
-          dodgeCooldownRemaining: 0,
-          isEliminated: false,
-          kills: 0,
-          damageDealt: 0,
-          damageReceived: 0,
-        };
-      }
-      return next;
-    });
+  const initialFighters = useMemo<Record<number, FighterTransform>>(() => {
+    const config = getCharacterConfig("balanced");
+    return Object.fromEntries(
+      players
+        .filter((player) => player.seat !== meSeat)
+        .map((player) => [
+          player.seat,
+          {
+            seat: player.seat,
+            playerId: player.player_id,
+            displayName: player.profile?.display_name || `Player ${player.seat}`,
+            archetype: "balanced",
+            position: START_POSITIONS[(player.seat - 1) % START_POSITIONS.length],
+            rotationY: player.seat % 2 === 0 ? Math.PI : 0,
+            hp: config.maxHp,
+            maxHp: config.maxHp,
+            isBlocking: false,
+            isDodging: false,
+            attackState: "idle",
+            animState: "idle",
+            comboCount: 0,
+            specialCooldownRemaining: 0,
+            dodgeCooldownRemaining: 0,
+            isEliminated: false,
+            kills: 0,
+            damageDealt: 0,
+            damageReceived: 0,
+          } satisfies FighterTransform,
+        ]),
+    );
   }, [players, meSeat]);
+
+  const [remoteFighters, setRemoteFighters] = useState<Record<number, FighterTransform>>({});
 
   // Spectator State
   const [spectateTargetSeat, setSpectateTargetSeat] = useState<number>(meSeat);
@@ -159,16 +160,11 @@ export function RallyCombatGame({
 
   // The room row is the source of truth. Only the host commits the start once;
   // every client renders the same absolute deadline instead of starting a local timer.
+  const roomPhase = String(state.phase || state.stage || "countdown");
+  const roomIsActive = roomPhase === "racing" || roomPhase === "playing" || roomPhase === "combat";
   const countdownStartedRef = useRef(false);
   useEffect(() => {
-    if (!characterConfirmed) return;
-    const phase = String(state.phase || state.stage || "countdown");
-    if (phase === "racing" || phase === "playing" || phase === "combat") {
-      setCountdownText("");
-      setInCountdown(false);
-      setFightActive(true);
-      return;
-    }
+    if (!characterConfirmed || roomIsActive) return;
     if (!isHost || countdownStartedRef.current) return;
 
     countdownStartedRef.current = true;
@@ -191,7 +187,7 @@ export function RallyCombatGame({
       window.setTimeout(() => setCountdownText(""), 500);
     }, 100);
     return () => window.clearInterval(timer);
-  }, [characterConfirmed, isHost, onAct, state.phase, state.stage]);
+  }, [characterConfirmed, isHost, onAct, roomIsActive]);
 
   // Keyboard Listeners
   useEffect(() => {
@@ -238,7 +234,7 @@ export function RallyCombatGame({
     const sub = channel.on("broadcast", { event: "combat_transform" }, (payload: any) => {
       if (payload.payload && payload.payload.seat !== meSeat) {
         const fighter = payload.payload as FighterTransform;
-        setAllFighters((prev) => ({ ...prev, [fighter.seat]: fighter }));
+        setRemoteFighters((prev) => ({ ...prev, [fighter.seat]: fighter }));
       }
     });
 
@@ -277,9 +273,11 @@ export function RallyCombatGame({
     };
   }, [channel, meSeat, onAct]);
 
+  const isFightActive = fightActive || roomIsActive;
+
   // Main 60 Hz Physics, Movement, Combat, and Broadcast Loop
   useEffect(() => {
-    if (!fightActive) return;
+    if (!isFightActive) return;
 
     let animFrame: number;
     let lastTime = performance.now();
@@ -390,15 +388,15 @@ export function RallyCombatGame({
     return () => {
       cancelAnimationFrame(animFrame);
     };
-  }, [fightActive, channel]);
+  }, [isFightActive, channel]);
 
   // Combine local fighter with opponent fighters map
-  const activeFightersMap = { ...allFighters, [meSeat]: myFighter };
+  const activeFightersMap = { ...initialFighters, ...remoteFighters, [meSeat]: myFighter };
   const fightersList = Object.values(activeFightersMap);
 
   // Handle Local Attacks & Hit Detection
   const handleAttack = (type: "light" | "heavy" | "special") => {
-    if (!fightActive || myFighter.isEliminated || myFighter.isBlocking) return;
+    if (!isFightActive || myFighter.isEliminated || myFighter.isBlocking) return;
 
     const config = getCharacterConfig(myFighter.archetype);
     let damage = config.lightDamage;
