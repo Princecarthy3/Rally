@@ -96,6 +96,8 @@ export function RallyCombatGame({
     special: false,
     jump: false,
   });
+  const touchInputsRef = useRef<TouchCombatInputs>(touchInputs);
+  touchInputsRef.current = touchInputs;
 
   // Local Physics & Controls Refs
   const keysRef = useRef({
@@ -275,18 +277,19 @@ export function RallyCombatGame({
           }
         } else {
           py = 0.1;
-          if (keysRef.current.space || touchInputs.jump) {
+          if (keysRef.current.space || touchInputsRef.current.jump) {
             vy = config.jumpVelocity;
             py += vy * dt;
           }
         }
 
         // Horizontal Movement
-        let dirX = (keysRef.current.right ? 1 : 0) - (keysRef.current.left ? 1 : 0) + touchInputs.moveDir[0];
-        let dirZ = (keysRef.current.backward ? 1 : 0) - (keysRef.current.forward ? 1 : 0) + touchInputs.moveDir[1];
+        const touch = touchInputsRef.current;
+        let dirX = (keysRef.current.right ? 1 : 0) - (keysRef.current.left ? 1 : 0) + touch.moveDir[0];
+        let dirZ = (keysRef.current.backward ? 1 : 0) - (keysRef.current.forward ? 1 : 0) + touch.moveDir[1];
 
-        const isBlocking = keysRef.current.block || touchInputs.block;
-        const isDodging = prev.dodgeCooldownRemaining <= 0 && (keysRef.current.shift || touchInputs.dodge);
+        const isBlocking = keysRef.current.block || touch.block;
+        const isDodging = prev.dodgeCooldownRemaining <= 0 && (keysRef.current.shift || touch.dodge);
 
         let rotY = prev.rotationY;
         if (dirX !== 0 || dirZ !== 0) {
@@ -358,7 +361,7 @@ export function RallyCombatGame({
     return () => {
       cancelAnimationFrame(animFrame);
     };
-  }, [fightActive, channel, touchInputs]);
+  }, [fightActive, channel]);
 
   // Combine local fighter with opponent fighters map
   const activeFightersMap = { ...allFighters, [meSeat]: myFighter };
@@ -415,6 +418,23 @@ export function RallyCombatGame({
     });
   };
 
+  
+  // Fire attacks from mobile buttons (edge-triggered via effect)
+  useEffect(() => {
+    if (!fightActive) return;
+    if (touchInputs.lightAttack) handleAttack("light");
+  }, [touchInputs.lightAttack, fightActive]);
+
+  useEffect(() => {
+    if (!fightActive) return;
+    if (touchInputs.heavyAttack) handleAttack("heavy");
+  }, [touchInputs.heavyAttack, fightActive]);
+
+  useEffect(() => {
+    if (!fightActive) return;
+    if (touchInputs.special) handleAttack("special");
+  }, [touchInputs.special, fightActive]);
+
   // Mouse Attack Listeners
   const handlePointerDown = (e: React.PointerEvent) => {
     if (e.button === 0) handleAttack("light");
@@ -448,7 +468,7 @@ export function RallyCombatGame({
       <div
         onPointerDown={handlePointerDown}
         onContextMenu={(e) => e.preventDefault()}
-        className="fixed inset-0 z-[60] isolate h-screen w-screen overflow-hidden bg-slate-950 touch-none select-none cursor-crosshair"
+        className="fixed inset-0 z-[60] isolate h-[100dvh] min-h-screen w-screen overflow-hidden bg-slate-950 select-none"
       >
         {/* Pre-Match Character Archetype Picker Modal */}
         {!characterConfirmed && (
