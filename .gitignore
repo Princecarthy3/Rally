@@ -33,3 +33,8 @@ next-env.d.ts
 # scratch scripts
 scratch/
 
+# godot
+.godot/
+*.import
+
+

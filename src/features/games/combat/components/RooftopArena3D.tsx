@@ -3,16 +3,21 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 
+function pseudoRandom(seed: number): number {
+  const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+
 export function RooftopArena3D() {
   const cityBuildings = useMemo(() => {
     const list = [];
     for (let i = 0; i < 20; i++) {
       const angle = (i / 20) * Math.PI * 2;
-      const radius = 32 + Math.random() * 15;
+      const radius = 32 + pseudoRandom(i * 1.1) * 15;
       const x = Math.cos(angle) * radius;
       const z = Math.sin(angle) * radius;
-      const height = 12 + Math.random() * 25;
-      const width = 6 + Math.random() * 6;
+      const height = 12 + pseudoRandom(i * 2.3) * 25;
+      const width = 6 + pseudoRandom(i * 3.7) * 6;
       list.push({ id: i, position: [x, height / 2 - 10, z] as [number, number, number], args: [width, height, width] as [number, number, number] });
     }
     return list;

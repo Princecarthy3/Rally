@@ -1,19 +1,19 @@
-[gd_scene load_steps=6 format=3 uid="uid://f1q9nvy9w0x6w"]
+[gd_scene format=3 uid="uid://b6de2t21ds3f5"]
 
-[ext_resource type="PackedScene" uid="uid://c8q1nvy9w0x2y" path="res://scenes/arena.tscn" id="1_arena"]
-[ext_resource type="PackedScene" uid="uid://d1q9nvy9w0x4y" path="res://scenes/camera.tscn" id="2_camera"]
-[ext_resource type="PackedScene" uid="uid://e1q9nvy9w0x5x" path="res://scenes/hud.tscn" id="3_hud"]
-[ext_resource type="Script" path="res://scripts/network_bridge.gd" id="4_network"]
+[ext_resource type="PackedScene" uid="uid://c8q1nv0aw0x2y" path="res://scenes/arena.tscn" id="1_arena"]
+[ext_resource type="PackedScene" uid="uid://d1ranv0aw0x4y" path="res://scenes/camera.tscn" id="2_camera"]
+[ext_resource type="PackedScene" uid="uid://6de2t21ds3e6" path="res://scenes/hud.tscn" id="3_hud"]
+[ext_resource type="Script" uid="uid://dmopswrsismp5" path="res://scripts/network_bridge.gd" id="4_network"]
 
-[node name="Main" type="Node3D"]
+[node name="Main" type="Node3D" unique_id=763666334]
 
-[node name="Arena" parent="." instance=ExtResource("1_arena")]
+[node name="Arena" parent="." unique_id=1601885800 instance=ExtResource("1_arena")]
 
-[node name="DynamicCamera" parent="." instance=ExtResource("2_camera")]
+[node name="DynamicCamera" parent="." unique_id=271698186 instance=ExtResource("2_camera")]
 
-[node name="HUDCanvas" parent="." instance=ExtResource("3_hud")]
+[node name="HUDCanvas" parent="." unique_id=426940762 instance=ExtResource("3_hud")]
 
-[node name="NetworkBridge" type="Node" parent="."]
+[node name="NetworkBridge" type="Node" parent="." unique_id=1666899272]
 script = ExtResource("4_network")
 
-[node name="FighterSpawner" type="Node3D" parent="."]
+[node name="FighterSpawner" type="Node3D" parent="." unique_id=1805916795]

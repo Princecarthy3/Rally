@@ -12,8 +12,13 @@ export function CombatTouchControls({
   specialName: string;
   specialCooldown: number;
 }) {
-  const [isTouchDevice, setIsTouchDevice] = useState(false);
-  const [inputs, setInputs] = useState<TouchCombatInputs>({
+  const [isTouchDevice] = useState(() => {
+    return (
+      typeof window !== "undefined" &&
+      ("ontouchstart" in window || (Boolean(navigator.maxTouchPoints) && navigator.maxTouchPoints > 0))
+    );
+  });
+  const [, setInputs] = useState<TouchCombatInputs>({
     moveDir: [0, 0],
     lightAttack: false,
     heavyAttack: false,
@@ -22,13 +27,6 @@ export function CombatTouchControls({
     special: false,
     jump: false,
   });
-
-  useEffect(() => {
-    const isTouch =
-      typeof window !== "undefined" &&
-      ("ontouchstart" in window || navigator.maxTouchPoints > 0);
-    setIsTouchDevice(isTouch);
-  }, []);
 
   const updateInput = (key: keyof TouchCombatInputs, value: any) => {
     setInputs((prev) => {

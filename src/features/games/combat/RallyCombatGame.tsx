@@ -126,8 +126,11 @@ export function RallyCombatGame({
   useEffect(() => {
     if (!characterConfirmed) return;
 
-    sounds.playCountdownBeep(false);
-    setCountdownText("3");
+    const t0 = setTimeout(() => {
+      sounds.playCountdownBeep(false);
+      setCountdownText("3");
+    }, 0);
+
     const t1 = setTimeout(() => {
       sounds.playCountdownBeep(false);
       setCountdownText("2");
@@ -151,6 +154,7 @@ export function RallyCombatGame({
     }, 4000);
 
     return () => {
+      clearTimeout(t0);
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
