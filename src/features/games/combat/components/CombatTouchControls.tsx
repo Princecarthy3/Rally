@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import type { TouchCombatInputs } from "../types";
 
 const EMPTY: TouchCombatInputs = {
@@ -49,7 +49,7 @@ export function CombatTouchControls({
   const releaseAll = useCallback(() => {
     inputsRef.current = { ...EMPTY };
     stickOrigin.current = null;
-    stickDelta.current = { x: 0, y: 0 };
+    if (stickEl.current) stickEl.current.style.transform = "translate(0,0)";
     onInputsChange(inputsRef.current);
   }, [onInputsChange]);
 
@@ -61,7 +61,7 @@ export function CombatTouchControls({
 
   if (!visible) return null;
 
-  const onStickStart = (e: React.PointerEvent) => {
+  const onStickStart = (e: ReactPointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
@@ -72,7 +72,7 @@ export function CombatTouchControls({
     };
   };
 
-  const onStickMove = (e: React.PointerEvent) => {
+  const onStickMove = (e: ReactPointerEvent) => {
     if (!stickOrigin.current) return;
     e.preventDefault();
     const dx = e.clientX - stickOrigin.current.x;
@@ -82,7 +82,6 @@ export function CombatTouchControls({
     const scale = Math.min(1, max / len);
     const nx = (dx * scale) / max;
     const ny = (dy * scale) / max;
-    stickDelta.current = { x: nx * max, y: ny * max };
     if (stickEl.current) {
       stickEl.current.style.transform = `translate(${nx * max}px, ${ny * max}px)`;
     }
@@ -90,22 +89,21 @@ export function CombatTouchControls({
     push({ moveDir: [nx, ny] });
   };
 
-  const onStickEnd = (e: React.PointerEvent) => {
+  const onStickEnd = (e: ReactPointerEvent) => {
     e.preventDefault();
     stickOrigin.current = null;
-    stickDelta.current = { x: 0, y: 0 };
     if (stickEl.current) stickEl.current.style.transform = "translate(0,0)";
     push({ moveDir: [0, 0] });
   };
 
   const hold = (key: keyof TouchCombatInputs) => ({
-    onPointerDown: (e: React.PointerEvent) => {
+    onPointerDown: (e: ReactPointerEvent) => {
       e.preventDefault();
       e.stopPropagation();
       (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
       push({ [key]: true } as Partial<TouchCombatInputs>);
     },
-    onPointerUp: (e: React.PointerEvent) => {
+    onPointerUp: (e: ReactPointerEvent) => {
       e.preventDefault();
       push({ [key]: false } as Partial<TouchCombatInputs>);
     },
