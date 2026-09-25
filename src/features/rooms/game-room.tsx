@@ -102,6 +102,8 @@ export function GameRoom() {
     const startRpc =
       room.game_type === "racing"
         ? "start_racing_game"
+        : room.game_type === "rally_combat"
+        ? "start_rally_combat_game"
         : room.game_type === "ludo"
         ? "start_ludo_game"
         : room.game_type === "memory_match"

@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://d1q9nvy9w0x4y"]
+
+[ext_resource type="Script" path="res://scripts/dynamic_camera.gd" id="1_camera_script"]
+
+[node name="DynamicCamera" type="Camera3D"]
+transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 8, 12)
+current = true
+script = ExtResource("1_camera_script")

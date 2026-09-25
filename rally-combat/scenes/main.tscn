@@ -1,0 +1,19 @@
+[gd_scene load_steps=6 format=3 uid="uid://f1q9nvy9w0x6w"]
+
+[ext_resource type="PackedScene" uid="uid://c8q1nvy9w0x2y" path="res://scenes/arena.tscn" id="1_arena"]
+[ext_resource type="PackedScene" uid="uid://d1q9nvy9w0x4y" path="res://scenes/camera.tscn" id="2_camera"]
+[ext_resource type="PackedScene" uid="uid://e1q9nvy9w0x5x" path="res://scenes/hud.tscn" id="3_hud"]
+[ext_resource type="Script" path="res://scripts/network_bridge.gd" id="4_network"]
+
+[node name="Main" type="Node3D"]
+
+[node name="Arena" parent="." instance=ExtResource("1_arena")]
+
+[node name="DynamicCamera" parent="." instance=ExtResource("2_camera")]
+
+[node name="HUDCanvas" parent="." instance=ExtResource("3_hud")]
+
+[node name="NetworkBridge" type="Node" parent="."]
+script = ExtResource("4_network")
+
+[node name="FighterSpawner" type="Node3D" parent="."]

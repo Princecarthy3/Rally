@@ -1,0 +1,57 @@
+[gd_scene load_steps=5 format=3 uid="uid://c8q1nvy9w0x2y"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(28, 1, 28)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+albedo_color = Color(0.12, 0.14, 0.22, 1.0)
+roughness = 0.4
+emission_enabled = true
+emission = Color(0.9, 0.2, 0.4, 1.0)
+emission_energy_multiplier = 0.2
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor"]
+material = SubResource("StandardMaterial3D_floor")
+size = Vector3(28, 1, 28)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_barrier"]
+size = Vector3(28, 6, 1)
+
+[node name="Arena" type="Node3D"]
+
+[node name="FloorStatic" type="StaticBody3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="FloorStatic"]
+shape = SubResource("BoxShape3D_floor")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="FloorStatic"]
+mesh = SubResource("BoxMesh_floor")
+
+[node name="BarrierNorth" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, -14)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="BarrierNorth"]
+shape = SubResource("BoxShape3D_barrier")
+
+[node name="BarrierSouth" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 14)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="BarrierSouth"]
+shape = SubResource("BoxShape3D_barrier")
+
+[node name="BarrierEast" type="StaticBody3D" parent="."]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 14, 3, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="BarrierEast"]
+shape = SubResource("BoxShape3D_barrier")
+
+[node name="BarrierWest" type="StaticBody3D" parent="."]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -14, 3, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="BarrierWest"]
+shape = SubResource("BoxShape3D_barrier")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 15, 0)
+light_color = Color(1, 0.95, 0.9, 1)
+shadow_enabled = true

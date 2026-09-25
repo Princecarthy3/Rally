@@ -1,0 +1,73 @@
+[gd_scene load_steps=2 format=3 uid="uid://e1q9nvy9w0x5x"]
+
+[ext_resource type="Script" path="res://scripts/hud_controller.gd" id="1_hud_script"]
+
+[node name="HUDCanvas" type="CanvasLayer"]
+script = ExtResource("1_hud_script")
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="TopBar" type="HBoxContainer" parent="Margin"]
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/separation = 15
+
+[node name="P1Health" type="ProgressBar" parent="Margin/TopBar"]
+custom_minimum_size = Vector2(180, 24)
+layout_mode = 2
+value = 100.0
+
+[node name="P2Health" type="ProgressBar" parent="Margin/TopBar"]
+custom_minimum_size = Vector2(180, 24)
+layout_mode = 2
+value = 100.0
+
+[node name="P3Health" type="ProgressBar" parent="Margin/TopBar"]
+custom_minimum_size = Vector2(180, 24)
+layout_mode = 2
+value = 100.0
+
+[node name="P4Health" type="ProgressBar" parent="Margin/TopBar"]
+custom_minimum_size = Vector2(180, 24)
+layout_mode = 2
+value = 100.0
+
+[node name="ComboLabel" type="Label" parent="Margin"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 36
+text = "COMBO x3"
+
+[node name="Center" type="CenterContainer" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CountdownLabel" type="Label" parent="Center"]
+visible = false
+layout_mode = 2
+theme_override_font_sizes/font_size = 72
+text = "FIGHT!"
+
+[node name="MobileControlsPanel" type="Control" parent="."]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2

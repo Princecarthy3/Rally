@@ -1,4 +1,4 @@
-export type GameKey = "uno" | "rps" | "number_guess" | "memory_match" | "mini_golf" | "battleship" | "tic_tac_toe" | "connect_four" | "dots_boxes" | "skribbl" | "ludo" | "racing";
+export type GameKey = "uno" | "rps" | "number_guess" | "memory_match" | "mini_golf" | "battleship" | "tic_tac_toe" | "connect_four" | "dots_boxes" | "skribbl" | "ludo" | "racing" | "rally_combat";
 
 export type GameDefinition = {
   key: GameKey; name: string; shortName: string; icon: string; description: string;
@@ -6,6 +6,7 @@ export type GameDefinition = {
 };
 
 export const games: GameDefinition[] = [
+  { key:"rally_combat", name:"Rally Combat", shortName:"Rally Combat", icon:"⚔️", description:"3D Multiplayer Arena Fighting! Pick your fighter, land combos, dodge attacks, and be the last one standing in the rooftop arena.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#ff3366", ink:"#800020", tag:"3D Brawler" },
   { key:"racing", name:"Rally Racing", shortName:"Rally Racing", icon:"🏎️", description:"Real-time 3D arcade rally racing! Drift around dirt trails, hit checkpoints, and cross the finish line first.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#ff4d4d", ink:"#800000", tag:"3D Arcade" },
   { key:"uno", name:"Rally Cards", shortName:"Rally Cards", icon:"🃏", description:"Match colors and numbers, play Skips, Reverses, and Wilds — outplay your friends in Rally Cards!", players:"2–4", minPlayers:2, maxPlayers:4, color:"#ff8a8a", ink:"#7f1d1d", tag:"Cards" },
   { key:"skribbl", name:"Skribbl Draw & Guess", shortName:"Skribbl", icon:"🎨", description:"Pick a word, draw on the live canvas, and guess what friends are drawing.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#fef08a", ink:"#713f12", tag:"Popular" },
