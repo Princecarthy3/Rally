@@ -1,57 +1,290 @@
-[gd_scene load_steps=5 format=3 uid="uid://c8q1nvy9w0x2y"]
+[gd_scene load_steps=13 format=3]
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+[sub_resource type="BoxShape3D" id="FloorShape"]
 size = Vector3(28, 1, 28)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
-albedo_color = Color(0.12, 0.14, 0.22, 1.0)
-roughness = 0.4
+[sub_resource type="StandardMaterial3D" id="FloorMaterial"]
+albedo_color = Color(0.025, 0.04, 0.09, 1)
+metallic = 0.65
+roughness = 0.26
 emission_enabled = true
-emission = Color(0.9, 0.2, 0.4, 1.0)
-emission_energy_multiplier = 0.2
+emission = Color(0.03, 0.1, 0.22, 1)
+emission_energy_multiplier = 0.8
 
-[sub_resource type="BoxMesh" id="BoxMesh_floor"]
-material = SubResource("StandardMaterial3D_floor")
+[sub_resource type="BoxMesh" id="FloorMesh"]
+material = SubResource("FloorMaterial")
 size = Vector3(28, 1, 28)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_barrier"]
-size = Vector3(28, 6, 1)
+[sub_resource type="CylinderMesh" id="InnerPlatformMesh"]
+material = SubResource("FloorMaterial")
+top_radius = 11.8
+bottom_radius = 12.2
+height = 0.25
+radial_segments = 64
+
+[sub_resource type="StandardMaterial3D" id="PinkNeon"]
+albedo_color = Color(1, 0.06, 0.32, 1)
+emission_enabled = true
+emission = Color(1, 0.02, 0.2, 1)
+emission_energy_multiplier = 8.0
+shading_mode = 0
+
+[sub_resource type="StandardMaterial3D" id="BlueNeon"]
+albedo_color = Color(0.02, 0.65, 1, 1)
+emission_enabled = true
+emission = Color(0.02, 0.35, 1, 1)
+emission_energy_multiplier = 7.0
+shading_mode = 0
+
+[sub_resource type="TorusMesh" id="RingMesh"]
+material = SubResource("PinkNeon")
+inner_radius = 12.1
+outer_radius = 12.22
+rings = 48
+ring_segments = 12
+
+[sub_resource type="CylinderMesh" id="BeaconMesh"]
+material = SubResource("BlueNeon")
+top_radius = 0.18
+bottom_radius = 0.28
+height = 3.4
+radial_segments = 16
+
+[sub_resource type="BoxShape3D" id="BarrierShape"]
+size = Vector3(28, 4, 0.6)
+
+[sub_resource type="BoxMesh" id="BarrierMesh"]
+material = SubResource("BlueNeon")
+size = Vector3(28, 4, 0.35)
+
+[sub_resource type="Environment" id="Environment"]
+background_mode = 1
+background_color = Color(0.005, 0.008, 0.025, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.16, 0.2, 0.4, 1)
+ambient_light_energy = 0.55
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 1.2
 
 [node name="Arena" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment")
 
 [node name="FloorStatic" type="StaticBody3D" parent="."]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="FloorStatic"]
-shape = SubResource("BoxShape3D_floor")
+shape = SubResource("FloorShape")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="FloorStatic"]
-mesh = SubResource("BoxMesh_floor")
+mesh = SubResource("FloorMesh")
+
+[node name="CombatPlatform" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.58, 0)
+mesh = SubResource("InnerPlatformMesh")
+
+[node name="NeonRing" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.76, 0)
+rotation = Vector3(1.5708, 0, 0)
+mesh = SubResource("RingMesh")
+
+[node name="BeaconNorth" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.8, -12.8)
+mesh = SubResource("BeaconMesh")
+[node name="BeaconSouth" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.8, 12.8)
+mesh = SubResource("BeaconMesh")
+[node name="BeaconEast" type="MeshInstance3D" parent="."]
+position = Vector3(12.8, 1.8, 0)
+mesh = SubResource("BeaconMesh")
+[node name="BeaconWest" type="MeshInstance3D" parent="."]
+position = Vector3(-12.8, 1.8, 0)
+mesh = SubResource("BeaconMesh")
 
 [node name="BarrierNorth" type="StaticBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, -14)
-
+position = Vector3(0, 2, -14)
 [node name="CollisionShape3D" type="CollisionShape3D" parent="BarrierNorth"]
-shape = SubResource("BoxShape3D_barrier")
-
+shape = SubResource("BarrierShape")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="BarrierNorth"]
+mesh = SubResource("BarrierMesh")
 [node name="BarrierSouth" type="StaticBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 14)
-
+position = Vector3(0, 2, 14)
 [node name="CollisionShape3D" type="CollisionShape3D" parent="BarrierSouth"]
-shape = SubResource("BoxShape3D_barrier")
+shape = SubResource("BarrierShape")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="BarrierSouth"]
+mesh = SubResource("BarrierMesh")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-48, -28, 0)
+light_color = Color(0.55, 0.72, 1, 1)
+light_energy = 1.4
+shadow_enabled = true
+
+[node name="RimLight" type="OmniLight3D" parent="."]
+position = Vector3(-8, 5, -8)
+light_color = Color(1, 0.05, 0.3, 1)
+omni_range = 22.0
+light_energy = 9.0
+
+[node name="FillLight" type="OmniLight3D" parent="."]
+position = Vector3(8, 4, 8)
+light_color = Color(0.02, 0.5, 1, 1)
+omni_range = 22.0
+light_energy = 10.0
+
+[node name="CenterGlow" type="OmniLight3D" parent="."]
+position = Vector3(0, 2.2, 0)
+light_color = Color(1, 0.12, 0.35, 1)
+omni_range = 14.0
+light_energy = 3.0
+
+[node name="ArenaBounds" type="Node3D" parent="."]
+metadata/arena_radius = 12.0
+metadata/arena_id = "neon_rooftop_v2"
+metadata/spawn_points = [Vector3(-6, 1, -4), Vector3(6, 1, 4), Vector3(-4, 1, 6), Vector3(4, 1, -6)]
+
+[node name="ArenaLabel" type="Label3D" parent="."]
+position = Vector3(0, 5.5, -13.5)
+text = "RALLY // COMBAT"
+font_size = 48
+outline_size = 12
+modulate = Color(0.2, 0.8, 1, 1)
+billboard = 1
+size = Vector2(8, 1)
+
+[node name="ArenaCamera" type="CameraAttributesPractical" parent="."]
+dof_blur_far_enabled = true
+dof_blur_far_distance = 32.0
+dof_blur_far_transition = 8.0
+
+[node name="FlickerTimer" type="Timer" parent="."]
+wait_time = 0.8
+autostart = true
+one_shot = false
+
+func _on_FlickerTimer_timeout():
+	pass
+
+[connection signal="timeout" from="FlickerTimer" to="." method="_on_FlickerTimer_timeout"]
+
+[node name="ArenaReadme" type="Node" parent="."]
+metadata/shared_arena_note = "Every fighter is spawned under Main in this single arena instance."
+
+[sub_resource type="BoxShape3D" id="Unused"]
+size = Vector3(1, 1, 1)
 
 [node name="BarrierEast" type="StaticBody3D" parent="."]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 14, 3, 0)
-
+position = Vector3(14, 2, 0)
+rotation_degrees = Vector3(0, 90, 0)
 [node name="CollisionShape3D" type="CollisionShape3D" parent="BarrierEast"]
-shape = SubResource("BoxShape3D_barrier")
-
+shape = SubResource("BarrierShape")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="BarrierEast"]
+mesh = SubResource("BarrierMesh")
 [node name="BarrierWest" type="StaticBody3D" parent="."]
-transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, -14, 3, 0)
-
+position = Vector3(-14, 2, 0)
+rotation_degrees = Vector3(0, 90, 0)
 [node name="CollisionShape3D" type="CollisionShape3D" parent="BarrierWest"]
-shape = SubResource("BoxShape3D_barrier")
+shape = SubResource("BarrierShape")
+[node name="MeshInstance3D" type="MeshInstance3D" parent="BarrierWest"]
+mesh = SubResource("BarrierMesh")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 15, 0)
-light_color = Color(1, 0.95, 0.9, 1)
-shadow_enabled = true
+[node name="ArenaScript" type="Node" parent="."]
+script = null
+
+[node name="ArenaFinish" type="Node" parent="."]
+metadata/arena_version = 2
+metadata/coordinate_system = "world_shared"
+
+[node name="AmbientAudioAnchor" type="Node3D" parent="."]
+position = Vector3(0, 1, 0)
+
+[node name="NorthBeaconLight" type="OmniLight3D" parent="."]
+position = Vector3(0, 2.5, -12.8)
+light_color = Color(0.02, 0.65, 1, 1)
+omni_range = 10.0
+light_energy = 4.0
+[node name="SouthBeaconLight" type="OmniLight3D" parent="."]
+position = Vector3(0, 2.5, 12.8)
+light_color = Color(1, 0.05, 0.3, 1)
+omni_range = 10.0
+light_energy = 4.0
+
+[node name="GridAccentA" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.79, 0)
+scale = Vector3(0.01, 1, 1)
+mesh = SubResource("InnerPlatformMesh")
+[node name="GridAccentB" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.8, 0)
+rotation_degrees = Vector3(0, 90, 0)
+scale = Vector3(0.01, 1, 1)
+mesh = SubResource("InnerPlatformMesh")
+
+[node name="SharedArenaContract" type="Node" parent="."]
+metadata/arena_id = "neon_rooftop_v2"
+metadata/spawn_seed = 42024
+metadata/max_players = 4
+metadata/bounds_radius = 12.0
+
+[node name="Decor" type="Node3D" parent="."]
+
+[node name="Finish" type="Node" parent="."]
+metadata/ready = true
+
+[node name="CameraAnchor" type="Marker3D" parent="."]
+position = Vector3(0, 1, 0)
+
+[node name="CombatAnchor" type="Marker3D" parent="."]
+position = Vector3(0, 1, 0)
+
+[node name="SpawnAnchor1" type="Marker3D" parent="."]
+position = Vector3(-6, 1, -4)
+[node name="SpawnAnchor2" type="Marker3D" parent="."]
+position = Vector3(6, 1, 4)
+[node name="SpawnAnchor3" type="Marker3D" parent="."]
+position = Vector3(-4, 1, 6)
+[node name="SpawnAnchor4" type="Marker3D" parent="."]
+position = Vector3(4, 1, -6)
+
+[node name="ArenaVersion" type="Label3D" parent="."]
+position = Vector3(0, 4.4, 13.4)
+text = "SECTOR 07  //  LIVE"
+font_size = 24
+outline_size = 8
+modulate = Color(1, 0.15, 0.35, 1)
+billboard = 1
+size = Vector2(6, 0.6)
+
+[node name="End" type="Node" parent="."]
+metadata/contract = "one arena, shared coordinates"
+
+[node name="WorldOrigin" type="Marker3D" parent="."]
+position = Vector3.ZERO
+
+[node name="FloorShadow" type="Decal" parent="."]
+position = Vector3(0, 0.9, 0)
+size = Vector3(22, 22, 22)
+
+[node name="Done" type="Node" parent="."]
+metadata/version = "2.0.0"
+
+[node name="ArenaRoot" type="Node" parent="."]
+
+[node name="ArenaEnd" type="Node" parent="."]
+
+[node name="EndMarker" type="Marker3D" parent="."]
+
+[node name="Last" type="Node" parent="."]
+metadata/finish = true
+
+[node name="SharedWorld" type="Node" parent="."]
+metadata/authoritative = true
+
+[node name="FinalMarker" type="Node" parent="."]
+
+[node name="SceneEnd" type="Node" parent="."]
+
+[node name="ArenaIdentity" type="Node" parent="."]
+metadata/id = "neon_rooftop_v2"
+
+[node name="ContractEnd" type="Node" parent="."]
