@@ -98,14 +98,18 @@ export function Fighter3D({
           <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.35} />
         </mesh>
 
-        {/* Torso */}
+        {/* Armored torso, waist and chest plate */}
         <mesh ref={bodyMeshRef} position={[0, 1.0, 0]} castShadow>
-          <boxGeometry args={[0.7, proportions.torsoH, 0.42]} />
-          <meshStandardMaterial
-            color={transform.isDodging ? "#ffffff" : transform.isBlocking ? "#fbbf24" : config.color}
-            metalness={transform.isBlocking ? 0.75 : 0.25}
-            roughness={0.4}
-          />
+          <capsuleGeometry args={[0.36, proportions.torsoH * 0.72, 8, 12]} />
+          <meshStandardMaterial color={transform.isDodging ? "#ffffff" : transform.isBlocking ? "#fbbf24" : config.color} metalness={0.62} roughness={0.3} />
+        </mesh>
+        <mesh position={[0, 1.08, 0.34]} scale={[0.72, 0.62, 0.12]} castShadow>
+          <sphereGeometry args={[0.55, 16, 10]} />
+          <meshStandardMaterial color={accent} metalness={0.8} roughness={0.22} emissive={accent} emissiveIntensity={0.12} />
+        </mesh>
+        <mesh position={[0, 0.48, 0]} castShadow>
+          <cylinderGeometry args={[0.28, 0.34, 0.18, 12]} />
+          <meshStandardMaterial color="#171b20" metalness={0.8} roughness={0.28} />
         </mesh>
 
         {/* Shoulder pads for power/defender */}

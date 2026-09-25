@@ -126,45 +126,39 @@ export function RallyCombatGame({
     setCharacterConfirmed(true);
   };
 
-  // Countdown Loop
+  // One short, host-owned countdown. Clients only enter combat from the room phase,
+  // preventing two players from simulating different match clocks.
   useEffect(() => {
     if (!characterConfirmed) return;
-
-    const t0 = setTimeout(() => {
-      sounds.playCountdownBeep(false);
-      setCountdownText("3");
-    }, 0);
-
-    const t1 = setTimeout(() => {
-      sounds.playCountdownBeep(false);
-      setCountdownText("2");
-    }, 1000);
-
-    const t2 = setTimeout(() => {
-      sounds.playCountdownBeep(false);
-      setCountdownText("1");
-    }, 2000);
-
-    const t3 = setTimeout(() => {
-      sounds.playCountdownBeep(true);
-      setCountdownText("FIGHT!");
-      setInCountdown(false);
-      setFightActive(true);
-      if (isHost) void onAct("start_fight");
-    }, 3000);
-
-    const t4 = setTimeout(() => {
-      setCountdownText("");
-    }, 4000);
-
-    return () => {
-      clearTimeout(t0);
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-    };
-  }, [characterConfirmed, isHost, onAct]);
+    const phase = String(state.phase || state.stage || "countdown");
+    if (phase === "racing" || phase === "playing" || phase === "combat") {
+      const syncTimer = window.setTimeout(() => {
+        setCountdownText("");
+        setInCountdown(false);
+        setFightActive(true);
+      }, 0);
+      return () => window.clearTimeout(syncTimer);
+    }
+    if (!isHost) return;
+    const startedAt = performance.now();
+    const timer = window.setInterval(() => {
+      const elapsed = performance.now() - startedAt;
+      const remaining = Math.ceil((1800 - elapsed) / 600);
+      if (remaining > 0) {
+        setCountdownText(String(remaining));
+        sounds.playCountdownBeep(false);
+      } else {
+        window.clearInterval(timer);
+        sounds.playCountdownBeep(true);
+        setCountdownText("FIGHT!");
+        setInCountdown(false);
+        setFightActive(true);
+        void onAct("start_fight");
+        window.setTimeout(() => setCountdownText(""), 450);
+      }
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [characterConfirmed, isHost, onAct, state.phase, state.stage]);
 
   // Keyboard Listeners
   useEffect(() => {
