@@ -45,10 +45,8 @@ export function RallyCombatGame({
   const [selectedArchetype, setSelectedArchetype] = useState<CharacterArchetype>("balanced");
   const [characterConfirmed, setCharacterConfirmed] = useState(false);
 
-  // Match Sequence State
-  const [countdownText, setCountdownText] = useState("3");
-  const [inCountdown, setInCountdown] = useState(true);
-  const [fightActive, setFightActive] = useState(false);
+  // Match is live as soon as the fighter is confirmed (no countdown).
+  const fightActive = characterConfirmed;
 
   // Combat SFX & VFX State
   const [hitParticles, setHitParticles] = useState<HitParticle[]>([]);
@@ -157,41 +155,14 @@ export function RallyCombatGame({
     setCharacterConfirmed(true);
   };
 
-  // The room row is the source of truth. Only the host commits the start once;
-  // every client renders the same absolute deadline instead of starting a local timer.
-  const countdownStartedRef = useRef(false);
+  // Host marks the fight live on the server once characters are ready — no 3-2-1 delay.
+  const fightStartedRef = useRef(false);
   useEffect(() => {
-    if (!characterConfirmed) return;
-    const phase = String(state.phase || state.stage || "countdown");
-    if (phase === "racing" || phase === "playing" || phase === "combat") {
-      setCountdownText("");
-      setInCountdown(false);
-      setFightActive(true);
-      return;
-    }
-    if (!isHost || countdownStartedRef.current) return;
+    if (!characterConfirmed || !isHost || fightStartedRef.current) return;
+    fightStartedRef.current = true;
+    void onAct("start_fight");
+  }, [characterConfirmed, isHost, onAct]);
 
-    countdownStartedRef.current = true;
-    const startedAt = Date.now();
-    const duration = 3200;
-    const timer = window.setInterval(() => {
-      const remainingMs = Math.max(0, startedAt + duration - Date.now());
-      const remaining = Math.ceil(remainingMs / 1000);
-      if (remaining > 0) {
-        setCountdownText(String(remaining));
-        sounds.playCountdownBeep(false);
-        return;
-      }
-      window.clearInterval(timer);
-      sounds.playCountdownBeep(true);
-      setCountdownText("FIGHT!");
-      setInCountdown(false);
-      setFightActive(true);
-      void onAct("start_fight");
-      window.setTimeout(() => setCountdownText(""), 500);
-    }, 100);
-    return () => window.clearInterval(timer);
-  }, [characterConfirmed, isHost, onAct, state.phase, state.stage]);
 
   // Keyboard Listeners
   useEffect(() => {
@@ -551,15 +522,6 @@ export function RallyCombatGame({
           {/* Dynamic 3D Group Camera */}
           <DynamicCombatCamera fighters={fightersList} />
         </CombatCanvas>
-
-        {/* Countdown Overlay */}
-        {inCountdown && countdownText && (
-          <div className="pointer-events-none fixed inset-0 z-[70] grid place-items-center">
-            <span className="text-7xl sm:text-9xl font-black italic tracking-tighter text-amber-300 drop-shadow-[0_8px_16px_rgba(0,0,0,0.9)] animate-ping">
-              {countdownText}
-            </span>
-          </div>
-        )}
 
         {/* Combat HUD Overlay */}
         <CombatHUD
