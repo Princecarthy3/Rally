@@ -1,6 +1,17 @@
 -- Rally Combat 3D Arena Brawler Migration
 
 alter table public.game_rooms drop constraint if exists game_rooms_game_type_check;
+
+-- Normalize any legacy/test rows that violate the check constraint:
+update public.game_rooms
+set game_type = 'racing'
+where game_type not in (
+  'basketball','dice_dash','trivia_clash','uno',
+  'rps','number_guess','memory_match','mini_golf','battleship',
+  'ping_pong','tic_tac_toe','connect_four','dots_boxes','skribbl','ludo',
+  'racing','rally_racing','rally_combat','combat'
+) or game_type is null;
+
 alter table public.game_rooms add constraint game_rooms_game_type_check
   check (game_type in (
     'basketball','dice_dash','trivia_clash','uno',
