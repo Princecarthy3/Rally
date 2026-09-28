@@ -2,7 +2,7 @@
 
 import { Room, RoomPlayer } from "@/features/rooms/types";
 import { sounds } from "@/lib/audio";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CHARACTERS, getCharacterConfig } from "./character-config";
 import { CombatCanvas } from "./components/CombatCanvas";
 import { CombatHUD } from "./components/CombatHUD";
@@ -78,39 +78,49 @@ export function RallyCombatGame({
     };
   });
 
-  // Keep every client on the same deterministic arena layout before the first packet arrives.
+  // Seed opponents from the roster; live transforms arrive over the channel.
   const [allFighters, setAllFighters] = useState<Record<number, FighterTransform>>({});
-  useEffect(() => {
-    setAllFighters((current) => {
-      const next = { ...current };
-      for (const player of players) {
-        if (player.seat === meSeat || next[player.seat]) continue;
-        const config = getCharacterConfig("balanced");
-        next[player.seat] = {
-          seat: player.seat,
-          playerId: player.player_id,
-          displayName: player.profile?.display_name || `Player ${player.seat}`,
-          archetype: "balanced",
-          position: START_POSITIONS[(player.seat - 1) % START_POSITIONS.length],
-          rotationY: player.seat % 2 === 0 ? Math.PI : 0,
-          hp: config.maxHp,
-          maxHp: config.maxHp,
-          isBlocking: false,
-          isDodging: false,
-          attackState: "idle",
-          animState: "idle",
-          comboCount: 0,
-          specialCooldownRemaining: 0,
-          dodgeCooldownRemaining: 0,
-          isEliminated: false,
-          kills: 0,
-          damageDealt: 0,
-          damageReceived: 0,
-        };
-      }
-      return next;
-    });
-  }, [players, meSeat]);
+  const rosterKey = players.map((p) => `${p.seat}:${p.player_id}`).join("|");
+  const seededOpponents = useMemo(() => {
+    const next: Record<number, FighterTransform> = {};
+    for (const player of players) {
+      if (player.seat === meSeat) continue;
+      const config = getCharacterConfig("balanced");
+      next[player.seat] = {
+        seat: player.seat,
+        playerId: player.player_id,
+        displayName: player.profile?.display_name || `Player ${player.seat}`,
+        archetype: "balanced",
+        position: START_POSITIONS[(player.seat - 1) % START_POSITIONS.length],
+        rotationY: player.seat % 2 === 0 ? Math.PI : 0,
+        hp: config.maxHp,
+        maxHp: config.maxHp,
+        isBlocking: false,
+        isDodging: false,
+        attackState: "idle",
+        animState: "idle",
+        comboCount: 0,
+        specialCooldownRemaining: 0,
+        dodgeCooldownRemaining: 0,
+        isEliminated: false,
+        kills: 0,
+        damageDealt: 0,
+        damageReceived: 0,
+      };
+    }
+    return next;
+    // rosterKey captures seat/player identity changes without depending on the players array identity
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rosterKey, meSeat]);
+
+  // Merge seeded placeholders with live updates (live wins when present).
+  const mergedOpponents = useMemo(() => {
+    const merged = { ...seededOpponents };
+    for (const [seat, fighter] of Object.entries(allFighters)) {
+      merged[Number(seat)] = fighter;
+    }
+    return merged;
+  }, [seededOpponents, allFighters]);
 
   // Spectator State
   const [spectateTargetSeat, setSpectateTargetSeat] = useState<number>(meSeat);
@@ -364,7 +374,7 @@ export function RallyCombatGame({
   }, [fightActive, channel]);
 
   // Combine local fighter with opponent fighters map
-  const activeFightersMap = { ...allFighters, [meSeat]: myFighter };
+  const activeFightersMap = { ...mergedOpponents, [meSeat]: myFighter };
   const fightersList = Object.values(activeFightersMap);
 
   // Handle Local Attacks & Hit Detection

@@ -10,6 +10,18 @@ let client: SupabaseClient | null = null;
 
 export function getSupabaseBrowserClient() {
   if (!isSupabaseConfigured) return null;
-  if (!client) client = createBrowserClient(url!, anonKey!);
+  if (!client) {
+    client = createBrowserClient(url!, anonKey!, {
+      auth: {
+        // Implicit recovery links put tokens in the URL hash so they work when the
+        // email is opened on a different device/browser than the one that requested reset.
+        // PKCE fails in that common mobile case (missing code_verifier).
+        flowType: "implicit",
+        detectSessionInUrl: true,
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+    });
+  }
   return client;
 }

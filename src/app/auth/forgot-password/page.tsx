@@ -19,9 +19,8 @@ export default function ForgotPasswordPage() {
     setBusy(true);
     setMessage(null);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      // Route through the auth callback so PKCE / token exchange happens first,
-      // then land on the update-password form with a valid recovery session.
-      redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/auth/update-password")}`,
+      // Land on update-password with recovery tokens in the URL (implicit flow).
+      redirectTo: `${window.location.origin}/auth/update-password`,
     });
     setBusy(false);
     if (error) setMessage({ type: "error", text: error.message });
