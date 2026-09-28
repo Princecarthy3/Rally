@@ -133,7 +133,7 @@ export function GameRoom() {
     const { error } = await supabase!.rpc("add_bot_to_room", { p_room: room.id });
     if (error) setNotice(error.message);
     else {
-      setNotice(`AI Bot added (${difficulty}).`);
+      setNotice(`Solo opponent added (${difficulty}).`);
       await refresh();
     }
     setShowBotPicker(false);
@@ -304,8 +304,8 @@ export function GameRoom() {
       {showBotPicker && (
         <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-3xl border-2 border-slate-950 bg-[#fffdf7] p-5 shadow-[6px_6px_0_#171821]">
-            <h3 className="text-lg font-black">AI Bot difficulty</h3>
-            <p className="mt-1 text-xs font-bold text-slate-500">How smart should the bot play?</p>
+            <h3 className="text-lg font-black">Play Solo — difficulty</h3>
+            <p className="mt-1 text-xs font-bold text-slate-500">Choose how hard your solo opponent plays.</p>
             <div className="mt-4 grid gap-2">
               {([
                 ["easy", "Easy — makes mistakes, random-ish moves"],
@@ -529,13 +529,13 @@ function Lobby({
                     <span className="block text-[10px] font-bold text-slate-700">
                       [{player.customization?.title?.asset_value || "Newcomer"}]
                       {player.player_id === userId ? " (you)" : ""}
-                      {isBot ? " (AI)" : ""}
+                      {isBot ? " (Solo)" : ""}
                     </span>
 
                     <div className="mt-0.5 flex items-center gap-1">
                       <span className={`h-2 w-2 rounded-full ${onlineIds.includes(player.player_id) || isBot ? "bg-emerald-700" : "bg-slate-500"}`} />
                       <span className="text-[10px] font-black uppercase opacity-60">
-                        {isBot ? "AI ACTIVE" : onlineIds.includes(player.player_id) ? "Connected" : "Reconnecting"}
+                        {isBot ? "SOLO BOT" : onlineIds.includes(player.player_id) ? "Connected" : "Reconnecting"}
                         {player.player_id === room.host_id ? " · Host" : ""}
                       </span>
                     </div>
@@ -570,7 +570,7 @@ function Lobby({
               <div className="grid grid-cols-1 w-full gap-2.5 sm:w-auto sm:flex sm:flex-wrap sm:gap-3">
                 {host && players.length < room.max_players && (
                   <button onClick={() => openBotPicker()} disabled={busy} className="arcade-button justify-center bg-[#77dce7] text-slate-950 text-xs py-3 sm:py-2.5 shadow-[3px_3px_0_#171821]">
-                    🤖 ADD AI BOT
+                    🎮 PLAY SOLO
                   </button>
                 )}
 
