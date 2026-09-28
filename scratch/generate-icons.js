@@ -63,7 +63,7 @@ const publicDir = path.join(__dirname, '..', 'public');
 if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true });
 
 // #6c47ff -> RGB (108, 71, 255)
-fs.writeFileSync(path.join(publicDir, 'icon-192.png'), createPng(192, 192, 108, 71, 255));
-fs.writeFileSync(path.join(publicDir, 'icon-512.png'), createPng(512, 512, 108, 71, 255));
-fs.writeFileSync(path.join(publicDir, 'apple-touch-icon.png'), createPng(180, 180, 108, 71, 255));
+fs.writeFileSync(path.join(publicDir, 'rally.png'), createPng(192, 192, 108, 71, 255));
+fs.writeFileSync(path.join(publicDir, 'rally.png'), createPng(512, 512, 108, 71, 255));
+fs.writeFileSync(path.join(publicDir, 'rally.png'), createPng(180, 180, 108, 71, 255));
 console.log('Successfully generated PWA icons!');
