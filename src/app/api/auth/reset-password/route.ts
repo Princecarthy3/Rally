@@ -45,6 +45,501 @@ export async function POST(request: Request) {
     );
 
     /*
+    <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Rally</title>
+</head>
+
+<body style="
+  margin:0;
+  padding:0;
+  background-color:#080811;
+  font-family:Arial, Helvetica, sans-serif;
+  color:#ffffff;
+">
+
+  <!-- Outer background -->
+  <table
+    width="100%"
+    cellpadding="0"
+    cellspacing="0"
+    border="0"
+    style="
+      background-color:#080811;
+      padding:40px 15px;
+    "
+  >
+    <tr>
+      <td align="center">
+
+        <!-- Main card -->
+        <table
+          width="100%"
+          cellpadding="0"
+          cellspacing="0"
+          border="0"
+          style="
+            max-width:620px;
+            background-color:#11111c;
+            border:1px solid #292943;
+            border-radius:20px;
+            overflow:hidden;
+          "
+        >
+
+          <!-- TOP PURPLE GLOW -->
+          <tr>
+            <td
+              height="6"
+              style="
+                background-color:#7c3aed;
+                background:linear-gradient(
+                  90deg,
+                  #6d28d9,
+                  #8b5cf6,
+                  #a855f7
+                );
+                font-size:0;
+                line-height:0;
+              "
+            >
+            </td>
+          </tr>
+
+
+          <!-- HEADER -->
+          <tr>
+            <td
+              align="center"
+              style="
+                padding:45px 30px 15px;
+              "
+            >
+
+              <!-- Rally Logo -->
+              <div
+                style="
+                  font-size:44px;
+                  font-weight:800;
+                  color:#ffffff;
+                  letter-spacing:-2px;
+                  line-height:1;
+                "
+              >
+                <span style="color:#8b5cf6;">R</span>ally
+              </div>
+
+              <div
+                style="
+                  margin-top:10px;
+                  font-size:15px;
+                  color:#a7a7bd;
+                  letter-spacing:0.3px;
+                "
+              >
+                Play together. Anywhere.
+              </div>
+
+            </td>
+          </tr>
+
+
+          <!-- ICON -->
+          <tr>
+            <td align="center" style="padding:35px 30px 15px;">
+
+              <table
+                width="110"
+                height="110"
+                cellpadding="0"
+                cellspacing="0"
+                border="0"
+                style="
+                  background-color:#24134f;
+                  border:1px solid #6338b5;
+                  border-radius:30px;
+                "
+              >
+                <tr>
+                  <td
+                    align="center"
+                    valign="middle"
+                    style="
+                      font-size:52px;
+                      color:#a855f7;
+                    "
+                  >
+                    ✉
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+
+          <!-- MAIN CONTENT -->
+          <tr>
+            <td
+              align="center"
+              style="
+                padding:25px 45px 20px;
+              "
+            >
+
+              <!-- Heading -->
+              <h1
+                style="
+                  margin:0 0 12px;
+                  font-size:34px;
+                  line-height:1.2;
+                  font-weight:800;
+                  color:#ffffff;
+                  letter-spacing:-1px;
+                "
+              >
+                Welcome to Rally!
+              </h1>
+
+
+             
+
+
+              <!-- Description -->
+              <p
+                style="
+                  margin:0;
+                  font-size:16px;
+                  line-height:1.8;
+                  color:#b9b9ca;
+                "
+              >
+                Thanks for playing our game!
+                Use the link below to reset your password
+
+                
+              </p>
+
+              
+
+            </td>
+          </tr>
+
+
+          <!-- VERIFY BUTTON -->
+          <tr>
+            <td align="center" style="padding:25px 30px 30px;">
+
+              <table
+                cellpadding="0"
+                cellspacing="0"
+                border="0"
+              >
+                <tr>
+                  <td
+                    align="center"
+                    style="
+                      border-radius:14px;
+                      background-color:#7c3aed;
+                    "
+                  >
+
+                    <a
+                      href="  ${resetUrl}"
+                      style="
+                        display:inline-block;
+                        padding:17px 42px;
+                        border-radius:14px;
+                        background-color:#7c3aed;
+                        color:#ffffff;
+                        text-decoration:none;
+                        font-size:17px;
+                        font-weight:700;
+                        letter-spacing:0.2px;
+                      "
+                    >
+                      Reset Password&nbsp; →
+                    </a>
+
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+
+          <!-- SECURITY NOTICE -->
+          <tr>
+            <td
+              align="center"
+              style="
+                padding:0 45px 35px;
+              "
+            >
+
+              <p
+                style="
+                  margin:0;
+                  font-size:13px;
+                  line-height:1.7;
+                  color:#77778e;
+                "
+              >
+                This Password Reset link is for your Rally account.
+                If you didn't request to reset your password, you can safely
+                ignore this email.
+              </p>
+
+            </td>
+          </tr>
+
+
+          <!-- DIVIDER -->
+          <tr>
+            <td style="padding:0 40px;">
+
+              <div
+                style="
+                  height:1px;
+                  background-color:#29293d;
+                  font-size:0;
+                  line-height:0;
+                "
+              >
+              </div>
+
+            </td>
+          </tr>
+
+
+          <!-- FEATURES -->
+          <tr>
+            <td style="padding:35px 25px;">
+
+              <table
+                width="100%"
+                cellpadding="0"
+                cellspacing="0"
+                border="0"
+              >
+                <tr>
+
+                  <!-- Feature 1 -->
+                  <td
+                    width="25%"
+                    align="center"
+                    valign="top"
+                    style="padding:0 8px;"
+                  >
+
+                    <div
+                      style="
+                        font-size:28px;
+                        color:#8b5cf6;
+                        margin-bottom:10px;
+                      "
+                    >
+                      ♟
+                    </div>
+
+                    <div
+                      style="
+                        font-size:13px;
+                        line-height:1.4;
+                        color:#ffffff;
+                        font-weight:600;
+                      "
+                    >
+                      Play with<br>friends
+                    </div>
+
+                  </td>
+
+
+                  <!-- Feature 2 -->
+                  <td
+                    width="25%"
+                    align="center"
+                    valign="top"
+                    style="
+                      padding:0 8px;
+                      border-left:1px solid #29293d;
+                    "
+                  >
+
+                    <div
+                      style="
+                        font-size:28px;
+                        color:#8b5cf6;
+                        margin-bottom:10px;
+                      "
+                    >
+                      🎮
+                    </div>
+
+                    <div
+                      style="
+                        font-size:13px;
+                        line-height:1.4;
+                        color:#ffffff;
+                        font-weight:600;
+                      "
+                    >
+                      Discover<br>new games
+                    </div>
+
+                  </td>
+
+
+                  <!-- Feature 3 -->
+                  <td
+                    width="25%"
+                    align="center"
+                    valign="top"
+                    style="
+                      padding:0 8px;
+                      border-left:1px solid #29293d;
+                    "
+                  >
+
+                    <div
+                      style="
+                        font-size:28px;
+                        color:#8b5cf6;
+                        margin-bottom:10px;
+                      "
+                    >
+                      ⚡
+                    </div>
+
+                    <div
+                      style="
+                        font-size:13px;
+                        line-height:1.4;
+                        color:#ffffff;
+                        font-weight:600;
+                      "
+                    >
+                      Quick &<br>easy setup
+                    </div>
+
+                  </td>
+
+
+                  <!-- Feature 4 -->
+                  <td
+                    width="25%"
+                    align="center"
+                    valign="top"
+                    style="
+                      padding:0 8px;
+                      border-left:1px solid #29293d;
+                    "
+                  >
+
+                    <div
+                      style="
+                        font-size:28px;
+                        color:#8b5cf6;
+                        margin-bottom:10px;
+                      "
+                    >
+                      ♡
+                    </div>
+
+                    <div
+                      style="
+                        font-size:13px;
+                        line-height:1.4;
+                        color:#ffffff;
+                        font-weight:600;
+                      "
+                    >
+                      A community<br>that plays
+                    </div>
+
+                  </td>
+
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+           <p
+                style="
+                  font-size:12px;
+                  color:#64748b;
+                  margin-top:24px;
+                  line-height:1.5;
+                  word-break:break-all;
+                "
+              >
+                If the button doesn't work, copy and paste this link
+                into your browser:
+                <br><br>
+                ${resetUrl}
+              </p>
+
+          <!-- FOOTER -->
+          <tr>
+            <td
+              align="center"
+              style="
+                padding:28px 30px;
+                background-color:#0c0c15;
+                border-top:1px solid #29293d;
+              "
+            >
+
+              <div
+                style="
+                  font-size:24px;
+                  font-weight:800;
+                  color:#ffffff;
+                  margin-bottom:10px;
+                "
+              >
+                <span style="color:#8b5cf6;">R</span>ally
+              </div>
+
+
+              <p
+                style="
+                  margin:0 0 8px;
+                  font-size:12px;
+                  color:#77778e;
+                "
+              >
+                © 2026 Rally | Developed By Carthy. Play together, anywhere.
+              </p>
+
+
+              <p
+                style="
+                  margin:0;
+                  font-size:11px;
+                  line-height:1.6;
+                  color:#555568;
+                "
+              >
+                This is an automated email. Please do not reply.
+              </p>
+
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
      * Generate a Supabase recovery link.
      *
      * We use generateLink() because Rally sends the email
@@ -99,83 +594,254 @@ export async function POST(request: Request) {
       `&next=${encodeURIComponent("/auth/update-password")}`;
 
     const emailHtml = `
-      <!DOCTYPE html>
-      <html>
-        <body
+     <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Rally</title>
+</head>
+
+<body style="
+  margin:0;
+  padding:0;
+  background-color:#080811;
+  font-family:Arial, Helvetica, sans-serif;
+  color:#ffffff;
+">
+
+  <!-- Outer background -->
+  <table
+    width="100%"
+    cellpadding="0"
+    cellspacing="0"
+    border="0"
+    style="
+      background-color:#080811;
+      padding:40px 15px;
+    "
+  >
+    <tr>
+      <td align="center">
+
+        <!-- Main card -->
+        <table
+          width="100%"
+          cellpadding="0"
+          cellspacing="0"
+          border="0"
           style="
-            margin:0;
-            padding:0;
-            background:#f8f9fd;
-            font-family:Arial,Helvetica,sans-serif;
+            max-width:620px;
+            background-color:#11111c;
+            border:1px solid #292943;
+            border-radius:20px;
+            overflow:hidden;
           "
         >
-          <div
-            style="
-              padding:40px 16px;
-              text-align:center;
-            "
-          >
-            <div
+
+          <!-- TOP PURPLE GLOW -->
+          <tr>
+            <td
+              height="6"
               style="
-                max-width:480px;
-                margin:0 auto;
-                background:#ffffff;
-                padding:32px;
-                border-radius:24px;
-                border:2px solid #0f172a;
-                box-shadow:6px 6px 0 #0f172a;
+                background-color:#7c3aed;
+                background:linear-gradient(
+                  90deg,
+                  #6d28d9,
+                  #8b5cf6,
+                  #a855f7
+                );
+                font-size:0;
+                line-height:0;
+              "
+            >
+            </td>
+          </tr>
+
+
+          <!-- HEADER -->
+          <tr>
+            <td
+              align="center"
+              style="
+                padding:45px 30px 15px;
               "
             >
 
+              <!-- Rally Logo -->
               <div
                 style="
-                  font-size:40px;
-                  margin-bottom:12px;
+                  font-size:44px;
+                  font-weight:800;
+                  color:#ffffff;
+                  letter-spacing:-2px;
+                  line-height:1;
                 "
               >
-                🔐
+                <span style="color:#8b5cf6;">R</span>ally
               </div>
 
-              <h1
+              <div
                 style="
-                  margin:0 0 10px;
-                  font-size:26px;
-                  font-weight:900;
-                  color:#0f172a;
+                  margin-top:10px;
+                  font-size:15px;
+                  color:#a7a7bd;
+                  letter-spacing:0.3px;
                 "
               >
-                Reset your Rally password
+                Play together. Anywhere.
+              </div>
+
+            </td>
+          </tr>
+
+
+          <!-- ICON -->
+          <tr>
+            <td align="center" style="padding:35px 30px 15px;">
+
+              <table
+                width="110"
+                height="110"
+                cellpadding="0"
+                cellspacing="0"
+                border="0"
+                style="
+                  background-color:#24134f;
+                  border:1px solid #6338b5;
+                  border-radius:30px;
+                "
+              >
+                <tr>
+                  <td
+                    align="center"
+                    valign="middle"
+                    style="
+                      font-size:52px;
+                      color:#a855f7;
+                    "
+                  >
+                    ✉
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+
+          <!-- MAIN CONTENT -->
+          <tr>
+            <td
+              align="center"
+              style="
+                padding:25px 45px 20px;
+              "
+            >
+
+              <!-- Heading -->
+              <h1
+                style="
+                  margin:0 0 12px;
+                  font-size:34px;
+                  line-height:1.2;
+                  font-weight:800;
+                  color:#ffffff;
+                  letter-spacing:-1px;
+                "
+              >
+                Welcome to Rally!
               </h1>
+
+
+             
+
+
+              <!-- Description -->
+              <p
+                style="
+                  margin:0;
+                  font-size:16px;
+                  line-height:1.8;
+                  color:#b9b9ca;
+                "
+              >
+                Thanks for playing our game!
+                Use the link below to reset your password
+
+                
+              </p>
+
+              
+
+            </td>
+          </tr>
+
+
+          <!-- VERIFY BUTTON -->
+          <tr>
+            <td align="center" style="padding:25px 30px 30px;">
+
+              <table
+                cellpadding="0"
+                cellspacing="0"
+                border="0"
+              >
+                <tr>
+                  <td
+                    align="center"
+                    style="
+                      border-radius:14px;
+                      background-color:#7c3aed;
+                    "
+                  >
+
+                    <a
+                      href="  ${resetUrl}"
+                      style="
+                        display:inline-block;
+                        padding:17px 42px;
+                        border-radius:14px;
+                        background-color:#7c3aed;
+                        color:#ffffff;
+                        text-decoration:none;
+                        font-size:17px;
+                        font-weight:700;
+                        letter-spacing:0.2px;
+                      "
+                    >
+                      Reset Password&nbsp; →
+                    </a>
+
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+
+          <!-- SECURITY NOTICE -->
+          <tr>
+            <td
+              align="center"
+              style="
+                padding:0 45px 35px;
+              "
+            >
 
               <p
                 style="
-                  font-size:14px;
-                  font-weight:600;
-                  color:#475569;
-                  line-height:1.6;
-                  margin:0 0 26px;
+                  margin:0;
+                  font-size:13px;
+                  line-height:1.7;
+                  color:#77778e;
                 "
               >
-                We received a request to reset your Rally password.
-                Tap the button below to choose a new password.
+                This Password Reset link is for your Rally account.
+                If you didn't request to reset your password, you can safely
+                ignore this email.
               </p>
-
-              <a
-                href="${resetUrl}"
-                style="
-                  display:inline-block;
-                  background:#0f172a;
-                  color:#ffffff;
-                  font-weight:800;
-                  text-decoration:none;
-                  padding:14px 28px;
-                  border-radius:14px;
-                  font-size:14px;
-                "
-              >
-                Reset password
-              </a>
-
               <p
                 style="
                   font-size:12px;
@@ -190,34 +856,239 @@ export async function POST(request: Request) {
                 <br><br>
                 ${resetUrl}
               </p>
+            </td>
+          </tr>
 
-              <p
+
+          <!-- DIVIDER -->
+          <tr>
+            <td style="padding:0 40px;">
+
+              <div
                 style="
-                  font-size:11px;
-                  color:#94a3b8;
-                  margin-top:28px;
-                  line-height:1.5;
+                  height:1px;
+                  background-color:#29293d;
+                  font-size:0;
+                  line-height:0;
                 "
               >
-                If you didn't request a password reset,
-                you can safely ignore this email.
-              </p>
+              </div>
 
-              <p
+            </td>
+          </tr>
+
+
+          <!-- FEATURES -->
+          <tr>
+            <td style="padding:35px 25px;">
+
+              <table
+                width="100%"
+                cellpadding="0"
+                cellspacing="0"
+                border="0"
+              >
+                <tr>
+
+                  <!-- Feature 1 -->
+                  <td
+                    width="25%"
+                    align="center"
+                    valign="top"
+                    style="padding:0 8px;"
+                  >
+
+                    <div
+                      style="
+                        font-size:28px;
+                        color:#8b5cf6;
+                        margin-bottom:10px;
+                      "
+                    >
+                      ♟
+                    </div>
+
+                    <div
+                      style="
+                        font-size:13px;
+                        line-height:1.4;
+                        color:#ffffff;
+                        font-weight:600;
+                      "
+                    >
+                      Play with<br>friends
+                    </div>
+
+                  </td>
+
+
+                  <!-- Feature 2 -->
+                  <td
+                    width="25%"
+                    align="center"
+                    valign="top"
+                    style="
+                      padding:0 8px;
+                      border-left:1px solid #29293d;
+                    "
+                  >
+
+                    <div
+                      style="
+                        font-size:28px;
+                        color:#8b5cf6;
+                        margin-bottom:10px;
+                      "
+                    >
+                      🎮
+                    </div>
+
+                    <div
+                      style="
+                        font-size:13px;
+                        line-height:1.4;
+                        color:#ffffff;
+                        font-weight:600;
+                      "
+                    >
+                      Discover<br>new games
+                    </div>
+
+                  </td>
+
+
+                  <!-- Feature 3 -->
+                  <td
+                    width="25%"
+                    align="center"
+                    valign="top"
+                    style="
+                      padding:0 8px;
+                      border-left:1px solid #29293d;
+                    "
+                  >
+
+                    <div
+                      style="
+                        font-size:28px;
+                        color:#8b5cf6;
+                        margin-bottom:10px;
+                      "
+                    >
+                      ⚡
+                    </div>
+
+                    <div
+                      style="
+                        font-size:13px;
+                        line-height:1.4;
+                        color:#ffffff;
+                        font-weight:600;
+                      "
+                    >
+                      Quick &<br>easy setup
+                    </div>
+
+                  </td>
+
+
+                  <!-- Feature 4 -->
+                  <td
+                    width="25%"
+                    align="center"
+                    valign="top"
+                    style="
+                      padding:0 8px;
+                      border-left:1px solid #29293d;
+                    "
+                  >
+
+                    <div
+                      style="
+                        font-size:28px;
+                        color:#8b5cf6;
+                        margin-bottom:10px;
+                      "
+                    >
+                      ♡
+                    </div>
+
+                    <div
+                      style="
+                        font-size:13px;
+                        line-height:1.4;
+                        color:#ffffff;
+                        font-weight:600;
+                      "
+                    >
+                      A community<br>that plays
+                    </div>
+
+                  </td>
+
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+           
+
+          <!-- FOOTER -->
+          <tr>
+            <td
+              align="center"
+              style="
+                padding:28px 30px;
+                background-color:#0c0c15;
+                border-top:1px solid #29293d;
+              "
+            >
+
+              <div
                 style="
-                  margin-top:20px;
-                  font-size:12px;
+                  font-size:24px;
                   font-weight:800;
-                  color:#7c3aed;
+                  color:#ffffff;
+                  margin-bottom:10px;
                 "
               >
-                Rally 🎮
+                <span style="color:#8b5cf6;">R</span>ally
+              </div>
+
+
+              <p
+                style="
+                  margin:0 0 8px;
+                  font-size:12px;
+                  color:#77778e;
+                "
+              >
+                © 2026 Rally | Developed By Carthy. Play together, anywhere.
               </p>
 
-            </div>
-          </div>
-        </body>
-      </html>
+
+              <p
+                style="
+                  margin:0;
+                  font-size:11px;
+                  line-height:1.6;
+                  color:#555568;
+                "
+              >
+                This is an automated email. Please do not reply.
+              </p>
+
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
     `;
 
     /*
