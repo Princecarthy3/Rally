@@ -1,4 +1,3 @@
-
 import type { MetadataRoute } from "next";
 
 const siteUrl = "https://rallygames.vercel.app";
@@ -13,9 +12,13 @@ export default function robots(): MetadataRoute.Robots {
           "/api/",
           "/auth/",
           "/dashboard/",
+          "/friends/",
           "/history/",
+          "/leaderboard/",
+          "/messages/",
           "/profile/",
           "/room/",
+          "/shop/",
         ],
       },
     ],
@@ -23,4 +26,3 @@ export default function robots(): MetadataRoute.Robots {
     sitemap: `${siteUrl}/sitemap.xml`,
   };
 }
-
