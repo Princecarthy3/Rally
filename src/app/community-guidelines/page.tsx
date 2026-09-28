@@ -49,8 +49,8 @@ export default function CommunityGuidelinesPage() {
 
             <p className="mt-3 leading-7">
               Do not cheat, exploit bugs, manipulate game results, use
-              unauthorized automation, or deliberately interfere with another
-              player's experience.
+              unauthorized automation, or deliberately interfere with
+              another player&apos;s experience.
             </p>
           </section>
 
@@ -73,7 +73,7 @@ export default function CommunityGuidelinesPage() {
 
             <p className="mt-3 leading-7">
               Avoid sharing sensitive personal information in public or
-              multiplayer spaces. Do not publish another person's private
+              multiplayer spaces. Do not publish another person&apos;s private
               information without permission.
             </p>
           </section>
@@ -85,8 +85,8 @@ export default function CommunityGuidelinesPage() {
 
             <p className="mt-3 leading-7">
               Content or accounts that violate these guidelines may be
-              restricted, removed, or suspended. Serious or repeated violations
-              may result in loss of access to Rally.
+              restricted, removed, or suspended. Serious or repeated
+              violations may result in loss of access to Rally.
             </p>
           </section>
         </div>
