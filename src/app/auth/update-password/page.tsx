@@ -62,6 +62,20 @@ function UpdatePasswordForm() {
       });
 
       try {
+        // 0) Session already set by /auth/confirm (token_hash server verify)
+        {
+          const { data: existing } = await client.auth.getSession();
+          if (existing.session) {
+            if (active) {
+              setReady(true);
+              setCheckingLink(false);
+              setLinkError(null);
+            }
+            listener.subscription.unsubscribe();
+            return;
+          }
+        }
+
         // 1) Implicit / recovery redirect: tokens in the URL hash
         const accessToken = hash.get("access_token");
         const refreshToken = hash.get("refresh_token");
