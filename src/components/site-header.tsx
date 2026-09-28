@@ -186,16 +186,7 @@ export function SiteHeader() {
               </button>
             )}
 
-            {/* Share App Button */}
-            <button
-              onClick={handleShareApp}
-              title="Share Rally App"
-              aria-label="Share Rally App"
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-100 cursor-pointer"
-            >
-              <Share2 size={15} className="text-[#7357ff]" />
-              <span className="hidden sm:inline">Share</span>
-            </button>
+            
 
             {/* Settings Tab Button */}
             <button
