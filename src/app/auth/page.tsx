@@ -73,7 +73,7 @@ function AuthForm() {
         if (res.ok && data.success) {
           setMessage({
             type: "success",
-            text: data.message || "Confirmation email sent via Brevo! Check your inbox to confirm your email.",
+            text: data.message || "Confirmation email sent ! Check your inbox to confirm your email.",
           });
         } else {
           setMessage({ type: "error", text: supaErr.message || data.error || "Failed to process registration." });
