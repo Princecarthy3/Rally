@@ -93,7 +93,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         success: true,
-        message: "Verification email sent via Brevo! Check your inbox to confirm your email.",
+        message: "Verification email sent ! Check your inbox to confirm your email.",
         sentVia: "brevo",
       });
     }
