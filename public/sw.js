@@ -29,8 +29,8 @@ self.addEventListener("message", (event) => {
     event.waitUntil(
       self.registration.showNotification(title || "Rally", {
         body: body || "",
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
+        icon: "/rally.png",
+        badge: "/rally.png",
         data: { url: url || "/" },
       })
     );
