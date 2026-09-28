@@ -39,13 +39,7 @@ const games = [
     color: "bg-[#eee9ff]",
     tilt: "rotate-2",
   },
-  {
-    icon: "🔢",
-    title: "Number Hunt",
-    text: "Read their mind",
-    color: "bg-[#e8f2ff]",
-    tilt: "-rotate-1",
-  },
+
   {
     icon: "🧠",
     title: "Memory Match",
@@ -60,13 +54,7 @@ const games = [
     color: "bg-[#e5f8df]",
     tilt: "rotate-2",
   },
-  {
-    icon: "🚢",
-    title: "Battleship",
-    text: "Fire, find, and sink the hidden fleet",
-    color: "bg-[#dff2ff]",
-    tilt: "-rotate-2",
-  },
+  
   {
     icon: "⭕",
     title: "Tic-Tac-Toe",
@@ -176,7 +164,7 @@ export default function HomePage() {
         </div>
 
         <div className="absolute bottom-36 left-[16%] hidden h-20 w-20 place-items-center rounded-[24px] bg-[#e7f1ff] text-4xl shadow-xl lg:grid animate-float-two">
-          🔢
+          ⚔️
         </div>
 
         <div className="relative mx-auto max-w-4xl">
