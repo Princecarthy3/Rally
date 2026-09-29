@@ -25,8 +25,10 @@ export default function OpenGraphImage() {
           Free online games for friends
         </div>
         <div style={{ display: "flex", fontSize: 136, fontWeight: 900, letterSpacing: -10, marginTop: 36 }}>Rally</div>
+        <div style={{ display: "flex", fontSize:30 , marginTop: 5, textAlign: "center" }}>Built by Carthy</div>
         <div style={{ display: "flex", fontSize: 42, marginTop: 12, textAlign: "center" }}>Play together. Anywhere.</div>
         <div style={{ display: "flex", fontSize: 72, gap: 24, marginTop: 46 }}>🏀 🏓 ✊ 🎲</div>
+         
       </div>
     ),
     size,
