@@ -617,7 +617,7 @@ export async function POST(request: Request) {
     cellspacing="0"
     border="0"
     style="
-      background-color:#080811;
+      background-color:#8b5cf6;
       padding:40px 15px;
     "
   >
@@ -721,7 +721,9 @@ export async function POST(request: Request) {
                       color:#a855f7;
                     "
                   >
-                    ✉
+                   <span className="grid h-10 w-10 place-items-center rounded-[14px] bg-violet-600 text-lg text-white shadow-[0_8px_24px_rgba(108,71,255,.28)] transition-transform group-hover:-rotate-6 group-hover:scale-105">
+        ✦
+      </span>
                   </td>
                 </tr>
               </table>
