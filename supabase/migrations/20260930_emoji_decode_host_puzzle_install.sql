@@ -27,3 +27,5 @@ end $$;
 
 revoke all on function public.install_emoji_decode_puzzle(uuid,integer,text,text[],text[],text,text,text) from public,anon,authenticated,service_role;
 grant execute on function public.install_emoji_decode_puzzle(uuid,integer,text,text[],text[],text,text,text) to authenticated;
+
+notify pgrst, 'reload schema';

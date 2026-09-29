@@ -163,3 +163,5 @@ revoke all on function public.install_emoji_decode_puzzle(uuid,integer,text,text
 grant execute on function public.install_emoji_decode_puzzle(uuid,integer,text,text[],text[],text,text,text) to authenticated;
 grant execute on function public.start_emoji_decode(uuid) to authenticated;
 grant execute on function public.play_emoji_decode_action(uuid,text,text) to authenticated;
+
+notify pgrst, 'reload schema';

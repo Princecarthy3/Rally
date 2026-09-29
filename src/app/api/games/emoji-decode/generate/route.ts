@@ -41,8 +41,13 @@ export async function POST(request: Request) {
       p_explanation: puzzle.explanation,
     });
     if (error) {
-      console.error("Emoji Decode puzzle installation failed:", error.message);
-      return NextResponse.json({ error: "Could not start this puzzle. Please try again." }, { status: 503 });
+      console.error("Emoji Decode puzzle installation failed:", { code: error.code, message: error.message, details: error.details });
+      const message = error.code === "PGRST202" || error.code === "42883"
+        ? "Emoji Decode database setup is incomplete. Apply the latest Emoji Decode Supabase migrations."
+        : error.code === "42501"
+          ? "Supabase denied puzzle installation. Apply the latest Emoji Decode Supabase migration to update host permissions."
+          : "Rally generated the puzzle but could not save it. Check the Emoji Decode Supabase migration and try again.";
+      return NextResponse.json({ error: message }, { status: 503 });
     }
     return NextResponse.json({ ready: true, source, phase: data?.phase });
   } catch (error) {
