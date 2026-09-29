@@ -110,9 +110,11 @@ export default function PrivacyPage() {
             </h2>
 
             <p className="mt-3 leading-7">
-              For privacy questions,enquiries or game suggestions contact Rally via<br />
-Email: <a href="mailto:princemaccarthy006@gmail.com">princemaccarthy006@gmail.com</a><br /><br />
-WhatsApp:<a href="https://wa.me/233536918893">+233536918893</a>
+              For privacy questions,enquiries or game suggestions contact Rally via;<br />
+Email: <a href="mailto:princemaccarthy006@gmail.com">princemaccarthy006@gmail.com</a><br />
+WhatsApp:<a href="https://wa.me/233536918893">+233536918893</a><br />
+Instagram:<a href="https://www.instagram.com/rally.games?stkn=MWpwaTBhOTVvcTMwcw%3D%3D&utm_source=qr ">Rally.games<a/>
+
             </p>
           </section>
         </div>
