@@ -18,6 +18,7 @@ export function EmojiDecodeGame({ room, players, userId, onAct, busy, isSpectato
   const isHost = room.host_id === userId;
   const [guess, setGuess] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [generationMessage, setGenerationMessage] = useState("");
   const [retry, setRetry] = useState(0);
   const [timer, setTimer] = useState({ round: 1, remaining: 30 });
   const generatedFor = useRef("");
@@ -35,6 +36,7 @@ export function EmojiDecodeGame({ room, players, userId, onAct, busy, isSpectato
     generatedFor.current = key;
     let cancelled = false;
     let attempts = 0;
+    let lastError = "Could not create a puzzle. Please try again.";
     const generate = async () => {
       if (cancelled) return;
       attempts += 1;
@@ -48,10 +50,20 @@ export function EmojiDecodeGame({ room, players, userId, onAct, busy, isSpectato
             headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
             body: JSON.stringify({ roomId: room.id, round }),
           });
-          if (response.ok || response.status === 403 || response.status === 404) return;
+          const result = await response.json().catch(() => null) as { error?: string; source?: string } | null;
+          if (response.ok) {
+            setGenerationMessage(result?.source === "fallback" ? "The AI service is unavailable right now; a backup puzzle was loaded." : "");
+            return;
+          }
+          lastError = result?.error || lastError;
+          if (response.status === 403 || response.status === 404) {
+            setGenerationMessage(lastError);
+            return;
+          }
         } catch { /* retry below while the room is still on this puzzle */ }
       }
       if (attempts < 4 && !cancelled) window.setTimeout(() => void generate(), 2500);
+      else if (!cancelled) setGenerationMessage(lastError);
     };
     void generate();
     return () => { cancelled = true; };
@@ -125,7 +137,7 @@ export function EmojiDecodeGame({ room, players, userId, onAct, busy, isSpectato
         <div role="status" className="mt-6 rounded-[28px] border-2 border-slate-950 bg-violet-50 p-8 text-center">
           <span className="text-5xl animate-pulse" aria-hidden="true">🧩✨</span>
           <p className="mt-4 font-black">Creating your {round === 1 ? "first" : "next"} puzzle…</p>
-          <p className="mt-1 text-sm text-slate-500">Everyone in the room will get the same clue.</p>
+          <p className="mt-1 text-sm text-slate-500">{generationMessage || "Everyone in the room will get the same clue."}</p>
           {isHost && <button onClick={() => { generatedFor.current = ""; setRetry((value) => value + 1); }} className="mt-4 text-sm font-bold text-violet-700 underline">Try loading again</button>}
         </div>
       ) : (

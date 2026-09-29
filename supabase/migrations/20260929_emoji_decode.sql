@@ -71,6 +71,7 @@ declare r public.game_rooms; state jsonb;
 begin
   select * into r from public.game_rooms where id=p_room for update;
   if r.id is null or r.game_type<>'emoji_decode' or r.status<>'playing' then raise exception 'Game is not active'; end if;
+  if auth.uid() is null or r.host_id<>auth.uid() then raise exception 'Only the room host can install a puzzle'; end if;
   state:=r.public_state;
   if coalesce((state->>'round')::integer,0)<>p_round or state->>'phase'<>'generating_puzzle' then return state; end if;
   insert into private.emoji_decode_answers(room_id,round_no,answer,acceptable_answers,explanation)
@@ -159,6 +160,6 @@ begin
 end $$;
 
 revoke all on function public.install_emoji_decode_puzzle(uuid,integer,text,text[],text[],text,text,text) from public,anon,authenticated;
-grant execute on function public.install_emoji_decode_puzzle(uuid,integer,text,text[],text[],text,text,text) to service_role;
+grant execute on function public.install_emoji_decode_puzzle(uuid,integer,text,text[],text[],text,text,text) to authenticated;
 grant execute on function public.start_emoji_decode(uuid) to authenticated;
 grant execute on function public.play_emoji_decode_action(uuid,text,text) to authenticated;
