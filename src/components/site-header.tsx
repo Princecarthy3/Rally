@@ -1,8 +1,8 @@
 "use client";
 
-import { CircleDollarSign, History, LayoutGrid, LogOut, MessageCircle, Settings, Share2, ShoppingBag, Target, Trophy, UserRound, UsersRound } from "lucide-react";
+import { CircleDollarSign, History, LayoutGrid, MessageCircle, Settings, ShoppingBag, Trophy, UsersRound } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Brand } from "./brand";
@@ -13,26 +13,20 @@ import { ensureNotificationPermission, registerRallyServiceWorker, notifyUser } 
 import { UserAvatar } from "@/components/customization/user-avatar";
 import { NameDisplay } from "@/components/customization/name-display";
 import { CoinWalletModal } from "@/components/customization/coin-wallet-modal";
-import { DailyMissionsModal } from "@/components/missions/daily-missions-modal";
-
 const links = [
   { href: "/dashboard", label: "Home", icon: LayoutGrid },
   { href: "/leaderboard", label: "Rankings", icon: Trophy },
   { href: "/history", label: "History", icon: History },
   { href: "/friends", label: "Friends", icon: UsersRound },
   { href: "/messages", label: "Messages", icon: MessageCircle },
-  { href: "/shop", label: "Shop", icon: ShoppingBag },
-  { href: "/profile", label: "Profile", icon: UserRound },
 ];
 
 export function SiteHeader() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { profile, user, customization, balance, claimDaily, signOut } = useAuth();
+  const { profile, user, customization, balance, claimDaily } = useAuth();
   const name = profile?.display_name || user?.user_metadata?.display_name || "Player";
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
-  const [isMissionsOpen, setIsMissionsOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [socialBadge, setSocialBadge] = useState(0);
   const [messageBadge, setMessageBadge] = useState(0);
@@ -105,11 +99,6 @@ export function SiteHeader() {
     return () => { void supabase.removeChannel(channel); };
   }, [user]);
 
-  async function handleSignOut() {
-    await signOut();
-    router.replace("/");
-  }
-
   async function handleShareApp() {
     sounds.playClickSound();
     const shareData = {
@@ -159,19 +148,22 @@ export function SiteHeader() {
           </nav>
 
           <div className="flex items-center gap-2">
-            {/* Daily Missions Button */}
+            {/* Shop shortcut (replaces missions in the header) */}
             {user && (
-              <button
-                onClick={() => {
-                  sounds.playClickSound();
-                  setIsMissionsOpen(true);
-                }}
-                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 bg-amber-100 px-3 text-xs font-black text-slate-900 shadow-sm transition hover:bg-amber-200 cursor-pointer"
-                title="Daily Missions & Monthly Pass"
+              <Link
+                href="/shop"
+                onClick={() => sounds.playClickSound()}
+                className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-black shadow-sm transition cursor-pointer ${
+                  pathname === "/shop"
+                    ? "border-violet-300 bg-violet-100 text-violet-900"
+                    : "border-slate-200 bg-white text-slate-800 hover:bg-slate-100"
+                }`}
+                title="Shop"
+                aria-label="Shop"
               >
-                <Target size={15} className="text-amber-600 animate-pulse" />
-                <span className="hidden sm:inline">Missions</span>
-              </button>
+                <ShoppingBag size={15} className="text-violet-600" />
+                <span className="hidden sm:inline">Shop</span>
+              </Link>
             )}
 
             {/* Coin Balance Badge */}
@@ -202,8 +194,18 @@ export function SiteHeader() {
             </button>
 
             {user && (
-              <Link href="/profile" className="hidden items-center gap-2.5 rounded-full border border-slate-200 bg-white p-1 pl-2.5 shadow-sm transition hover:bg-slate-50 sm:flex">
-                <div className="text-right leading-tight">
+              <Link
+                href="/profile"
+                onClick={() => sounds.playClickSound()}
+                aria-label="Profile"
+                title="Profile"
+                className={`inline-flex items-center gap-1.5 rounded-full border p-1 pl-2 shadow-sm transition cursor-pointer ${
+                  pathname === "/profile"
+                    ? "border-violet-300 bg-violet-100"
+                    : "border-slate-200 bg-white hover:bg-slate-50"
+                }`}
+              >
+                <div className="hidden text-right leading-tight sm:block">
                   <NameDisplay name={name} nameColor={customization?.name_color} nameEffect={customization?.name_effect} className="block max-w-28 truncate text-xs font-black text-slate-950" />
                   <span className="block text-[10px] font-extrabold text-slate-600">
                     [{customization?.title?.asset_value || "Newcomer"}]
@@ -218,15 +220,6 @@ export function SiteHeader() {
                 />
               </Link>
             )}
-
-            <button
-              onClick={handleSignOut}
-              aria-label="Log out"
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 cursor-pointer"
-            >
-              <LogOut size={14} />
-              <span className="hidden sm:inline">Log out</span>
-            </button>
           </div>
         </div>
       </header>
@@ -241,8 +234,6 @@ export function SiteHeader() {
         onClaimDaily={claimDaily ? async () => { await claimDaily(); } : undefined}
       />
 
-      <DailyMissionsModal isOpen={isMissionsOpen} onClose={() => setIsMissionsOpen(false)} />
-
       {toast && (
         <div className="fixed top-20 right-6 z-50 rounded-full border-2 border-slate-950 bg-[#f4dc69] px-4 py-2 text-xs font-black shadow-[3px_3px_0_#171821] animate-in fade-in">
           {toast}
@@ -250,7 +241,7 @@ export function SiteHeader() {
       )}
 
       {/* Mobile navigation */}
-      <nav className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-xs -translate-x-1/2 items-center justify-around rounded-full border-2 border-slate-950 bg-slate-950/95 p-1.5 text-white shadow-[0_10px_30px_rgba(0,0,0,0.6)] backdrop-blur-md md:hidden">
+      <nav className="fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 items-center justify-between gap-1 rounded-full border-2 border-slate-950 bg-slate-950/95 px-2 py-1.5 text-white shadow-[0_10px_30px_rgba(0,0,0,0.6)] backdrop-blur-md md:hidden">
         {links.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href;
           return (

@@ -1,7 +1,8 @@
 "use client";
 
-import { Camera, CheckCircle2, LoaderCircle, Trash2, UserRound, Sparkles, Check } from "lucide-react";
+import { Camera, CheckCircle2, LoaderCircle, LogOut, Trash2, UserRound, Sparkles, Check } from "lucide-react";
 import { ChangeEvent, FormEvent, useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/components/auth-provider";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -27,7 +28,8 @@ const statusPresets = ["Online", "Playing 🎮", "Winning 🏆", "Away 😴", "O
 type InventoryItem = ShopItem & { acquired_at: string };
 
 export default function ProfilePage() {
-  const { profile, user, customization, balance, streak, levelState, refreshProfile, equipItem, unequipCategory, refreshCustomization } = useAuth();
+  const router = useRouter();
+  const { profile, user, customization, balance, streak, levelState, refreshProfile, equipItem, unequipCategory, refreshCustomization, signOut } = useAuth();
 
   const [name, setName] = useState("");
   const [avatar, setAvatar] = useState("");
@@ -38,6 +40,12 @@ export default function ProfilePage() {
   const [ownedItems, setOwnedItems] = useState<InventoryItem[]>([]);
   const [activeTab, setActiveTab] = useState("all");
   const [busy, setBusy] = useState(false);
+
+  async function handleSignOut() {
+    await signOut();
+    router.replace("/");
+  }
+
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -245,6 +253,22 @@ export default function ProfilePage() {
 
   return (
     <ProtectedPage>
+
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-slate-950 bg-white p-3 shadow-[3px_3px_0_#171821]">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Account</p>
+              <p className="text-sm font-black text-slate-950">Signed in as {profile?.display_name || user?.email || "Player"}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleSignOut()}
+              className="inline-flex items-center gap-2 rounded-full border-2 border-slate-950 bg-red-50 px-4 py-2 text-xs font-black text-red-700 transition hover:bg-red-100"
+            >
+              <LogOut size={14} />
+              Log out
+            </button>
+          </div>
+
       <main className="mx-auto max-w-5xl px-5 pb-28 pt-10 lg:px-8 lg:pt-12">
         <p className="eyebrow">Personal Rally Card</p>
         <h1 className="mt-2 text-4xl sm:text-5xl font-black tracking-[-.05em]">Profile & Inventory</h1>
