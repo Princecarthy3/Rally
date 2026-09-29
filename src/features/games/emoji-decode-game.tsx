@@ -62,7 +62,7 @@ export function EmojiDecodeGame({ room, players, userId, onAct, busy, isSpectato
           }
         } catch { /* retry below while the room is still on this puzzle */ }
       }
-      if (attempts < 4 && !cancelled) window.setTimeout(() => void generate(), 2500);
+      if (attempts < 6 && !cancelled) window.setTimeout(() => void generate(), 2000);
       else if (!cancelled) setGenerationMessage(lastError);
     };
     void generate();

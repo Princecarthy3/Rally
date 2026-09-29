@@ -16,9 +16,15 @@ export type EmojiDecodePuzzle = {
 
 const SAFE_EMOJI_DECODE_FALLBACKS: EmojiDecodePuzzle[] = [
   { answer: "The Lion King", emojis: ["🦁", "👑", "🌅"], category: "Movies", acceptableAnswers: ["lion king", "the lion king"], difficulty: "medium", explanation: "A lion and a crown point to the famous animated royal story." },
-  { answer: "Spider-Man", emojis: ["🕷️", "🧑", "🦸", "🏙️"], category: "People & Characters", acceptableAnswers: ["spiderman", "spider man"], difficulty: "medium", explanation: "A spider and a superhero in a city suggest the wall-crawling hero." },
+  { answer: "Spider-Man", emojis: ["🕷️", "🧑", "🦸", "🏙️"], category: "People & Characters", acceptableAnswers: ["spiderman", "spider man", "spider-man"], difficulty: "medium", explanation: "A spider and a superhero in a city suggest the wall-crawling hero." },
   { answer: "Hot potato", emojis: ["🔥", "🥔", "⏱️"], category: "Phrases", acceptableAnswers: ["hot potato"], difficulty: "medium", explanation: "A potato is hot and needs to be passed quickly." },
   { answer: "Tennis", emojis: ["🎾", "🏆", "👟"], category: "Sports", acceptableAnswers: ["tennis"], difficulty: "easy", explanation: "A tennis ball and trophy point to the sport." },
+  { answer: "Breakfast", emojis: ["🍳", "🥞", "☕"], category: "Food", acceptableAnswers: ["breakfast"], difficulty: "easy", explanation: "Classic morning foods make breakfast." },
+  { answer: "Ice cream", emojis: ["🍦", "🍨", "❄️"], category: "Food", acceptableAnswers: ["ice cream", "icecream"], difficulty: "easy", explanation: "Cold sweet treats point to ice cream." },
+  { answer: "Basketball", emojis: ["🏀", "🏟️", "👟"], category: "Sports", acceptableAnswers: ["basketball"], difficulty: "easy", explanation: "A hoop ball and court gear mean basketball." },
+  { answer: "Snow White", emojis: ["❄️", "👸", "🍎"], category: "Movies", acceptableAnswers: ["snow white"], difficulty: "medium", explanation: "A princess, snow, and an apple hint at Snow White." },
+  { answer: "Time flies", emojis: ["⏰", "✈️", "🕊️"], category: "Phrases", acceptableAnswers: ["time flies"], difficulty: "hard", explanation: "A clock and flying birds suggest the phrase time flies." },
+  { answer: "Broken heart", emojis: ["💔", "😢", "🩹"], category: "Phrases", acceptableAnswers: ["broken heart", "heartbreak"], difficulty: "easy", explanation: "A cracked heart and sadness mean a broken heart." },
 ];
 
 const UNSAFE_PUZZLE_TERMS = /\b(nazi|terrorist|porn|sex|rape|slur|kill yourself)\b/i;
@@ -32,28 +38,78 @@ function validateEmojiDecodePuzzle(value: unknown, difficulty: EmojiDecodeDiffic
   const explanation = typeof puzzle.explanation === "string" ? puzzle.explanation.trim() : "";
   const acceptableAnswers = Array.isArray(puzzle.acceptableAnswers) ? puzzle.acceptableAnswers.filter((item): item is string => typeof item === "string").map((item) => item.trim()) : [];
   const fullText = [answer, category, explanation, ...acceptableAnswers].join(" ");
-  if (answer.length < 2 || answer.length > 64 || emojis.length < 2 || emojis.length > 7 || emojis.some((emoji) => emoji.length > 12) || category.length < 2 || category.length > 40 || explanation.length < 8 || explanation.length > 220 || acceptableAnswers.length > 8 || UNSAFE_PUZZLE_TERMS.test(fullText)) return null;
+  if (answer.length < 2 || answer.length > 64 || emojis.length < 2 || emojis.length > 7 || emojis.some((emoji) => emoji.length > 32) || category.length < 2 || category.length > 40 || explanation.length < 4 || explanation.length > 220 || acceptableAnswers.length > 8 || UNSAFE_PUZZLE_TERMS.test(fullText)) return null;
   const emojiAnswer = answer.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
   if (emojis.some((emoji) => emoji.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "") === emojiAnswer)) return null;
   return { answer, emojis, category, acceptableAnswers: [...new Set([answer, ...acceptableAnswers])], difficulty, explanation };
+}
+
+function extractJsonObject(text: string): unknown | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    // strip markdown fences
+  }
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1]) {
+    try {
+      return JSON.parse(fenced[1].trim());
+    } catch {
+      /* continue */
+    }
+  }
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    try {
+      return JSON.parse(trimmed.slice(start, end + 1));
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 export async function generateEmojiDecodePuzzleAI(options: { difficulty?: EmojiDecodeDifficulty; category?: string; nonce?: string } = {}): Promise<{ puzzle: EmojiDecodePuzzle; source: "ai" | "fallback" }> {
   const difficulty = options.difficulty ?? "medium";
   const category = options.category ?? "Random";
   const nonce = options.nonce ?? crypto.randomUUID();
-  const prompt = `Create one original Emoji Decode puzzle for a friendly multiplayer party game.\nCategory: ${category}\nDifficulty: ${difficulty}\nRules: Use 2 to 7 emojis with a meaningful, guessable connection. Never include the answer literally as emoji text or make a trivial one-emoji rebus. Use recognizable family-friendly topics. Avoid politics, hateful, sexual, dangerous, or offensive content, and avoid quotes or copyrighted lyrics. Include a canonical answer, a short list of reasonable alternative spellings, category, difficulty, and one-sentence explanation. Return only JSON with exactly these fields: {"answer":"...","emojis":["..."],"category":"...","acceptableAnswers":["..."],"difficulty":"${difficulty}","explanation":"..."}. Variety nonce: ${nonce}`;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const responseText = await callOpenRouter(`${prompt}\nValidation attempt: ${attempt + 1}`, 2500);
+  const prompt = `Create one original Emoji Decode puzzle for a friendly multiplayer party game.
+Category: ${category}
+Difficulty: ${difficulty}
+Rules:
+- Use 2 to 6 common emoji that form a rebus or phrase.
+- The answer must be a short movie, character, sport, food, or everyday phrase (2-40 characters).
+- Family-friendly only. No politics, hate, sexual, or dangerous content.
+- Include acceptableAnswers with 1-4 alternate spellings (lowercase ok).
+Return ONLY a JSON object with these keys:
+{"answer":"string","emojis":["emoji",...],"category":"string","acceptableAnswers":["string"],"difficulty":"${difficulty}","explanation":"one short sentence"}
+Variety nonce: ${nonce}`;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const responseText = await callOpenRouter(
+      `${prompt}\nAttempt ${attempt + 1}. JSON only.`,
+      12000,
+      350,
+    );
     if (!responseText) continue;
     try {
-      const puzzle = validateEmojiDecodePuzzle(JSON.parse(responseText), difficulty);
+      const parsed = extractJsonObject(responseText);
+      const puzzle = validateEmojiDecodePuzzle(parsed, difficulty);
       if (puzzle) return { puzzle, source: "ai" };
+      console.error("Emoji Decode puzzle failed validation:", responseText.slice(0, 400));
     } catch (error) {
       console.error("Failed to parse Emoji Decode puzzle:", error);
     }
   }
-  const fallback = SAFE_EMOJI_DECODE_FALLBACKS[Math.floor(Math.random() * SAFE_EMOJI_DECODE_FALLBACKS.length)];
+
+  // Deterministic-ish fallback pick so different rooms/rounds diverge a bit
+  const idx = Math.abs(
+    Array.from(nonce).reduce((acc, ch) => acc + ch.charCodeAt(0), 0),
+  ) % SAFE_EMOJI_DECODE_FALLBACKS.length;
+  const fallback = SAFE_EMOJI_DECODE_FALLBACKS[idx] ?? SAFE_EMOJI_DECODE_FALLBACKS[0];
   return { puzzle: { ...fallback, difficulty }, source: "fallback" };
 }
 
@@ -108,8 +164,9 @@ const FALLBACK_EMOJI: EmojiPuzzle[] = [
 async function callOpenRouter(
   prompt: string,
   timeoutMs = 8000,
+  maxTokens = 300,
 ): Promise<string | null> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPEN_ROUTER_API_KEY;
 
   if (!apiKey) {
     console.error("OPENROUTER_API_KEY is not configured.");
@@ -118,65 +175,65 @@ async function callOpenRouter(
 
   const models = [
     process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash-lite",
+    "google/gemini-2.0-flash-001",
     "openai/gpt-4o-mini",
   ];
 
   for (const model of models) {
     const controller = new AbortController();
-
-    const timeout = setTimeout(() => {
-      controller.abort();
-    }, timeoutMs);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await fetch(
-        "https://openrouter.ai/api/v1/chat/completions",
-        {
+      // First try with json_object; some models reject it — retry without.
+      for (const useJsonFormat of [true, false]) {
+        const body: Record<string, unknown> = {
+          model,
+          messages: [
+            {
+              role: "system",
+              content: "You are a JSON API. Return only valid JSON. No markdown, no commentary.",
+            },
+            { role: "user", content: prompt },
+          ],
+          max_tokens: maxTokens,
+          temperature: 0.85,
+        };
+        if (useJsonFormat) {
+          body.response_format = { type: "json_object" };
+        }
+
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${apiKey}`,
-            "HTTP-Referer":
-              process.env.APP_URL || "http://localhost:3000",
+            "HTTP-Referer": process.env.APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://rallygames.vercel.app",
             "X-Title": "Rally",
           },
           signal: controller.signal,
-          body: JSON.stringify({
-            model,
-            messages: [
-              {
-                role: "system",
-                content:
-                  "Return only valid JSON. Never use Markdown code fences.",
-              },
-              {
-                role: "user",
-                content: prompt,
-              },
-            ],
-            response_format: {
-              type: "json_object",
-            },
-            max_tokens: 160,
-            temperature: 0.7,
-          }),
-        },
-      );
+          body: JSON.stringify(body),
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-
-        const text =
-          data?.choices?.[0]?.message?.content;
-
-        if (text) {
-          return text;
+        if (!response.ok) {
+          const errText = await response.text().catch(() => "");
+          console.error(`OpenRouter API Error (${model}, json=${useJsonFormat}): ${response.status}`, errText.slice(0, 300));
+          // If json_object unsupported, try without; otherwise next model
+          if (useJsonFormat && (response.status === 400 || response.status === 404)) continue;
+          break;
         }
-      } else {
-        console.error(
-          `OpenRouter API Error (${model}): ${response.status}`,
-          await response.text(),
-        );
+
+        const data = await response.json();
+        const content = data?.choices?.[0]?.message?.content;
+        const text =
+          typeof content === "string"
+            ? content
+            : Array.isArray(content)
+              ? content.map((part: { text?: string } | string) => (typeof part === "string" ? part : part?.text || "")).join("")
+              : null;
+
+        if (text && String(text).trim()) {
+          return String(text);
+        }
       }
     } catch (error) {
       console.error(
