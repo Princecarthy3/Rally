@@ -1,5 +1,18 @@
 -- Allow the authenticated room host to install the generated clue without
 -- requiring a service-role key in the game-generation route.
+create schema if not exists private;
+create table if not exists private.emoji_decode_answers (
+  room_id uuid not null references public.game_rooms(id) on delete cascade,
+  round_no integer not null check (round_no between 1 and 8),
+  answer text not null,
+  acceptable_answers text[] not null default '{}',
+  explanation text not null,
+  created_at timestamptz not null default now(),
+  primary key (room_id, round_no)
+);
+alter table private.emoji_decode_answers enable row level security;
+revoke all on private.emoji_decode_answers from public,anon,authenticated;
+
 create or replace function public.install_emoji_decode_puzzle(
   p_room uuid,p_round integer,p_answer text,p_acceptable_answers text[],p_emojis text[],p_category text,p_difficulty text,p_explanation text
 ) returns jsonb language plpgsql security definer set search_path='' as $$
