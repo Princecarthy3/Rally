@@ -110,7 +110,9 @@ export default function PrivacyPage() {
             </h2>
 
             <p className="mt-3 leading-7">
-              For privacy questions, contact Rally via <a href="mailto:princemaccarthy006@gmail.com">princemaccarthy006@gmail.com</a>
+              For privacy questions,enquiries or game suggestions contact Rally via
+Email: <a href="mailto:princemaccarthy006@gmail.com">princemaccarthy006@gmail.com</a>
+WhatsApp:<a href="https://wa.me/233536918893">+233536918893</a>
             </p>
           </section>
         </div>
