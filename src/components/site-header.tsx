@@ -14,9 +14,9 @@ import { UserAvatar } from "@/components/customization/user-avatar";
 import { NameDisplay } from "@/components/customization/name-display";
 import { CoinWalletModal } from "@/components/customization/coin-wallet-modal";
 const links = [
-  { href: "/dashboard", label: "Home", icon: LayoutGrid },
   { href: "/leaderboard", label: "Rankings", icon: Trophy },
   { href: "/history", label: "History", icon: History },
+  { href: "/dashboard", label: "Home", icon: LayoutGrid },
   { href: "/friends", label: "Friends", icon: UsersRound },
   { href: "/messages", label: "Messages", icon: MessageCircle },
 ];
