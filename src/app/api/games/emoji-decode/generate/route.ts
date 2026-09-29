@@ -91,15 +91,25 @@ export async function POST(request: Request) {
         })
       : authClient;
 
+    const emojis = Array.isArray(puzzle.emojis)
+      ? puzzle.emojis.map((e) => String(e)).filter(Boolean)
+      : [];
+    const acceptable = Array.isArray(puzzle.acceptableAnswers)
+      ? puzzle.acceptableAnswers.map((a) => String(a)).filter(Boolean)
+      : [];
+    if (emojis.length < 1) {
+      return NextResponse.json({ error: "Generated puzzle was empty. Please try again." }, { status: 503 });
+    }
+
     const { data, error } = await installClient.rpc("install_emoji_decode_puzzle", {
       p_room: room.id,
       p_round: body.round,
-      p_answer: puzzle.answer,
-      p_acceptable_answers: puzzle.acceptableAnswers ?? [],
-      p_emojis: puzzle.emojis ?? [],
-      p_category: puzzle.category ?? "Random",
-      p_difficulty: puzzle.difficulty ?? difficulty,
-      p_explanation: puzzle.explanation ?? "Decode the emojis!",
+      p_answer: String(puzzle.answer || "").trim(),
+      p_acceptable_answers: acceptable,
+      p_emojis: emojis,
+      p_category: String(puzzle.category || "Random"),
+      p_difficulty: String(puzzle.difficulty || difficulty),
+      p_explanation: String(puzzle.explanation || "Decode the emojis!"),
     });
 
     if (error) {
