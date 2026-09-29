@@ -88,11 +88,11 @@ Return ONLY a JSON object with these keys:
 {"answer":"string","emojis":["emoji",...],"category":"string","acceptableAnswers":["string"],"difficulty":"${difficulty}","explanation":"one short sentence"}
 Variety nonce: ${nonce}`;
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     const responseText = await callOpenRouter(
       `${prompt}\nAttempt ${attempt + 1}. JSON only.`,
-      12000,
-      350,
+      3500,
+      280,
     );
     if (!responseText) continue;
     try {
