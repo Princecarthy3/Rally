@@ -1,6 +1,6 @@
 "use client";
 
-import { Chess, type Move, type PieceSymbol, type Square } from "chess.js";
+import { Chess, type Color, type Move, type PieceSymbol, type Square } from "chess.js";
 import { ArrowLeft, Check, LoaderCircle, RotateCcw, Shield, Wifi, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -9,13 +9,9 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { UserAvatar } from "@/components/customization/user-avatar";
 
 type ChessGameState = NonNullable<Room["public_state"]["chess"]>;
-const glyphs: Record<string, string> = {
-  wk: "♔", wq: "♕", wr: "♖", wb: "♗", wn: "♘", wp: "♙",
-  bk: "♚", bq: "♛", br: "♜", bb: "♝", bn: "♞", bp: "♟",
-};
-const promotionPieces: Array<{ type: PieceSymbol; name: string; glyph: string }> = [
-  { type: "q", name: "Queen", glyph: "♕" }, { type: "r", name: "Rook", glyph: "♖" },
-  { type: "b", name: "Bishop", glyph: "♗" }, { type: "n", name: "Knight", glyph: "♘" },
+const promotionPieces: Array<{ type: PieceSymbol; name: string }> = [
+  { type: "q", name: "Queen" }, { type: "r", name: "Rook" },
+  { type: "b", name: "Bishop" }, { type: "n", name: "Knight" },
 ];
 
 export function ChessGame({ room, players, userId, onlineIds, isSpectator = false, refresh }: {
@@ -157,7 +153,7 @@ export function ChessGame({ room, players, userId, onlineIds, isSpectator = fals
               const rank = myColor === "b" ? Math.floor(index / 8) + 1 : 8 - Math.floor(index / 8);
               const file = myColor === "b" ? String.fromCharCode(104 - (index % 8)) : String.fromCharCode(97 + (index % 8));
               return <button key={square} role="gridcell" aria-label={`${file}${rank}${piece ? ` ${piece.color === "w" ? "White" : "Black"} ${piece.type === "n" ? "knight" : ({ p: "pawn", r: "rook", b: "bishop", q: "queen", k: "king" } as Record<string, string>)[piece.type]}` : " empty"}${isLegal ? ", legal destination" : ""}${isCheck ? ", king in check" : ""}`} onClick={() => selectSquare(square)} disabled={!myTurn || pending || isSpectator} className={`relative grid aspect-square place-items-center text-[clamp(1.65rem,8vw,4.5rem)] leading-none transition focus-visible:z-10 focus-visible:outline-4 focus-visible:outline-yellow-300 ${squareColor} ${isLast ? "ring-inset ring-4 ring-amber-300/80" : ""} ${isSelected ? "!bg-yellow-300" : ""} ${isCheck ? "!bg-rose-400" : ""} disabled:cursor-default`}>
-                {piece && <span className={piece.color === "w" ? "text-white drop-shadow-[0_2px_2px_rgba(15,23,42,.9)]" : "text-slate-950 drop-shadow-[0_1px_0_rgba(255,255,255,.7)]"}>{glyphs[`${piece.color}${piece.type}`]}</span>}
+                {piece && <ChessPiece type={piece.type} color={piece.color} />}
                 {isLegal && <span aria-hidden="true" className={`absolute h-[24%] w-[24%] rounded-full ${piece ? "border-[5px] border-rose-500/75" : "bg-slate-950/25"}`} />}
                 {index % 8 === 0 && <span className="absolute left-1 top-0.5 text-[9px] font-black opacity-50">{rank}</span>}
                 {Math.floor(index / 8) === 7 && <span className="absolute bottom-0 right-1 text-[9px] font-black opacity-50">{file}</span>}
@@ -189,9 +185,23 @@ export function ChessGame({ room, players, userId, onlineIds, isSpectator = fals
         {(error || notice) && <p role={error ? "alert" : "status"} className={`rounded-xl border-2 px-4 py-3 text-sm font-bold ${error ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>{error || notice}</p>}
       </aside>
 
-      {promotion && <div className="fixed inset-0 z-[90] grid place-items-center bg-slate-950/60 p-4" role="dialog" aria-modal="true" aria-labelledby="promotion-title"><section className="paper-card w-full max-w-sm p-5 text-center"><h2 id="promotion-title" className="text-xl font-black">Promote your pawn</h2><p className="mt-1 text-sm text-slate-600">Choose the piece for {promotion.to}.</p><div className="mt-4 grid grid-cols-4 gap-2">{promotionPieces.map((piece) => <button key={piece.type} onClick={() => void act("move", { ...promotion, promotion: piece.type })} disabled={pending} aria-label={`Promote to ${piece.name}`} className="rounded-xl border-2 border-slate-950 bg-violet-50 p-3 text-4xl text-slate-950 hover:bg-violet-200">{myColor === "b" ? ({ q: "♛", r: "♜", b: "♝", n: "♞" } as Record<string, string>)[piece.type] : piece.glyph}</button>)}</div><button onClick={() => setPromotion(null)} className="mt-4 text-sm font-bold text-slate-500 underline">Cancel</button></section></div>}
+      {promotion && <div className="fixed inset-0 z-[90] grid place-items-center bg-slate-950/60 p-4" role="dialog" aria-modal="true" aria-labelledby="promotion-title"><section className="paper-card w-full max-w-sm p-5 text-center"><h2 id="promotion-title" className="text-xl font-black">Promote your pawn</h2><p className="mt-1 text-sm text-slate-600">Choose the piece for {promotion.to}.</p><div className="mt-4 grid grid-cols-4 gap-2">{promotionPieces.map((piece) => <button key={piece.type} onClick={() => void act("move", { ...promotion, promotion: piece.type })} disabled={pending} aria-label={`Promote to ${piece.name}`} className="grid place-items-center rounded-xl border-2 border-slate-950 bg-violet-50 p-2 hover:bg-violet-200"><ChessPiece type={piece.type} color={myColor || "w"} className="h-12 w-12" /></button>)}</div><button onClick={() => setPromotion(null)} className="mt-4 text-sm font-bold text-slate-500 underline">Cancel</button></section></div>}
     </div>
   );
+}
+
+function ChessPiece({ type, color, className = "h-[84%] w-[84%]" }: { type: PieceSymbol; color: Color; className?: string }) {
+  const fill = color === "w" ? "#fffdf7" : "#171821";
+  const stroke = color === "w" ? "#33266f" : "#fffdf7";
+  const paths: Record<PieceSymbol, React.ReactNode> = {
+    p: <><circle cx="32" cy="13" r="8" /><path d="M25 23c0 6-5 10-8 16-2 5 0 9 4 12l-4 4h30l-4-4c4-3 6-7 4-12-3-6-8-10-8-16z" /><path d="M14 56h36v5H14z" /></>,
+    r: <><path d="M15 13h9v8h6v-8h5v8h6v-8h9v13H15zM19 28h26l-3 22H22zM14 52h36v6H14z" /></>,
+    n: <><path d="M15 56h37v5H12v-8h8c-2-8 0-14 5-20l-7-7 5-10 13 5 9 12c4 5 5 11 4 17h-8c0-7-3-12-9-15-4 5-6 10-6 17h-9z" /><circle cx="36" cy="25" r="2.4" fill={stroke} stroke="none" /></>,
+    b: <><path d="M32 7c8 9 12 15 9 22-2 5-6 8-9 9-3-1-7-4-9-9-3-7 1-13 9-22zM23 39h18l4 12H19zM14 53h36v6H14z" /><path d="m29 17 7 11" fill="none" stroke={stroke} strokeWidth="2.5" /></>,
+    q: <><path d="m15 17 9 8 8-14 8 14 9-8-4 27H19zM18 47h28v5H18zM14 54h36v6H14z" /><circle cx="15" cy="15" r="3" /><circle cx="32" cy="9" r="3" /><circle cx="49" cy="15" r="3" /></>,
+    k: <><path d="M28 7h8v7h7v7h-7v8c5 3 8 8 9 15l2 5H17l2-5c1-7 4-12 9-15v-8h-7v-7h7zM14 51h36v7H14z" /></>,
+  };
+  return <svg aria-hidden="true" viewBox="0 0 64 64" className={`pointer-events-none relative z-10 shrink-0 drop-shadow-[0_2px_2px_rgba(0,0,0,.42)] ${className}`} fill={fill} stroke={stroke} strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round">{paths[type]}</svg>;
 }
 
 function PlayerChip({ player, color, active, connected, mine }: { player?: RoomPlayer; color: "White" | "Black"; active: boolean; connected: boolean; mine: boolean }) {
