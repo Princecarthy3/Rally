@@ -1,9 +1,7 @@
 import { ImageResponse } from "next/og";
-
 export const alt = "Rally — Play together, anywhere";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-
 export default function OpenGraphImage() {
   return new ImageResponse(
     (
@@ -17,97 +15,97 @@ export default function OpenGraphImage() {
           flexDirection: "column",
           height: "100%",
           justifyContent: "center",
-          padding: "64px",
+          padding: "48px 64px",
           position: "relative",
           width: "100%",
         }}
       >
+        {/* Top badge */}
         <div
           style={{
             background: "#f4dc69",
             border: "4px solid #171821",
             borderRadius: "999px",
             display: "flex",
-            fontSize: 28,
+            fontSize: 24,
             fontWeight: 800,
             letterSpacing: 2,
-            padding: "14px 26px",
+            padding: "11px 24px",
             textTransform: "uppercase",
           }}
         >
           Free online games for friends
         </div>
-
+        {/* Rally logo */}
         <div
           style={{
             alignItems: "center",
             display: "flex",
-            marginTop: 28,
+            marginTop: 18,
           }}
         >
           <div
             style={{
               alignItems: "center",
               background: "#8b5cf6",
-              borderRadius: 14,
+              borderRadius: 20,
               display: "flex",
-              height: 48,
+              height: 82,
               justifyContent: "center",
-              width: 48,
+              width: 82,
             }}
           >
             <span
               style={{
                 color: "#ffffff",
-                fontSize: 28,
+                fontSize: 48,
                 fontWeight: 800,
               }}
             >
               ✦
             </span>
           </div>
-
           <span
             style={{
-              fontSize: 21,
-              fontWeight: 800,
-              marginLeft: 12,
+              fontSize: 68,
+              fontWeight: 900,
+              letterSpacing: "-3px",
+              marginLeft: 18,
             }}
           >
             <span style={{ color: "#8b5cf6" }}>R</span>ally
           </span>
         </div>
-
+        {/* Built by */}
         <div
           style={{
             display: "flex",
-            fontSize: 30,
+            fontSize: 26,
             fontWeight: 700,
-            marginTop: 22,
-            textAlign: "center",
+            marginTop: 10,
           }}
         >
           Built by Carthy
         </div>
-
+        {/* Tagline */}
         <div
           style={{
             display: "flex",
-            fontSize: 42,
+            fontSize: 40,
             fontWeight: 800,
-            marginTop: 12,
+            marginTop: 6,
             textAlign: "center",
           }}
         >
           Play together. Anywhere.
         </div>
-
+        {/* Game icons */}
         <div
           style={{
             display: "flex",
-            fontSize: 72,
-            gap: 24,
-            marginTop: 40,
+            fontSize: 64,
+            gap: 20,
+            marginTop: 18,
           }}
         >
           🏀 🏓 ✊ 🎲
@@ -117,3 +115,4 @@ export default function OpenGraphImage() {
     size,
   );
 }
+
