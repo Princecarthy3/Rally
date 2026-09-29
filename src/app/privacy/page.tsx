@@ -113,7 +113,7 @@ export default function PrivacyPage() {
               For privacy questions,enquiries or game suggestions contact Rally via;<br />
 Email: <a href="mailto:princemaccarthy006@gmail.com">princemaccarthy006@gmail.com</a><br />
 WhatsApp:<a href="https://wa.me/233536918893">+233536918893</a><br />
-Instagram:<a href="https://www.instagram.com/rally.games?stkn=MWpwaTBhOTVvcTMwcw%3D%3D&utm_source=qr ">Rally.games<a/>
+Instagram:<a href="https://www.instagram.com/rally.games?stkn=MWpwaTBhOTVvcTMwcw%3D%3D&utm_source=qr ">Rally.games</a>
 
             </p>
           </section>
