@@ -28,5 +28,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${siteUrl}/community-guidelines`,
       lastModified: new Date(),
     },
+    {
+      url: `${siteUrl}/games`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${siteUrl}/games/emoji-decode`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
   ];
 }

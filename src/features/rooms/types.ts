@@ -26,6 +26,17 @@ export type PublicGameState = {
   checkpoints?: Record<string, number>;
   checkpointCount?: number;
   start_time?: number | null;
+  maxRounds?: number;
+  emojis?: string[];
+  category?: string;
+  difficulty?: "easy" | "medium" | "hard";
+  roundEndsAt?: number;
+  revealAt?: number;
+  answer?: string;
+  explanation?: string;
+  solvedSeats?: number[];
+  roundPoints?: Record<string, number>;
+  categoryPreference?: string;
 };
 export type Room = { id:string; code:string; game_type:GameKey; host_id:string; status:RoomStatus; max_players:number; public_state:PublicGameState; state_version:number; match_number:number; created_at:string; updated_at:string };
 export type RoomPlayer = {

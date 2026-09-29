@@ -108,6 +108,8 @@ export function GameRoom() {
         ? "start_ludo_game"
         : room.game_type === "memory_match"
         ? "start_memory_match"
+        : room.game_type === "emoji_decode"
+        ? "start_emoji_decode"
         : room.game_type === "mini_golf"
         ? "start_mini_golf"
         : room.game_type === "battleship"

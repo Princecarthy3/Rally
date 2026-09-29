@@ -16,6 +16,7 @@ import { Battleship } from "./battleship";
 import { RacingGame } from "./racing/RacingGame";
 import { RallyCombatGame } from "./combat/RallyCombatGame";
 import { UnoGame } from "./uno-game";
+import { EmojiDecodeGame } from "./emoji-decode-game";
 // pong removed
 
 import { sounds } from "@/lib/audio";
@@ -71,16 +72,16 @@ export function GameBoard({
 
 
   async function act(action: string, value?: string) {
-    if (busy || isSpectator) return;
+    if (busy || isSpectator) return null;
     // Browsers only permit AudioContext playback after a real user gesture.
     // Starting here makes the music begin with the player's first game action.
     sounds.startGameBgm(room.game_type);
     sounds.playClickSound();
     const supabase = getSupabaseBrowserClient();
-    if (!supabase) return;
+    if (!supabase) return null;
     setBusy(true);
     setError("");
-    const rpc = room.game_type === "racing" ? "play_racing_action" : room.game_type === "rally_combat" ? "play_rally_combat_action" : room.game_type === "uno" ? "play_uno_action" : room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "memory_match" ? "play_memory_match_action" : room.game_type === "mini_golf" ? "play_mini_golf_action" : room.game_type === "battleship" ? "play_battleship_action" : room.game_type === "skribbl" ? "play_skribbl_action" : "play_room_action";
+    const rpc = room.game_type === "racing" ? "play_racing_action" : room.game_type === "rally_combat" ? "play_rally_combat_action" : room.game_type === "uno" ? "play_uno_action" : room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "memory_match" ? "play_memory_match_action" : room.game_type === "mini_golf" ? "play_mini_golf_action" : room.game_type === "battleship" ? "play_battleship_action" : room.game_type === "skribbl" ? "play_skribbl_action" : room.game_type === "emoji_decode" ? "play_emoji_decode_action" : "play_room_action";
     const params = { p_room: room.id, p_action: action, p_value: value ?? null };
     const { data, error } = await supabase.rpc(rpc, params);
     if (error) {
@@ -117,6 +118,7 @@ export function GameBoard({
       await refresh();
     }
     setBusy(false);
+    return error ? null : data;
   }
 
   const scores = state.scores || {};
@@ -425,6 +427,9 @@ export function GameBoard({
           )}
           {room.game_type === "rally_combat" && (
             <RallyCombatGame room={room} players={players} meSeat={me?.seat || 1} onAct={act} busy={busy} channel={channel} />
+          )}
+          {room.game_type === "emoji_decode" && (
+            <EmojiDecodeGame room={room} players={players} userId={userId} onAct={act} busy={busy} isSpectator={isSpectator} />
           )}
         </div>
 

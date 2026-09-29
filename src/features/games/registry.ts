@@ -1,4 +1,4 @@
-export type GameKey = "uno" | "rps" | "number_guess" | "memory_match" | "mini_golf" | "battleship" | "tic_tac_toe" | "connect_four" | "dots_boxes" | "skribbl" | "ludo" | "racing" | "rally_combat";
+export type GameKey = "uno" | "rps" | "number_guess" | "memory_match" | "mini_golf" | "battleship" | "tic_tac_toe" | "connect_four" | "dots_boxes" | "skribbl" | "ludo" | "racing" | "rally_combat" | "emoji_decode";
 
 export type GameDefinition = {
   key: GameKey; name: string; shortName: string; icon: string; description: string;
@@ -10,6 +10,7 @@ export const games: GameDefinition[] = [
   { key:"racing", name:"Rally Racing", shortName:"Rally Racing", icon:"🏎️", description:"Real-time 3D arcade rally racing! Drift around dirt trails, hit checkpoints, and cross the finish line first.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#ff4d4d", ink:"#800000", tag:"3D Arcade" },
   { key:"uno", name:"Rally Cards", shortName:"Rally Cards", icon:"🃏", description:"Match colors and numbers, play Skips, Reverses, and Wilds — outplay your friends in Rally Cards!", players:"2–4", minPlayers:2, maxPlayers:4, color:"#ff8a8a", ink:"#7f1d1d", tag:"Cards" },
   { key:"skribbl", name:"Skribbl Draw & Guess", shortName:"Skribbl", icon:"🎨", description:"Pick a word, draw on the live canvas, and guess what friends are drawing.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#fef08a", ink:"#713f12", tag:"Popular" },
+  { key:"emoji_decode", name:"Emoji Decode", shortName:"Emoji Decode", icon:"🧩✨", description:"Decode the emojis. Beat your friends.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#e8e1ff", ink:"#30206c", tag:"Party / Guessing" },
   { key:"dots_boxes", name:"Dots & Boxes", shortName:"Dots & Boxes", icon:"🔲", description:"Take turns connecting dots to claim boxes and capture the grid.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#bbf7d0", ink:"#14532d", tag:"Strategy" },
   { key:"rps", name:"Rock Paper Scissors", shortName:"RPS", icon:"✊", description:"Secret picks, dramatic reveals, and room for a four-way upset.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#c9b8ff", ink:"#30206c", tag:"Classic" },
   { key:"number_guess", name:"Number Hunt", shortName:"Number Hunt", icon:"🔎", description:"A five-round 1–25 grid hunt: every player locks a tile, and finding the hidden number earns 100 points.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#9fcaff", ink:"#123967", tag:"Grid Rush" },

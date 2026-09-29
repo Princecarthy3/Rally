@@ -30,6 +30,8 @@ export const metadata: Metadata = {
     "Tic Tac Toe online",
     "Connect Four online",
     "Ludo online",
+    "Emoji Decode",
+    "emoji puzzles with friends",
   ],
   alternates: {
     canonical: "https://rallygames.vercel.app/games",
@@ -82,6 +84,14 @@ const games = [
       "Pick a word, draw it on the canvas, and guess what your friends are drawing before time runs out.",
     players: "2–4 players",
     category: "Drawing",
+  },
+  {
+    icon: "🧩✨",
+    title: "Emoji Decode",
+    description:
+      "Decode fresh AI-generated emoji clues and race your friends to the answer in eight fast rounds.",
+    players: "2–4 players",
+    category: "Party / Guessing",
   },
   {
     icon: "🔲",
@@ -213,8 +223,8 @@ export default function GamesPage() {
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {games.map((game, index) => (
-              <article
+            {games.map((game, index) => {
+              const card = <article
                 key={game.title}
                 className="group flex min-h-[310px] flex-col rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl"
               >
@@ -250,8 +260,11 @@ export default function GamesPage() {
                     {String(index + 1).padStart(2, "0")}
                   </span>
                 </div>
-              </article>
-            ))}
+              </article>;
+              return game.title === "Emoji Decode" ? (
+                <Link key={game.title} href="/games/emoji-decode" className="block rounded-[28px] focus-visible:outline-4 focus-visible:outline-violet-500">{card}</Link>
+              ) : card;
+            })}
           </div>
         </section>
 

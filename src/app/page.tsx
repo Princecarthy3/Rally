@@ -90,6 +90,13 @@ const games = [
     color: "bg-[#fff2bd]",
     tilt: "rotate-1",
   },
+  {
+    icon: "🧩✨",
+    title: "Emoji Decode",
+    text: "Decode the emojis. Beat your friends.",
+    color: "bg-[#eee9ff]",
+    tilt: "-rotate-1",
+  },
 ];
 
 function GitHubLogo() {
@@ -240,7 +247,7 @@ export default function HomePage() {
             </p>
 
             <h2 className="mt-4 text-4xl font-black tracking-[-.05em] text-slate-950 md:text-6xl">
-              13 games and growing.
+              14 games and growing.
             </h2>
 
             <p className="mx-auto mt-5 max-w-xl text-lg text-slate-500">
@@ -251,9 +258,10 @@ export default function HomePage() {
 
           <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {games.map((game) => (
-              <article
+              <Link
                 key={game.title}
-                className={`${game.color} ${game.tilt} group rounded-[32px] p-6 transition duration-300 hover:rotate-0 hover:-translate-y-2`}
+                href={game.title === "Emoji Decode" ? "/games/emoji-decode" : "/games"}
+                className={`${game.color} ${game.tilt} group block rounded-[32px] p-6 transition duration-300 hover:rotate-0 hover:-translate-y-2`}
               >
                 <div className="grid aspect-square place-items-center rounded-[24px] bg-white/55 text-7xl shadow-sm transition group-hover:scale-[1.03]">
                   {game.icon}
@@ -264,7 +272,7 @@ export default function HomePage() {
                 </h3>
 
                 <p className="mt-1 text-sm text-slate-500">{game.text}</p>
-              </article>
+              </Link>
             ))}
           </div>
 

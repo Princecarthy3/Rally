@@ -4,6 +4,59 @@ export interface EmojiPuzzle {
   answer: number;
 }
 
+export type EmojiDecodeDifficulty = "easy" | "medium" | "hard";
+export type EmojiDecodePuzzle = {
+  answer: string;
+  emojis: string[];
+  category: string;
+  acceptableAnswers: string[];
+  difficulty: EmojiDecodeDifficulty;
+  explanation: string;
+};
+
+const SAFE_EMOJI_DECODE_FALLBACKS: EmojiDecodePuzzle[] = [
+  { answer: "The Lion King", emojis: ["🦁", "👑", "🌅"], category: "Movies", acceptableAnswers: ["lion king", "the lion king"], difficulty: "medium", explanation: "A lion and a crown point to the famous animated royal story." },
+  { answer: "Spider-Man", emojis: ["🕷️", "🧑", "🦸", "🏙️"], category: "People & Characters", acceptableAnswers: ["spiderman", "spider man"], difficulty: "medium", explanation: "A spider and a superhero in a city suggest the wall-crawling hero." },
+  { answer: "Hot potato", emojis: ["🔥", "🥔", "⏱️"], category: "Phrases", acceptableAnswers: ["hot potato"], difficulty: "medium", explanation: "A potato is hot and needs to be passed quickly." },
+  { answer: "Tennis", emojis: ["🎾", "🏆", "👟"], category: "Sports", acceptableAnswers: ["tennis"], difficulty: "easy", explanation: "A tennis ball and trophy point to the sport." },
+];
+
+const UNSAFE_PUZZLE_TERMS = /\b(nazi|terrorist|porn|sex|rape|slur|kill yourself)\b/i;
+
+function validateEmojiDecodePuzzle(value: unknown, difficulty: EmojiDecodeDifficulty): EmojiDecodePuzzle | null {
+  if (!value || typeof value !== "object") return null;
+  const puzzle = value as Record<string, unknown>;
+  const answer = typeof puzzle.answer === "string" ? puzzle.answer.trim() : "";
+  const emojis = Array.isArray(puzzle.emojis) ? puzzle.emojis.filter((item): item is string => typeof item === "string").map((item) => item.trim()) : [];
+  const category = typeof puzzle.category === "string" ? puzzle.category.trim() : "";
+  const explanation = typeof puzzle.explanation === "string" ? puzzle.explanation.trim() : "";
+  const acceptableAnswers = Array.isArray(puzzle.acceptableAnswers) ? puzzle.acceptableAnswers.filter((item): item is string => typeof item === "string").map((item) => item.trim()) : [];
+  const fullText = [answer, category, explanation, ...acceptableAnswers].join(" ");
+  if (answer.length < 2 || answer.length > 64 || emojis.length < 2 || emojis.length > 7 || emojis.some((emoji) => emoji.length > 12) || category.length < 2 || category.length > 40 || explanation.length < 8 || explanation.length > 220 || acceptableAnswers.length > 8 || UNSAFE_PUZZLE_TERMS.test(fullText)) return null;
+  const emojiAnswer = answer.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  if (emojis.some((emoji) => emoji.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "") === emojiAnswer)) return null;
+  return { answer, emojis, category, acceptableAnswers: [...new Set([answer, ...acceptableAnswers])], difficulty, explanation };
+}
+
+export async function generateEmojiDecodePuzzleAI(options: { difficulty?: EmojiDecodeDifficulty; category?: string; nonce?: string } = {}): Promise<{ puzzle: EmojiDecodePuzzle; source: "ai" | "fallback" }> {
+  const difficulty = options.difficulty ?? "medium";
+  const category = options.category ?? "Random";
+  const nonce = options.nonce ?? crypto.randomUUID();
+  const prompt = `Create one original Emoji Decode puzzle for a friendly multiplayer party game.\nCategory: ${category}\nDifficulty: ${difficulty}\nRules: Use 2 to 7 emojis with a meaningful, guessable connection. Never include the answer literally as emoji text or make a trivial one-emoji rebus. Use recognizable family-friendly topics. Avoid politics, hateful, sexual, dangerous, or offensive content, and avoid quotes or copyrighted lyrics. Include a canonical answer, a short list of reasonable alternative spellings, category, difficulty, and one-sentence explanation. Return only JSON with exactly these fields: {"answer":"...","emojis":["..."],"category":"...","acceptableAnswers":["..."],"difficulty":"${difficulty}","explanation":"..."}. Variety nonce: ${nonce}`;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const responseText = await callOpenRouter(`${prompt}\nValidation attempt: ${attempt + 1}`, 2500);
+    if (!responseText) continue;
+    try {
+      const puzzle = validateEmojiDecodePuzzle(JSON.parse(responseText), difficulty);
+      if (puzzle) return { puzzle, source: "ai" };
+    } catch (error) {
+      console.error("Failed to parse Emoji Decode puzzle:", error);
+    }
+  }
+  const fallback = SAFE_EMOJI_DECODE_FALLBACKS[Math.floor(Math.random() * SAFE_EMOJI_DECODE_FALLBACKS.length)];
+  return { puzzle: { ...fallback, difficulty }, source: "fallback" };
+}
+
 const FALLBACK_SKRIBBL_WORDS = [
   ["Apple", "Banana", "House"],
   ["Cat", "Dog", "Sun"],
