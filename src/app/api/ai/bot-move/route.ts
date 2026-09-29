@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { Chess, type Move } from "chess.js";
 import { generateSkribblWordsAI } from "@/lib/ai/gemini";
 
 export async function POST(request: Request) {
@@ -13,6 +14,8 @@ export async function POST(request: Request) {
     if (!roomId || !gameType || !Number.isFinite(botSeat)) {
       return NextResponse.json({ error: "Missing roomId, gameType, or botSeat" }, { status: 400 });
     }
+
+    if (gameType === "chess") return await makeChessBotMove(request, roomId, botSeat, difficulty);
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -333,4 +336,145 @@ export async function POST(request: Request) {
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Failed to make bot move" }, { status: 500 });
   }
+}
+
+type ChessBotRecord = {
+  room_id: string; match_id: string; white_player_id: string; black_player_id: string; fen: string;
+  moves: Array<{ from: string; to: string; promotion?: string; san: string; captured?: string; flags: string }>;
+  position_counts: Record<string, number>; status: string; winner_player_id: string | null;
+  result_reason: string | null; draw_offered_by: string | null; revision: number;
+};
+
+async function makeChessBotMove(request: Request, roomId: string, botSeat: number, difficulty: "easy" | "medium" | "hard") {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  if (!url || !anonKey || !serviceKey) return NextResponse.json({ error: "Chess bot is unavailable. Check the server Supabase configuration." }, { status: 503 });
+  if (!token) return NextResponse.json({ error: "Sign in before asking the Rally bot to move." }, { status: 401 });
+
+  const auth = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data: authData, error: authError } = await auth.auth.getUser(token);
+  if (authError || !authData.user) return NextResponse.json({ error: "Your session has expired." }, { status: 401 });
+
+  const [{ data: room }, { data: bot }, { data: gameRow }] = await Promise.all([
+    admin.from("game_rooms").select("id,host_id,game_type,status").eq("id", roomId).maybeSingle(),
+    admin.from("game_players").select("player_id,seat").eq("room_id", roomId).eq("seat", botSeat).maybeSingle(),
+    admin.from("chess_games").select("*").eq("room_id", roomId).maybeSingle(),
+  ]);
+  if (!room || room.game_type !== "chess" || room.status !== "playing") return NextResponse.json({ error: "This Chess game is no longer active." }, { status: 409 });
+  if (room.host_id !== authData.user.id) return NextResponse.json({ error: "Only the room host can request the Rally bot's move." }, { status: 403 });
+  if (!bot || !String(bot.player_id).startsWith("11111111-1111-1111-1111-")) return NextResponse.json({ error: "The Rally bot is not seated in this room." }, { status: 403 });
+  if (!gameRow) return NextResponse.json({ error: "The Chess position has not been initialized." }, { status: 409 });
+  const game = gameRow as ChessBotRecord;
+  if (game.status !== "active") return NextResponse.json({ message: "The Chess game has ended." });
+
+  let chess: Chess;
+  try {
+    chess = new Chess();
+    for (const move of game.moves || []) chess.move({ from: move.from, to: move.to, ...(move.promotion ? { promotion: move.promotion } : {}) });
+    if (chess.fen() !== game.fen) throw new Error("Position does not match history");
+  } catch {
+    return NextResponse.json({ error: "The Rally bot could not restore this Chess position." }, { status: 500 });
+  }
+  const currentPlayerId = chess.turn() === "w" ? game.white_player_id : game.black_player_id;
+  if (currentPlayerId !== bot.player_id) return NextResponse.json({ message: "It is not the Rally bot's turn." });
+
+  if (game.draw_offered_by && game.draw_offered_by !== bot.player_id) {
+    const acceptsDraw = evaluateChessPosition(chess, chess.turn()) < -1 || (difficulty === "easy" && Math.random() < 0.4);
+    const revision = Number(game.revision) + 1;
+    const drawState = {
+      matchId: game.match_id, fen: game.fen, moves: game.moves, turn: chess.turn(),
+      whitePlayerId: game.white_player_id, blackPlayerId: game.black_player_id,
+      status: acceptsDraw ? "draw" : "active", winnerPlayerId: null,
+      resultReason: acceptsDraw ? "Draw agreed" : null, drawOfferedBy: null,
+      revision, inCheck: chess.inCheck(), lastMove: game.moves.at(-1) ? { from: game.moves.at(-1)!.from, to: game.moves.at(-1)!.to } : null,
+      message: acceptsDraw ? "Draw agreed" : `${chess.turn() === "w" ? "White" : "Black"} to move`,
+    };
+    const { error } = await admin.rpc("commit_chess_state", {
+      p_room: roomId, p_match_id: game.match_id, p_expected_revision: game.revision, p_actor: bot.player_id,
+      p_fen: game.fen, p_moves: game.moves, p_position_counts: game.position_counts || {},
+      p_status: acceptsDraw ? "draw" : "active", p_winner_player_id: null,
+      p_result_reason: acceptsDraw ? "Draw agreed" : null, p_draw_offered_by: null,
+      p_public_state: { chess: drawState },
+    });
+    if (error) return NextResponse.json({ error: "The Rally bot could not respond to the draw offer." }, { status: 409 });
+    return NextResponse.json({ success: true, action: acceptsDraw ? "accept_draw" : "decline_draw", newState: { chess: drawState } });
+  }
+
+  const candidates = chess.moves({ verbose: true });
+  if (!candidates.length) return NextResponse.json({ message: "No legal bot move is available." });
+  const botColor = chess.turn();
+  const move = chooseChessBotMove(chess, candidates, difficulty, botColor);
+  const applied = chess.move({ from: move.from, to: move.to, ...(move.promotion ? { promotion: move.promotion } : {}) });
+  const moves = [...game.moves, { from: applied.from, to: applied.to, san: applied.san, promotion: applied.promotion, captured: applied.captured, flags: applied.flags }];
+  const positionCounts = { ...(game.position_counts || {}) };
+  const positionKey = chess.hash();
+  positionCounts[positionKey] = (positionCounts[positionKey] || 0) + 1;
+  const result = chess.isCheckmate()
+    ? { status: "checkmate", winner: bot.player_id, reason: "Checkmate" }
+    : chess.isStalemate()
+      ? { status: "stalemate", winner: null, reason: "Stalemate" }
+      : chess.isThreefoldRepetition()
+        ? { status: "draw", winner: null, reason: "Draw by threefold repetition" }
+        : chess.isDrawByFiftyMoves()
+          ? { status: "draw", winner: null, reason: "Draw by the fifty-move rule" }
+          : chess.isInsufficientMaterial()
+            ? { status: "draw", winner: null, reason: "Draw by insufficient material" }
+            : chess.isDraw()
+              ? { status: "draw", winner: null, reason: "Draw" }
+              : { status: "active", winner: null, reason: null };
+  const nextRevision = Number(game.revision) + 1;
+  const nextState = {
+    matchId: game.match_id, fen: chess.fen(), moves, turn: chess.turn(), whitePlayerId: game.white_player_id,
+    blackPlayerId: game.black_player_id, status: result.status, winnerPlayerId: result.winner,
+    resultReason: result.reason, drawOfferedBy: null, revision: nextRevision, inCheck: chess.inCheck(),
+    lastMove: { from: applied.from, to: applied.to },
+    message: result.status === "active" ? chess.inCheck() ? "Check" : `${chess.turn() === "w" ? "White" : "Black"} to move` : result.reason,
+  };
+  const { error } = await admin.rpc("commit_chess_state", {
+    p_room: roomId, p_match_id: game.match_id, p_expected_revision: game.revision, p_actor: bot.player_id,
+    p_fen: chess.fen(), p_moves: moves, p_position_counts: positionCounts, p_status: result.status,
+    p_winner_player_id: result.winner, p_result_reason: result.reason, p_draw_offered_by: null,
+    p_public_state: { chess: nextState },
+  });
+  if (error) return NextResponse.json({ error: error.message.includes("newer move") ? "The board changed before the bot could move." : "The Rally bot's move could not be saved." }, { status: 409 });
+  return NextResponse.json({ success: true, action: "move", newState: { chess: nextState } });
+}
+
+function chooseChessBotMove(chess: Chess, candidates: Move[], difficulty: "easy" | "medium" | "hard", botColor: "w" | "b") {
+  if (difficulty === "easy") return candidates[Math.floor(Math.random() * candidates.length)];
+  const scored = candidates.map((candidate) => {
+    const afterBotMove = new Chess(chess.fen());
+    afterBotMove.move({ from: candidate.from, to: candidate.to, ...(candidate.promotion ? { promotion: candidate.promotion } : {}) });
+    let score = evaluateChessPosition(afterBotMove, botColor);
+    if (difficulty === "hard" && !afterBotMove.isGameOver()) {
+      const replies = afterBotMove.moves({ verbose: true });
+      let worstReply = Infinity;
+      for (const reply of replies) {
+        const afterReply = new Chess(afterBotMove.fen());
+        afterReply.move({ from: reply.from, to: reply.to, ...(reply.promotion ? { promotion: reply.promotion } : {}) });
+        worstReply = Math.min(worstReply, evaluateChessPosition(afterReply, botColor));
+      }
+      score = Number.isFinite(worstReply) ? worstReply : score;
+    }
+    return { candidate, score };
+  }).sort((a, b) => b.score - a.score);
+  if (difficulty === "medium" && Math.random() < 0.3) return scored[Math.floor(Math.random() * Math.min(scored.length, 4))].candidate;
+  const bestScore = scored[0].score;
+  const best = scored.filter((entry) => entry.score === bestScore);
+  return best[Math.floor(Math.random() * best.length)].candidate;
+}
+
+function evaluateChessPosition(chess: Chess, perspective: "w" | "b") {
+  const values = { p: 1, n: 3, b: 3.2, r: 5, q: 9, k: 0 };
+  let score = 0;
+  for (const row of chess.board()) for (const piece of row) {
+    if (piece) score += values[piece.type] * (piece.color === perspective ? 1 : -1);
+  }
+  if (chess.isCheckmate()) return chess.turn() === perspective ? -10000 : 10000;
+  if (chess.isDraw()) return 0;
+  if (chess.isCheck()) score += chess.turn() === perspective ? -0.4 : 0.4;
+  return score;
 }

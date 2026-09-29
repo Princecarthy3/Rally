@@ -181,6 +181,10 @@ export function GameBoard({
         const botLocked = Boolean(s.placements?.[String(botSeat)]);
         if (phase === "placing" && !botLocked) isBotTurn = true;
         if (phase === "playing" && turn === botSeat) isBotTurn = true;
+      } else if (room.game_type === "chess") {
+        const chessState = s.chess || {};
+        const currentPlayerId = chessState.turn === "w" ? chessState.whitePlayerId : chessState.blackPlayerId;
+        isBotTurn = chessState.status === "active" && currentPlayerId === botPlayer.player_id;
       }
 
       if (!isBotTurn) return;
@@ -196,6 +200,8 @@ export function GameBoard({
               ? `bs:${s.phase || "placing"}:${s.placements?.[String(botSeat)] ? "locked" : "open"}:${turn}`
               : room.game_type === "racing"
                 ? `race:${s.stage || s.phase || ""}:${Array.isArray(s.results) ? s.results.length : 0}:${Math.floor(Number(s.start_time || 0))}`
+                : room.game_type === "chess"
+                  ? `chess:${s.chess?.matchId || ""}:${s.chess?.revision ?? 0}`
               : String(turn);
       const requestKey = `${room.id}:phase:${phaseKey}:bot:${botSeat}`;
       if (pendingBotMoves.current.has(requestKey)) return;
@@ -208,19 +214,15 @@ export function GameBoard({
         if (pendingBotMoves.current.has(requestKey)) return;
         pendingBotMoves.current.add(requestKey);
 
-        fetch("/api/ai/bot-move", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        sendBotMove({
             roomId: room.id,
             gameType: room.game_type,
             publicState: room.public_state,
             botSeat,
             difficulty:
               (typeof window !== "undefined" &&
-                localStorage.getItem(`rally_bot_difficulty_${room.id}`)) ||
+              localStorage.getItem(`rally_bot_difficulty_${room.id}`)) ||
               "medium",
-          }),
         })
           .then(async (response) => {
             const body = await response.json().catch(() => ({}));
@@ -258,19 +260,15 @@ export function GameBoard({
             const requestKey = `${room.id}:race-retry:${botSeat}:${delay}`;
             if (pendingBotMoves.current.has(requestKey)) return;
             pendingBotMoves.current.add(requestKey);
-            fetch("/api/ai/bot-move", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
+            sendBotMove({
                 roomId: room.id,
                 gameType: room.game_type,
                 publicState: room.public_state,
                 botSeat,
                 difficulty:
                   (typeof window !== "undefined" &&
-                    localStorage.getItem(`rally_bot_difficulty_${room.id}`)) ||
+                  localStorage.getItem(`rally_bot_difficulty_${room.id}`)) ||
                   "medium",
-              }),
             })
               .then(async (response) => {
                 const body = await response.json().catch(() => ({}));
@@ -446,6 +444,18 @@ export function GameBoard({
       </section>
     </div>
   );
+}
+
+async function sendBotMove(payload: { roomId: string; gameType: Room["game_type"]; publicState: Room["public_state"]; botSeat: number; difficulty: string }) {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return fetch("/api/ai/bot-move", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(payload),
+  });
 }
 
 function Basketball({ state, mySeat, busy, shoot }: { state: Room["public_state"]; mySeat?: number; busy: boolean; shoot: () => void }) {

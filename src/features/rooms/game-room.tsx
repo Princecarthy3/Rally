@@ -572,7 +572,7 @@ function Lobby({
 
               {/* Action Buttons: Full width on mobile for easy single-thumb tapping */}
               <div className="grid grid-cols-1 w-full gap-2.5 sm:w-auto sm:flex sm:flex-wrap sm:gap-3">
-                {host && room.game_type !== "chess" && players.length < room.max_players && (
+                {host && players.length < room.max_players && (
                   <button onClick={() => openBotPicker()} disabled={busy} className="arcade-button justify-center bg-[#77dce7] text-slate-950 text-xs py-3 sm:py-2.5 shadow-[3px_3px_0_#171821]">
                     🎮 PLAY SOLO
                   </button>

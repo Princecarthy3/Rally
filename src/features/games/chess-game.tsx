@@ -13,6 +13,7 @@ const promotionPieces: Array<{ type: PieceSymbol; name: string }> = [
   { type: "q", name: "Queen" }, { type: "r", name: "Rook" },
   { type: "b", name: "Bishop" }, { type: "n", name: "Knight" },
 ];
+const isRallyBot = (id?: string) => Boolean(id?.startsWith("11111111-1111-1111-1111-"));
 
 export function ChessGame({ room, players, userId, onlineIds, isSpectator = false, refresh }: {
   room: Room; players: RoomPlayer[]; userId: string; onlineIds: string[]; isSpectator?: boolean; refresh: () => Promise<void>;
@@ -58,6 +59,7 @@ export function ChessGame({ room, players, userId, onlineIds, isSpectator = fals
   const myTurn = Boolean(game && myColor && myColor === game.turn && game.status === "active");
   const whiteTurn = game?.turn === "w";
   const activePlayer = whiteTurn ? white : black;
+  const activePlayerConnected = Boolean(activePlayer && (isRallyBot(activePlayer.player_id) || onlineIds.includes(activePlayer.player_id)));
   const drawOfferedByOpponent = Boolean(game?.drawOfferedBy && game.drawOfferedBy !== userId);
 
   async function act(action: string, extra: { from?: Square; to?: Square; promotion?: PieceSymbol } = {}) {
@@ -181,7 +183,7 @@ export function ChessGame({ room, players, userId, onlineIds, isSpectator = fals
           {ended && room.host_id !== userId && <p className="text-center text-xs font-bold text-slate-500">Waiting for the host to start a rematch.</p>}
           <Link href="/dashboard" className="arcade-button w-full justify-center bg-slate-950 text-sm text-white"><ArrowLeft size={16} /> Return to the arcade</Link>
         </section>
-        <section className="paper-card p-4"><div className="flex items-center gap-2 text-xs font-bold text-slate-600">{pending ? <LoaderCircle className="animate-spin" size={15} /> : game.status !== "active" ? <Shield size={15} /> : activePlayer && onlineIds.includes(activePlayer.player_id) ? <Wifi size={15} className="text-emerald-600" /> : <WifiOff size={15} className="text-amber-600" />}{pending ? "Saving the official move…" : game.status !== "active" ? "This game has ended." : activePlayer && onlineIds.includes(activePlayer.player_id) ? "Current player connected" : "Current player reconnecting"}</div></section>
+        <section className="paper-card p-4"><div className="flex items-center gap-2 text-xs font-bold text-slate-600">{pending ? <LoaderCircle className="animate-spin" size={15} /> : game.status !== "active" ? <Shield size={15} /> : activePlayerConnected ? <Wifi size={15} className="text-emerald-600" /> : <WifiOff size={15} className="text-amber-600" />}{pending ? "Saving the official move…" : game.status !== "active" ? "This game has ended." : activePlayerConnected ? isRallyBot(activePlayer?.player_id) ? "Rally bot is ready to move" : "Current player connected" : "Current player reconnecting"}</div></section>
         {(error || notice) && <p role={error ? "alert" : "status"} className={`rounded-xl border-2 px-4 py-3 text-sm font-bold ${error ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>{error || notice}</p>}
       </aside>
 
@@ -205,8 +207,9 @@ function ChessPiece({ type, color, className = "h-[84%] w-[84%]" }: { type: Piec
 }
 
 function PlayerChip({ player, color, active, connected, mine }: { player?: RoomPlayer; color: "White" | "Black"; active: boolean; connected: boolean; mine: boolean }) {
+  const bot = isRallyBot(player?.player_id);
   return <div className={`flex min-w-0 items-center gap-2 rounded-xl px-2 py-1.5 ${active ? "bg-violet-100 ring-2 ring-violet-500" : ""}`}>
     <UserAvatar avatarUrl={player?.profile?.avatar_url} equippedAvatar={player?.customization?.avatar} equippedFrame={player?.customization?.frame} fallbackName={player?.profile?.display_name} size="sm" />
-    <div className="min-w-0"><p className="truncate text-xs font-black">{player?.profile?.display_name || `${color} player`}{mine ? " (you)" : ""}</p><p className="text-[10px] font-bold text-slate-500">{color}{active ? " · to move" : ""}{player ? connected ? " · online" : " · reconnecting" : " · waiting"}</p></div>
+    <div className="min-w-0"><p className="truncate text-xs font-black">{player?.profile?.display_name || `${color} player`}{mine ? " (you)" : ""}</p><p className="text-[10px] font-bold text-slate-500">{color}{active ? " · to move" : ""}{bot ? " · Rally bot" : player ? connected ? " · online" : " · reconnecting" : " · waiting"}</p></div>
   </div>;
 }
