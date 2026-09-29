@@ -73,10 +73,70 @@ export default function PrivacyPage() {
             </h2>
 
             <p className="mt-3 leading-7">
-              Rally may use third-party services to provide infrastructure,
-              authentication, hosting, email, payments, analytics, or other
-              necessary functionality. Those providers process information
-              according to their own terms and privacy policies.
+              
+
+<p>
+  Rally may use third-party services to provide infrastructure, authentication,
+  hosting, email, payments, AI features, analytics, or other necessary
+  functionality. Those providers process information according to their own
+  terms and privacy policies.
+</p>
+
+<ul>
+  <li>
+    <strong>
+      <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer">
+        Supabase
+      </a>
+    </strong>
+    — Used for database hosting, user authentication, account management, and
+    backend services.
+  </li>
+
+  <li>
+    <strong>
+      <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer">
+        Vercel
+      </a>
+    </strong>
+    — Used for website hosting, deployment, and application infrastructure.
+  </li>
+
+  <li>
+    <strong>
+      <a href="https://www.brevo.com/legal/privacypolicy/" target="_blank" rel="noopener noreferrer">
+        Brevo
+      </a>
+    </strong>
+    — Used to send account verification, password-reset, and other transactional
+    emails.
+  </li>
+
+  <li>
+    <strong>
+      <a href="https://paystack.com/privacy-policy" target="_blank" rel="noopener noreferrer">
+        Paystack
+      </a>
+    </strong>
+    — Used to process payments and purchases, including Rally Coins or other
+    paid features.
+  </li>
+
+  <li>
+    <strong>
+      <a href="https://openrouter.ai/privacy/" target="_blank" rel="noopener noreferrer">
+        OpenRouter
+      </a>
+    </strong>
+    — Used to provide AI-powered features, such as generating dynamic game
+    content.
+  </li>
+</ul>
+
+<p>
+  Rally may add or remove third-party service providers as the Service develops.
+  This Privacy Policy may be updated to reflect any material changes.
+</p>
             </p>
           </section>
 
