@@ -49,28 +49,27 @@ export default function OpenGraphImage() {
         >
           {/* Large purple icon */}
           <div
-            style={{
-              alignItems: "center",
-              background: "#8b5cf6",
-              borderRadius: 24,
-              display: "flex",
-              height: 100,
-              justifyContent: "center",
-              width: 100,
-            }}
-          >
-            {/* SVG star — guaranteed to render */}
-            <svg
-              width="68"
-              height="68"
-              viewBox="0 0 100 100"
-            >
-              <path
-                d="M50 5 L61 38 L96 38 L68 59 L79 94 L50 73 L21 94 L32 59 L4 38 L39 38 Z"
-                fill="#ffffff"
-              />
-            </svg>
-          </div>
+  style={{
+    alignItems: "center",
+    background: "#8b5cf6",
+    borderRadius: 24,
+    display: "flex",
+    height: 100,
+    justifyContent: "center",
+    width: 100,
+  }}
+>
+  <svg width="70" height="70" viewBox="0 0 100 100">
+    <path
+      d="M50 3
+         C55 32 68 45 97 50
+         C68 55 55 68 50 97
+         C45 68 32 55 3 50
+         C32 45 45 32 50 3Z"
+      fill="#ffffff"
+    />
+  </svg>
+</div>
 
           {/* Rally */}
           <span
