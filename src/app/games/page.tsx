@@ -32,6 +32,7 @@ export const metadata: Metadata = {
     "Ludo online",
     "Emoji Decode",
     "emoji puzzles with friends",
+    "Chess online",
   ],
   alternates: {
     canonical: "https://rallygames.vercel.app/games",
@@ -92,6 +93,13 @@ const games = [
       "Decode fresh AI-generated emoji clues and race your friends to the answer in eight fast rounds.",
     players: "2–4 players",
     category: "Party / Guessing",
+  },
+  {
+    icon: "♟",
+    title: "Chess",
+    description: "Challenge a friend to a battle of strategy. Every move counts.",
+    players: "2 players",
+    category: "Strategy",
   },
   {
     icon: "🔲",
@@ -261,8 +269,8 @@ export default function GamesPage() {
                   </span>
                 </div>
               </article>;
-              return game.title === "Emoji Decode" ? (
-                <Link key={game.title} href="/games/emoji-decode" className="block rounded-[28px] focus-visible:outline-4 focus-visible:outline-violet-500">{card}</Link>
+              return game.title === "Emoji Decode" || game.title === "Chess" ? (
+                <Link key={game.title} href={game.title === "Chess" ? "/games/chess" : "/games/emoji-decode"} className="block rounded-[28px] focus-visible:outline-4 focus-visible:outline-violet-500">{card}</Link>
               ) : card;
             })}
           </div>

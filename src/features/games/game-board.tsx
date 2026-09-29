@@ -17,6 +17,7 @@ import { RacingGame } from "./racing/RacingGame";
 import { RallyCombatGame } from "./combat/RallyCombatGame";
 import { UnoGame } from "./uno-game";
 import { EmojiDecodeGame } from "./emoji-decode-game";
+import { ChessGame } from "./chess-game";
 // pong removed
 
 import { sounds } from "@/lib/audio";
@@ -318,6 +319,10 @@ export function GameBoard({
     refresh,
     applyPublicState,
   ]);
+
+  if (room.game_type === "chess") {
+    return <ChessGame room={room} players={players} userId={userId} onlineIds={onlineIds} isSpectator={isSpectator} refresh={refresh} />;
+  }
 
   if (room.status === "completed" && (room.game_type !== "racing" || racingLeftToResults)) {
     return (

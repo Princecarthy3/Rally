@@ -97,6 +97,13 @@ const games = [
     color: "bg-[#eee9ff]",
     tilt: "-rotate-1",
   },
+  {
+    icon: "♟",
+    title: "Chess",
+    text: "Challenge a friend to a battle of strategy",
+    color: "bg-[#eee9ff]",
+    tilt: "rotate-1",
+  },
 ];
 
 function GitHubLogo() {
@@ -247,7 +254,7 @@ export default function HomePage() {
             </p>
 
             <h2 className="mt-4 text-4xl font-black tracking-[-.05em] text-slate-950 md:text-6xl">
-              14 games and growing.
+              15 games and growing.
             </h2>
 
             <p className="mx-auto mt-5 max-w-xl text-lg text-slate-500">
@@ -260,7 +267,7 @@ export default function HomePage() {
             {games.map((game) => (
               <Link
                 key={game.title}
-                href={game.title === "Emoji Decode" ? "/games/emoji-decode" : "/games"}
+                href={game.title === "Emoji Decode" ? "/games/emoji-decode" : game.title === "Chess" ? "/games/chess" : "/games"}
                 className={`${game.color} ${game.tilt} group block rounded-[32px] p-6 transition duration-300 hover:rotate-0 hover:-translate-y-2`}
               >
                 <div className="grid aspect-square place-items-center rounded-[24px] bg-white/55 text-7xl shadow-sm transition group-hover:scale-[1.03]">

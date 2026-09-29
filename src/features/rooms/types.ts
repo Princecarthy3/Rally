@@ -37,6 +37,12 @@ export type PublicGameState = {
   solvedSeats?: number[];
   roundPoints?: Record<string, number>;
   categoryPreference?: string;
+  chess?: {
+    matchId: string; fen: string; moves: Array<{ from: string; to: string; san: string; promotion?: string; captured?: string; flags: string }>;
+    turn: "w" | "b"; whitePlayerId: string; blackPlayerId: string; status: string; winnerPlayerId?: string | null;
+    resultReason?: string | null; drawOfferedBy?: string | null; revision: number; inCheck: boolean;
+    lastMove?: { from: string; to: string } | null; message?: string;
+  };
 };
 export type Room = { id:string; code:string; game_type:GameKey; host_id:string; status:RoomStatus; max_players:number; public_state:PublicGameState; state_version:number; match_number:number; created_at:string; updated_at:string };
 export type RoomPlayer = {
