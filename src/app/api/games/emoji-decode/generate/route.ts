@@ -4,6 +4,10 @@ import { generateEmojiDecodePuzzleAI, type EmojiDecodeDifficulty } from "@/lib/a
 
 const difficulties = new Set<EmojiDecodeDifficulty>(["easy", "medium", "hard"]);
 
+function normalizeAnswer(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 export async function POST(request: Request) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -56,46 +60,50 @@ export async function POST(request: Request) {
       ? (room.public_state.difficulty as EmojiDecodeDifficulty)
       : "medium";
 
-    // Race AI against a hard deadline so the round never sits past ~4s without a clue.
-    // Shared install writes one public_state so every player sees the same emojis.
-    const puzzlePromise = generateEmojiDecodePuzzleAI({
-      difficulty,
-      category: "Random",
-      nonce: `${room.id}:${body.round}`,
-    });
-    const timeoutPromise = new Promise<{
-      puzzle: Awaited<ReturnType<typeof generateEmojiDecodePuzzleAI>>["puzzle"];
-      source: "fallback";
-    }>((resolve) => {
-      setTimeout(() => {
-        resolve({
-            puzzle: {
-              answer: "Ice cream",
-              emojis: ["🍦", "🍨", "❄️"],
-              category: "Food",
-              acceptableAnswers: ["ice cream", "icecream"],
-              difficulty,
-              explanation: "Cold sweet treats point to ice cream.",
-            },
-            source: "fallback" as const,
-          }
-        );
-      }, 4000);
-    });
-
-    const { puzzle, source } = await Promise.race([puzzlePromise, timeoutPromise]);
-
     const installClient = serviceKey
       ? createClient(supabaseUrl, serviceKey, {
           auth: { autoRefreshToken: false, persistSession: false },
         })
       : authClient;
 
-    const emojis = Array.isArray(puzzle.emojis)
-      ? puzzle.emojis.map((e) => String(e)).filter(Boolean)
+    // Answers already used in this room must not repeat across rounds.
+    let excludeAnswers: string[] = [];
+    const { data: usedList } = await installClient.rpc("get_emoji_decode_used_answers", {
+      p_room: room.id,
+    });
+    if (Array.isArray(usedList)) {
+      excludeAnswers = usedList.map((item: unknown) => String(item || "")).filter(Boolean);
+    } else if (Array.isArray(room.public_state?.usedAnswers)) {
+      excludeAnswers = room.public_state.usedAnswers.map((item: unknown) => String(item || "")).filter(Boolean);
+    }
+
+    const { puzzle, source } = await generateEmojiDecodePuzzleAI({
+      difficulty,
+      category: "Random",
+      nonce: `${room.id}:${body.round}:${Date.now()}`,
+      excludeAnswers,
+    });
+
+    // Extra guard: if somehow still a duplicate, pick another via a shifted nonce
+    const usedKeys = new Set(excludeAnswers.map(normalizeAnswer));
+    let finalPuzzle = puzzle;
+    let finalSource = source;
+    if (usedKeys.has(normalizeAnswer(puzzle.answer))) {
+      const retry = await generateEmojiDecodePuzzleAI({
+        difficulty,
+        category: "Random",
+        nonce: `${room.id}:${body.round}:retry:${crypto.randomUUID()}`,
+        excludeAnswers: [...excludeAnswers, puzzle.answer],
+      });
+      finalPuzzle = retry.puzzle;
+      finalSource = retry.source;
+    }
+
+    const emojis = Array.isArray(finalPuzzle.emojis)
+      ? finalPuzzle.emojis.map((e) => String(e)).filter(Boolean)
       : [];
-    const acceptable = Array.isArray(puzzle.acceptableAnswers)
-      ? puzzle.acceptableAnswers.map((a) => String(a)).filter(Boolean)
+    const acceptable = Array.isArray(finalPuzzle.acceptableAnswers)
+      ? finalPuzzle.acceptableAnswers.map((a) => String(a)).filter(Boolean)
       : [];
     if (emojis.length < 1) {
       return NextResponse.json({ error: "Generated puzzle was empty. Please try again." }, { status: 503 });
@@ -104,12 +112,12 @@ export async function POST(request: Request) {
     const { data, error } = await installClient.rpc("install_emoji_decode_puzzle", {
       p_room: room.id,
       p_round: body.round,
-      p_answer: String(puzzle.answer || "").trim(),
+      p_answer: String(finalPuzzle.answer || "").trim(),
       p_acceptable_answers: acceptable,
       p_emojis: emojis,
-      p_category: String(puzzle.category || "Random"),
-      p_difficulty: String(puzzle.difficulty || difficulty),
-      p_explanation: String(puzzle.explanation || "Decode the emojis!"),
+      p_category: String(finalPuzzle.category || "Random"),
+      p_difficulty: String(finalPuzzle.difficulty || difficulty),
+      p_explanation: String(finalPuzzle.explanation || "Decode the emojis!"),
     });
 
     if (error) {
@@ -121,7 +129,7 @@ export async function POST(request: Request) {
       });
       const message =
         error.code === "PGRST202" || error.code === "42883"
-          ? "Emoji Decode database setup is incomplete. Run the latest Emoji Decode Supabase migrations (including 20260930_emoji_decode_fix_install_types)."
+          ? "Emoji Decode database setup is incomplete. Run the latest Emoji Decode Supabase migrations."
           : error.code === "42P01"
             ? "Emoji Decode answer storage is missing. Apply the Emoji Decode Supabase migrations."
             : error.code === "42501"
@@ -130,7 +138,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: message }, { status: 503 });
     }
 
-    return NextResponse.json({ ready: true, source, phase: data?.phase });
+    return NextResponse.json({ ready: true, source: finalSource, phase: data?.phase });
   } catch (error) {
     console.error("Emoji Decode puzzle generation failed:", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json({ error: "Could not create a puzzle. Please try again." }, { status: 503 });

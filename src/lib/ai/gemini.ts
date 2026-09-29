@@ -25,6 +25,20 @@ const SAFE_EMOJI_DECODE_FALLBACKS: EmojiDecodePuzzle[] = [
   { answer: "Snow White", emojis: ["❄️", "👸", "🍎"], category: "Movies", acceptableAnswers: ["snow white"], difficulty: "medium", explanation: "A princess, snow, and an apple hint at Snow White." },
   { answer: "Time flies", emojis: ["⏰", "✈️", "🕊️"], category: "Phrases", acceptableAnswers: ["time flies"], difficulty: "hard", explanation: "A clock and flying birds suggest the phrase time flies." },
   { answer: "Broken heart", emojis: ["💔", "😢", "🩹"], category: "Phrases", acceptableAnswers: ["broken heart", "heartbreak"], difficulty: "easy", explanation: "A cracked heart and sadness mean a broken heart." },
+  { answer: "Birthday", emojis: ["🎉", "🎂", "🎁"], category: "Events", acceptableAnswers: ["birthday", "happy birthday"], difficulty: "easy", explanation: "Cake, gifts, and celebration mean a birthday." },
+  { answer: "Sunshine", emojis: ["☀️", "😎", "🌴"], category: "Nature", acceptableAnswers: ["sunshine", "sunny"], difficulty: "easy", explanation: "Bright sun and shades suggest sunshine." },
+  { answer: "Football", emojis: ["⚽", "🥅", "🏟️"], category: "Sports", acceptableAnswers: ["football", "soccer"], difficulty: "easy", explanation: "A soccer ball and goal mean football." },
+  { answer: "Popcorn", emojis: ["🍿", "🎬", "🎥"], category: "Food", acceptableAnswers: ["popcorn"], difficulty: "easy", explanation: "Movie snacks point to popcorn." },
+  { answer: "Rainbow", emojis: ["🌈", "☁️", "☀️"], category: "Nature", acceptableAnswers: ["rainbow"], difficulty: "easy", explanation: "Sun and rain clouds make a rainbow." },
+  { answer: " equacado", emojis: ["🥑", "🍞", "🍳"], category: "Food", acceptableAnswers: ["avocado toast", "avocadotoast"], difficulty: "medium", explanation: "Avocado on bread is avocado toast." },
+  { answer: "Fireworks", emojis: ["🎆", "🎇", "🌃"], category: "Events", acceptableAnswers: ["fireworks"], difficulty: "easy", explanation: "Bright bursts in the night sky are fireworks." },
+  { answer: "Camping", emojis: ["⛺", "🔥", "🌲"], category: "Activities", acceptableAnswers: ["camping"], difficulty: "easy", explanation: "A tent by the fire in the woods means camping." },
+  { answer: "Pizza night", emojis: ["🍕", "🌙", "🛋️"], category: "Food", acceptableAnswers: ["pizza night", "pizza"], difficulty: "easy", explanation: "Pizza on a cozy evening is pizza night." },
+  { answer: "Underwater", emojis: ["🐠", "🌊", "🤿"], category: "Places", acceptableAnswers: ["underwater", "under the sea"], difficulty: "medium", explanation: "Fish and diving gear mean underwater." },
+  { answer: "Graduation", emojis: ["🎓", "📜", "🎉"], category: "Events", acceptableAnswers: ["graduation"], difficulty: "easy", explanation: "A cap and diploma mean graduation." },
+  { answer: "Coffee break", emojis: ["☕", "⏸️", "💼"], category: "Phrases", acceptableAnswers: ["coffee break"], difficulty: "medium", explanation: "Coffee with a pause is a coffee break." },
+  { answer: "Moonwalk", emojis: ["🌙", "🚶", "🕺"], category: "Phrases", acceptableAnswers: ["moonwalk", "moon walk"], difficulty: "medium", explanation: "Walking on the moon suggests a moonwalk." },
+  { answer: "Butterfly", emojis: ["🐛", "➡️", "🦋"], category: "Nature", acceptableAnswers: ["butterfly", "caterpillar to butterfly"], difficulty: "medium", explanation: "A bug becoming a butterfly is metamorphosis." },
 ];
 
 const UNSAFE_PUZZLE_TERMS = /\b(nazi|terrorist|porn|sex|rape|slur|kill yourself)\b/i;
@@ -72,25 +86,40 @@ function extractJsonObject(text: string): unknown | null {
   return null;
 }
 
-export async function generateEmojiDecodePuzzleAI(options: { difficulty?: EmojiDecodeDifficulty; category?: string; nonce?: string } = {}): Promise<{ puzzle: EmojiDecodePuzzle; source: "ai" | "fallback" }> {
+export async function generateEmojiDecodePuzzleAI(options: {
+  difficulty?: EmojiDecodeDifficulty;
+  category?: string;
+  nonce?: string;
+  excludeAnswers?: string[];
+} = {}): Promise<{ puzzle: EmojiDecodePuzzle; source: "ai" | "fallback" }> {
   const difficulty = options.difficulty ?? "medium";
   const category = options.category ?? "Random";
   const nonce = options.nonce ?? crypto.randomUUID();
+  const exclude = (options.excludeAnswers ?? [])
+    .map((a) => a.trim().toLowerCase().replace(/[^a-z0-9]/g, ""))
+    .filter(Boolean);
+  const excludeSet = new Set(exclude);
+  const excludeLine = exclude.length
+    ? `Do NOT use any of these answers or close variants: ${exclude.slice(0, 24).join(", ")}.`
+    : "Make the answer different from common repeated party-game tropes when possible.";
+
   const prompt = `Create one original Emoji Decode puzzle for a friendly multiplayer party game.
 Category: ${category}
 Difficulty: ${difficulty}
+${excludeLine}
 Rules:
 - Use 2 to 6 common emoji that form a rebus or phrase.
 - The answer must be a short movie, character, sport, food, or everyday phrase (2-40 characters).
 - Family-friendly only. No politics, hate, sexual, or dangerous content.
 - Include acceptableAnswers with 1-4 alternate spellings (lowercase ok).
+- Each puzzle must be unique — never repeat a previous answer.
 Return ONLY a JSON object with these keys:
 {"answer":"string","emojis":["emoji",...],"category":"string","acceptableAnswers":["string"],"difficulty":"${difficulty}","explanation":"one short sentence"}
 Variety nonce: ${nonce}`;
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const responseText = await callOpenRouter(
-      `${prompt}\nAttempt ${attempt + 1}. JSON only.`,
+      `${prompt}\nAttempt ${attempt + 1}. JSON only. Unique answer required.`,
       3500,
       280,
     );
@@ -98,20 +127,29 @@ Variety nonce: ${nonce}`;
     try {
       const parsed = extractJsonObject(responseText);
       const puzzle = validateEmojiDecodePuzzle(parsed, difficulty);
-      if (puzzle) return { puzzle, source: "ai" };
-      console.error("Emoji Decode puzzle failed validation:", responseText.slice(0, 400));
+      if (!puzzle) {
+        console.error("Emoji Decode puzzle failed validation:", responseText.slice(0, 400));
+        continue;
+      }
+      const key = puzzle.answer.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (excludeSet.has(key)) continue;
+      return { puzzle, source: "ai" };
     } catch (error) {
       console.error("Failed to parse Emoji Decode puzzle:", error);
     }
   }
 
-  // Deterministic-ish fallback pick so different rooms/rounds diverge a bit
-  const idx = Math.abs(
-    Array.from(nonce).reduce((acc, ch) => acc + ch.charCodeAt(0), 0),
-  ) % SAFE_EMOJI_DECODE_FALLBACKS.length;
-  const fallback = SAFE_EMOJI_DECODE_FALLBACKS[idx] ?? SAFE_EMOJI_DECODE_FALLBACKS[0];
+  const available = SAFE_EMOJI_DECODE_FALLBACKS.filter((p) => {
+    const key = p.answer.toLowerCase().replace(/[^a-z0-9]/g, "");
+    return !excludeSet.has(key);
+  });
+  const pool = available.length > 0 ? available : SAFE_EMOJI_DECODE_FALLBACKS;
+  const idx =
+    Math.abs(Array.from(nonce).reduce((acc, ch) => acc + ch.charCodeAt(0), 0)) % pool.length;
+  const fallback = pool[idx] ?? pool[0];
   return { puzzle: { ...fallback, difficulty }, source: "fallback" };
 }
+
 
 const FALLBACK_SKRIBBL_WORDS = [
   ["Apple", "Banana", "House"],
