@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Undo2 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { hasLocalConflict, stringToGrid, type SudokuGrid } from "@/features/games/sudoku/engine";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
@@ -41,6 +42,7 @@ export function SudokuBattleGame({ room, players, userId, onAct, busy, isSpectat
   const [mistakes, setMistakes] = useState(0);
   const [finished, setFinished] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
+  const [undoStack, setUndoStack] = useState<Array<{ cell: number; previousDigit: number }>>([]);
   const [now, setNow] = useState(() => Date.now());
   const [message, setMessage] = useState("");
   const [boardReady, setBoardReady] = useState(false);
@@ -95,6 +97,7 @@ export function SudokuBattleGame({ room, players, userId, onAct, busy, isSpectat
         setBoard(stringToGrid(String(data.board || puzzleStr || "")));
         setMistakes(Number(data.mistakes || 0));
         setFinished(Boolean(data.finished));
+        setUndoStack([]);
       } else if (puzzleStr) {
         setBoard(stringToGrid(puzzleStr));
       }
@@ -120,8 +123,8 @@ export function SudokuBattleGame({ room, players, userId, onAct, busy, isSpectat
   const remaining = endsAt ? Math.max(0, endsAt - now) : 0;
 
   const place = useCallback(
-    async (cell: number, digit: number) => {
-      if (isSpectator || finished || busy || phase !== "playing" || clues.has(cell)) return;
+    async (cell: number, digit: number, recordUndo = true) => {
+      if (isSpectator || finished || busy || phase !== "playing" || clues.has(cell)) return false;
       const result = (await onAct("place", `${cell}:${digit}`)) as {
         board?: string;
         mistakes?: number;
@@ -129,16 +132,28 @@ export function SudokuBattleGame({ room, players, userId, onAct, busy, isSpectat
         isCorrectDigit?: boolean | null;
       } | null;
       if (result?.board) {
+        if (recordUndo) {
+          setUndoStack((stack) => [...stack, { cell, previousDigit: board[cell] }]);
+        }
         setBoard(stringToGrid(result.board));
         setMistakes(Number(result.mistakes || 0));
         setFinished(Boolean(result.finished));
         if (result.finished) setMessage("You finished!");
         else if (result.isCorrectDigit === false) setMessage("Incorrect — try another number");
         else setMessage("");
+        return true;
       }
+      return false;
     },
-    [isSpectator, finished, busy, phase, clues, onAct]
+    [isSpectator, finished, busy, phase, clues, onAct, board]
   );
+
+  const undoLastMove = useCallback(async () => {
+    const lastMove = undoStack[undoStack.length - 1];
+    if (!lastMove || busy) return;
+    const undone = await place(lastMove.cell, lastMove.previousDigit, false);
+    if (undone) setUndoStack((stack) => stack.slice(0, -1));
+  }, [undoStack, busy, place]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -292,6 +307,7 @@ export function SudokuBattleGame({ room, players, userId, onAct, busy, isSpectat
                   key={i}
                   type="button"
                   role="gridcell"
+                  aria-selected={isSel}
                   aria-label={`Row ${row + 1} column ${col + 1}${isClue ? " clue" : ""} ${val || "empty"}`}
                   disabled={finished || isSpectator || isClue}
                   onClick={() => setSelected(i)}
@@ -301,9 +317,10 @@ export function SudokuBattleGame({ room, players, userId, onAct, busy, isSpectat
                     thickRight ? "border-r-2 border-r-slate-950" : "",
                     thickBottom ? "border-b-2 border-b-slate-950" : "",
                     isClue ? "bg-slate-100 text-slate-950" : "text-violet-700",
-                    inLine || inBox ? "bg-violet-50" : "",
-                    sameNum ? "bg-amber-100" : "",
-                    isSel ? "z-10 ring-2 ring-inset ring-[#7357ff]" : "",
+                    inLine ? "bg-violet-100" : "",
+                    !inLine && inBox ? "bg-indigo-50" : "",
+                    sameNum ? "bg-amber-200" : "",
+                    isSel ? "z-10 bg-violet-300 text-slate-950 ring-[3px] ring-inset ring-[#5b35e8]" : "",
                     conflict ? "text-rose-600" : "",
                     finished ? "opacity-90" : "",
                   ].join(" ")}
@@ -336,6 +353,16 @@ export function SudokuBattleGame({ room, players, userId, onAct, busy, isSpectat
               aria-label="Clear cell"
             >
               ⌫
+            </button>
+            <button
+              type="button"
+              disabled={busy || undoStack.length === 0}
+              onClick={() => void undoLastMove()}
+              className="inline-flex items-center justify-center gap-1 rounded-xl border-2 border-slate-950 bg-white py-2.5 text-sm font-black shadow-[2px_2px_0_#171821] disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Undo last move"
+              title="Undo last move"
+            >
+              <Undo2 size={16} /> Undo
             </button>
           </div>
         )}
