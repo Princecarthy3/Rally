@@ -33,6 +33,7 @@ export const metadata: Metadata = {
     "Emoji Decode",
     "emoji puzzles with friends",
     "Chess online",
+    "Sudoku Battle online",
   ],
   alternates: {
     canonical: "https://rallygames.vercel.app/games",
@@ -100,6 +101,14 @@ const games = [
     description: "Challenge a friend to a battle of strategy. Every move counts.",
     players: "2 players",
     category: "Strategy",
+  },
+  {
+    icon: "🔢",
+    title: "Sudoku Battle",
+    description:
+      "Race your friends or a Rally bot to solve the same Sudoku puzzle. Fill the grid accurately before time runs out.",
+    players: "1–4 players",
+    category: "Puzzle / Race",
   },
   {
     icon: "🔲",
@@ -269,8 +278,8 @@ export default function GamesPage() {
                   </span>
                 </div>
               </article>;
-              return game.title === "Emoji Decode" || game.title === "Chess" ? (
-                <Link key={game.title} href={game.title === "Chess" ? "/games/chess" : "/games/emoji-decode"} className="block rounded-[28px] focus-visible:outline-4 focus-visible:outline-violet-500">{card}</Link>
+              return game.title === "Emoji Decode" || game.title === "Chess" || game.title === "Sudoku Battle" ? (
+                <Link key={game.title} href={game.title === "Chess" ? "/games/chess" : game.title === "Sudoku Battle" ? "/games/sudoku-battle" : "/games/emoji-decode"} className="block rounded-[28px] focus-visible:outline-4 focus-visible:outline-violet-500">{card}</Link>
               ) : card;
             })}
           </div>
