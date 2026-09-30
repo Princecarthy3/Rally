@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { hasLocalConflict, stringToGrid, type SudokuGrid } from "@/features/games/sudoku/engine";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
@@ -27,11 +27,14 @@ export function SudokuBattleGame({ room, players, userId, onAct, busy, isSpectat
   const puzzleStr = String(state.puzzle || "");
   const startAt = Number(state.startAt || 0);
   const endsAt = Number(state.endsAt || 0);
-  const progress = (state.progress || {}) as Record<
-    string,
-    { filled?: number; correct?: number; mistakes?: number; finished?: boolean; finishMs?: number }
-  >;
-  const me = players.find((p) => p.player_id === userId);
+  const progress = useMemo(
+    () =>
+      (state.progress || {}) as Record<
+        string,
+        { filled?: number; correct?: number; mistakes?: number; finished?: boolean; finishMs?: number }
+      >,
+    [state.progress]
+  );
   const isHost = room.host_id === userId;
 
   const [board, setBoard] = useState<SudokuGrid>(() => stringToGrid(puzzleStr));
@@ -40,7 +43,7 @@ export function SudokuBattleGame({ room, players, userId, onAct, busy, isSpectat
   const [selected, setSelected] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [message, setMessage] = useState("");
-  const [loadingBoard, setLoadingBoard] = useState(true);
+  const [boardReady, setBoardReady] = useState(false);
   const generatedFor = useRef("");
 
   const puzzle = useMemo(() => stringToGrid(puzzleStr), [puzzleStr]);
@@ -75,16 +78,17 @@ export function SudokuBattleGame({ room, players, userId, onAct, busy, isSpectat
     };
   }, [phase, isHost, room.id, state.matchId]);
 
-  // Load private board
+  // Load private board from server when the match is live / finished.
+  const shouldLoadBoard = phase === "playing" || phase === "results";
   useEffect(() => {
-    if (phase !== "playing" && phase !== "results") {
-      setLoadingBoard(false);
-      return;
-    }
+    if (!shouldLoadBoard) return;
     let cancelled = false;
-    (async () => {
+    void (async () => {
       const supabase = getSupabaseBrowserClient();
-      if (!supabase) return;
+      if (!supabase) {
+        if (!cancelled) setBoardReady(true);
+        return;
+      }
       const { data, error } = await supabase.rpc("get_sudoku_my_board", { p_room: room.id });
       if (cancelled) return;
       if (!error && data) {
@@ -94,12 +98,12 @@ export function SudokuBattleGame({ room, players, userId, onAct, busy, isSpectat
       } else if (puzzleStr) {
         setBoard(stringToGrid(puzzleStr));
       }
-      setLoadingBoard(false);
+      setBoardReady(true);
     })();
     return () => {
       cancelled = true;
     };
-  }, [room.id, phase, puzzleStr, state.matchId]);
+  }, [room.id, shouldLoadBoard, puzzleStr, state.matchId]);
 
   useEffect(() => {
     if (phase !== "playing") return;
@@ -263,7 +267,7 @@ export function SudokuBattleGame({ room, players, userId, onAct, busy, isSpectat
           </div>
         </div>
 
-        {loadingBoard ? (
+        {shouldLoadBoard && !boardReady ? (
           <p className="py-10 text-center text-sm font-bold text-slate-500">Loading your board…</p>
         ) : (
           <div
