@@ -36,6 +36,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: `${siteUrl}/games/emoji-decode`,
+    },
+    {
+      url: `${siteUrl}/games/sudoku-battle`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,

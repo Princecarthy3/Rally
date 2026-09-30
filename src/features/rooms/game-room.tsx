@@ -112,6 +112,8 @@ export function GameRoom() {
         ? "start_emoji_decode"
         : room.game_type === "chess"
         ? "start_chess_game"
+        : room.game_type === "sudoku_battle"
+        ? "start_sudoku_battle"
         : room.game_type === "mini_golf"
         ? "start_mini_golf"
         : room.game_type === "battleship"

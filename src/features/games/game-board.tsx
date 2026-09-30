@@ -17,6 +17,7 @@ import { RacingGame } from "./racing/RacingGame";
 import { RallyCombatGame } from "./combat/RallyCombatGame";
 import { UnoGame } from "./uno-game";
 import { EmojiDecodeGame } from "./emoji-decode-game";
+import { SudokuBattleGame } from "./sudoku-battle-game";
 import { ChessGame } from "./chess-game";
 // pong removed
 
@@ -82,7 +83,7 @@ export function GameBoard({
     if (!supabase) return null;
     setBusy(true);
     setError("");
-    const rpc = room.game_type === "racing" ? "play_racing_action" : room.game_type === "rally_combat" ? "play_rally_combat_action" : room.game_type === "uno" ? "play_uno_action" : room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "memory_match" ? "play_memory_match_action" : room.game_type === "mini_golf" ? "play_mini_golf_action" : room.game_type === "battleship" ? "play_battleship_action" : room.game_type === "skribbl" ? "play_skribbl_action" : room.game_type === "emoji_decode" ? "play_emoji_decode_action" : "play_room_action";
+    const rpc = room.game_type === "racing" ? "play_racing_action" : room.game_type === "rally_combat" ? "play_rally_combat_action" : room.game_type === "uno" ? "play_uno_action" : room.game_type === "ludo" ? "play_ludo_action" : room.game_type === "rps" ? "play_rps_action" : room.game_type === "number_guess" ? "play_number_hunt_action" : room.game_type === "memory_match" ? "play_memory_match_action" : room.game_type === "mini_golf" ? "play_mini_golf_action" : room.game_type === "battleship" ? "play_battleship_action" : room.game_type === "skribbl" ? "play_skribbl_action" : room.game_type === "emoji_decode" ? "play_emoji_decode_action" : room.game_type === "sudoku_battle" ? "play_sudoku_battle_action" : "play_room_action";
     const params = { p_room: room.id, p_action: action, p_value: value ?? null };
     const { data, error } = await supabase.rpc(rpc, params);
     if (error) {
@@ -433,6 +434,9 @@ export function GameBoard({
           )}
           {room.game_type === "emoji_decode" && (
             <EmojiDecodeGame room={room} players={players} userId={userId} onAct={act} busy={busy} isSpectator={isSpectator} />
+          )}
+          {room.game_type === "sudoku_battle" && (
+            <SudokuBattleGame room={room} players={players} userId={userId} onAct={act} busy={busy} isSpectator={isSpectator} />
           )}
         </div>
 

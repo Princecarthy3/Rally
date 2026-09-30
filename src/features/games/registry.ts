@@ -1,4 +1,4 @@
-export type GameKey = "uno" | "rps" | "number_guess" | "memory_match" | "mini_golf" | "battleship" | "tic_tac_toe" | "connect_four" | "dots_boxes" | "skribbl" | "ludo" | "racing" | "rally_combat" | "emoji_decode" | "chess";
+export type GameKey = "uno" | "rps" | "number_guess" | "memory_match" | "mini_golf" | "battleship" | "tic_tac_toe" | "connect_four" | "dots_boxes" | "skribbl" | "ludo" | "racing" | "rally_combat" | "emoji_decode" | "chess" | "sudoku_battle";
 
 export type GameDefinition = {
   key: GameKey; name: string; shortName: string; icon: string; description: string;

@@ -94,6 +94,10 @@ const games = [
     icon: "🧩✨",
     title: "Emoji Decode",
     text: "Decode the emojis. Beat your friends.",
+  },
+  {
+    title: "Sudoku Battle",
+    text: "Race your friends to solve the same Sudoku puzzle.",
     color: "bg-[#eee9ff]",
     tilt: "-rotate-1",
   },
@@ -267,7 +271,7 @@ export default function HomePage() {
             {games.map((game) => (
               <Link
                 key={game.title}
-                href={game.title === "Emoji Decode" ? "/games/emoji-decode" : game.title === "Chess" ? "/games/chess" : "/games"}
+                href={game.title === "Emoji Decode" ? "/games/emoji-decode" : game.title === "Sudoku Battle" ? "/games/sudoku-battle" : game.title === "Chess" ? "/games/chess" : "/games"}
                 className={`${game.color} ${game.tilt} group block rounded-[32px] p-6 transition duration-300 hover:rotate-0 hover:-translate-y-2`}
               >
                 <div className="grid aspect-square place-items-center rounded-[24px] bg-white/55 text-7xl shadow-sm transition group-hover:scale-[1.03]">
