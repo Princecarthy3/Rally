@@ -21,7 +21,7 @@ function friendlyError(message: string) {
   if (/turn expired/i.test(message)) return "Time ran out. The turn is being passed.";
   if (/not a player|not in this room/i.test(message)) return "You are no longer a player in this room.";
   if (/not active|complete/i.test(message)) return "This game has already ended.";
-  return "That action could not be saved. Check your connection and try again.";
+  return message || "That action could not be saved. Check your connection and try again.";
 }
 
 function destinationKey(destination: MancalaDestination) {
@@ -254,6 +254,7 @@ export function MancalaGame({
       <button
         key={key}
         type="button"
+        style={{ gridColumnStart: seat === 2 ? 2 + (5 - pit) : 2 + pit, gridRowStart: seat === 2 ? 1 : 2 }}
         aria-label={label}
         aria-disabled={!selectable}
         aria-pressed={selectedPit === pit && seat === me?.seat}
@@ -287,6 +288,7 @@ export function MancalaGame({
       <div
         key={key}
         role="group"
+        style={{ gridColumnStart: seat === 2 ? 1 : 8, gridRow: "1 / span 2" }}
         aria-label={`${names[seat]} store, ${count} stones`}
         className={`row-span-2 flex min-h-[184px] flex-col items-center justify-center gap-2 rounded-[38%] border-[3px] p-1 text-center shadow-[inset_0_10px_16px_rgba(0,0,0,.46),inset_0_-4px_5px_rgba(255,255,255,.1),0_6px_0_rgba(18,10,35,.85)] sm:min-h-[252px] sm:rounded-[42%] sm:p-3 ${
           activeDestination === key
@@ -359,7 +361,7 @@ export function MancalaGame({
                 );
               })}
             </div>
-            <div className="grid grid-cols-[42px_repeat(6,minmax(0,1fr))_42px] items-stretch gap-1.5 sm:grid-cols-[72px_repeat(6,minmax(0,1fr))_72px] sm:gap-3">
+            <div className="grid grid-cols-[42px_repeat(6,minmax(0,1fr))_42px] grid-rows-[minmax(88px,auto)_minmax(88px,auto)] items-stretch gap-1.5 sm:grid-cols-[72px_repeat(6,minmax(0,1fr))_72px] sm:grid-rows-[minmax(118px,auto)_minmax(118px,auto)] sm:gap-3">
               {renderStore(2)}
               {pitOrder[2].map((pit) => renderPit(2, pit))}
               {pitOrder[1].map((pit) => renderPit(1, pit))}
