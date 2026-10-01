@@ -108,6 +108,7 @@ export function MancalaGame({
   const [flying, setFlying] = useState<{ key: string; id: number } | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [display, setDisplay] = useState<DisplayBoard | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
   const animating = useRef(false);
   const lastAnimatedMove = useRef<number | null>(null);
   const timeoutRequestedVersion = useRef<number | null>(null);
@@ -157,7 +158,6 @@ export function MancalaGame({
     if (lastAnimatedMove.current === moveNumber) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       lastAnimatedMove.current = moveNumber;
-      setDisplay({ pits: serverPits, stores: serverStores });
       return;
     }
 
@@ -187,14 +187,18 @@ export function MancalaGame({
     // Restore captured stones roughly skipped — still shows sow flow
     const picked = move.path.length;
     working.pits[seat][move.pit] = (working.pits[seat][move.pit] || 0) + picked;
-    setDisplay({
-      pits: { 1: [...working.pits[1]], 2: [...working.pits[2]] },
-      stores: { ...working.stores },
-    });
 
     let step = 0;
     const timers: number[] = [];
     const stepMs = 160;
+    const startAnimationTimer = window.setTimeout(() => {
+      setIsAnimating(true);
+      setDisplay({
+        pits: { 1: [...working.pits[1]], 2: [...working.pits[2]] },
+        stores: { ...working.stores },
+      });
+    }, 0);
+    timers.push(startAnimationTimer);
 
     // Lift from source
     timers.push(
@@ -233,6 +237,7 @@ export function MancalaGame({
       window.setTimeout(() => {
         setFlying(null);
         animating.current = false;
+        setIsAnimating(false);
         setDisplay({ pits: serverPits, stores: serverStores });
       }, 80 + step * stepMs + 200)
     );
@@ -335,16 +340,16 @@ export function MancalaGame({
     if (isCompleted) return;
     const turn = Number(state.turn);
     if (Number(me?.seat) === turn) {
-      setBanner("Your turn");
-      const t = window.setTimeout(() => setBanner(null), 1400);
-      return () => window.clearTimeout(t);
+      const show = window.setTimeout(() => setBanner("Your turn"), 0);
+      const hide = window.setTimeout(() => setBanner(null), 1400);
+      return () => {
+        window.clearTimeout(show);
+        window.clearTimeout(hide);
+      };
     }
     const bot = players.find((p) => p.seat === turn && p.player_id.startsWith("11111111-1111-1111-1111-"));
-    if (bot) {
-      setBanner("Bot thinking");
-    } else {
-      setBanner(null);
-    }
+    const update = window.setTimeout(() => setBanner(bot ? "Bot thinking" : null), 0);
+    return () => window.clearTimeout(update);
   }, [isCompleted, me?.seat, players, state.turn, room.state_version]);
 
   const requestRematch = useCallback(async () => {
@@ -374,7 +379,7 @@ export function MancalaGame({
   };
   const mySeat: MancalaSeat = (me?.seat as MancalaSeat) || 1;
   const oppSeat: MancalaSeat = mySeat === 1 ? 2 : 1;
-  const myTurn = !isSpectator && Number(me?.seat) === Number(state.turn) && !isCompleted && !animating.current;
+  const myTurn = !isSpectator && Number(me?.seat) === Number(state.turn) && !isCompleted && !isAnimating;
   const rematchRequestedByMe = Boolean(me && state.rematchRequests?.includes(me.seat as MancalaSeat));
 
   // Portrait columns: opponent pits top→bottom on their side visually.
