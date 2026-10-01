@@ -106,7 +106,6 @@ export function MancalaGame({
   const [now, setNow] = useState(0);
   const [selectedPit, setSelectedPit] = useState<number | null>(null);
   const [flying, setFlying] = useState<{ key: string; id: number } | null>(null);
-  const [banner, setBanner] = useState<string | null>(null);
   const [display, setDisplay] = useState<DisplayBoard | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const animating = useRef(false);
@@ -289,7 +288,6 @@ export function MancalaGame({
       }
       setBusy(true);
       setNotice("");
-      setBanner(null);
       try {
         const { data, error } = await supabase.rpc("play_mancala_action", {
           p_room: room.id,
@@ -335,23 +333,6 @@ export function MancalaGame({
     })();
   }, [applyResponse, busy, isSpectator, me, room.id, room.state_version, room.status, secondsLeft, supabase]);
 
-  // Turn banner
-  useEffect(() => {
-    if (isCompleted) return;
-    const turn = Number(state.turn);
-    if (Number(me?.seat) === turn) {
-      const show = window.setTimeout(() => setBanner("Your turn"), 0);
-      const hide = window.setTimeout(() => setBanner(null), 1400);
-      return () => {
-        window.clearTimeout(show);
-        window.clearTimeout(hide);
-      };
-    }
-    const bot = players.find((p) => p.seat === turn && p.player_id.startsWith("11111111-1111-1111-1111-"));
-    const update = window.setTimeout(() => setBanner(bot ? "Bot thinking" : null), 0);
-    return () => window.clearTimeout(update);
-  }, [isCompleted, me?.seat, players, state.turn, room.state_version]);
-
   const requestRematch = useCallback(async () => {
     if (!supabase || busy || isSpectator) return;
     setBusy(true);
@@ -380,6 +361,13 @@ export function MancalaGame({
   const mySeat: MancalaSeat = (me?.seat as MancalaSeat) || 1;
   const oppSeat: MancalaSeat = mySeat === 1 ? 2 : 1;
   const myTurn = !isSpectator && Number(me?.seat) === Number(state.turn) && !isCompleted && !isAnimating;
+  const activePlayer = players.find((player) => player.seat === Number(state.turn));
+  const activePlayerName = activePlayer?.profile?.display_name || `Player ${state.turn}`;
+  const activeTurnLabel = isCompleted
+    ? "MATCH COMPLETE"
+    : myTurn
+      ? "YOUR TURN — PICK A PIT"
+      : `${activePlayerName.toUpperCase()}${activePlayer?.player_id.startsWith("11111111-1111-1111-1111-") ? " · BOT TURN" : " · SOWING"}`;
   const rematchRequestedByMe = Boolean(me && state.rematchRequests?.includes(me.seat as MancalaSeat));
 
   // Portrait columns: opponent pits top→bottom on their side visually.
@@ -495,6 +483,17 @@ export function MancalaGame({
         </div>
       </div>
 
+      <div
+        role="status"
+        aria-live="polite"
+        className={`mx-auto inline-flex items-center gap-2 rounded-full border-2 border-slate-950 px-4 py-2 text-center text-[11px] font-black shadow-[2px_2px_0_#171821] ${
+          myTurn ? "bg-[#a7efc8] text-slate-950" : "bg-white text-slate-700"
+        }`}
+      >
+        <span className={`h-2.5 w-2.5 rounded-full ${myTurn ? "bg-emerald-600" : "bg-amber-500"}`} />
+        {activeTurnLabel}
+      </div>
+
       <div className="relative mx-auto w-full max-w-[22rem]">
         {/* Wooden board shell */}
         <div
@@ -553,13 +552,6 @@ export function MancalaGame({
           </div>
         </div>
 
-        {banner && (
-          <div className="pointer-events-none absolute inset-x-4 bottom-8 z-20 flex justify-center">
-            <div className="rounded-full bg-[#c4785a] px-8 py-3 text-lg font-black text-white shadow-lg">
-              {banner}
-            </div>
-          </div>
-        )}
       </div>
 
       <p className="text-center text-xs font-bold text-slate-600">
