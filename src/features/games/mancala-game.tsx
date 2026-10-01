@@ -29,14 +29,14 @@ function destinationKey(destination: MancalaDestination) {
 }
 
 function Stones({ count }: { count: number }) {
-  const shown = Math.min(count, 16);
+  const shown = Math.min(count, 24);
   return (
-    <span aria-hidden="true" className="grid min-h-6 max-w-10 grid-cols-4 content-center justify-items-center gap-0.5 sm:min-h-7 sm:max-w-14">
+    <span aria-hidden="true" className="grid min-h-7 max-w-12 grid-cols-4 content-center justify-items-center gap-0.5 sm:min-h-9 sm:max-w-16 sm:gap-1">
       {Array.from({ length: shown }, (_, index) => (
         <span
           key={index}
-          className={`h-1.5 w-1.5 rounded-full border border-white/70 shadow-sm sm:h-2.5 sm:w-2.5 ${
-            index % 3 === 0 ? "bg-[#f4dc69]" : index % 3 === 1 ? "bg-[#eee9ff]" : "bg-[#c4b5fd]"
+          className={`h-2 w-2 rounded-full border border-black/15 shadow-[inset_1px_1px_1px_rgba(255,255,255,.85),inset_-1px_-2px_2px_rgba(0,0,0,.28),0_2px_2px_rgba(0,0,0,.38)] sm:h-3 sm:w-3 ${
+            index % 3 === 0 ? "bg-gradient-to-br from-[#fff3a6] via-[#f4dc69] to-[#b68b24]" : index % 3 === 1 ? "bg-gradient-to-br from-white via-[#eee9ff] to-[#9b91c5]" : "bg-gradient-to-br from-[#e5dcff] via-[#c4b5fd] to-[#7050bd]"
           }`}
         />
       ))}
@@ -232,7 +232,8 @@ export function MancalaGame({
   };
   const opponentSeat = me?.seat === 1 ? 2 : 1;
   const opponent = players.find((player) => player.seat === opponentSeat);
-  const opponentOnline = Boolean(opponent && onlineIds.includes(opponent.player_id));
+  const opponentIsBot = Boolean(opponent?.player_id.startsWith("11111111-1111-1111-1111-"));
+  const opponentOnline = Boolean(opponent && (opponentIsBot || onlineIds.includes(opponent.player_id)));
   const myTurn = !isSpectator && me?.seat === state.turn && !isCompleted;
   const rematchRequestedByMe = Boolean(me && state.rematchRequests?.includes(me.seat));
   const activeName = names[state.turn as MancalaSeat] || "Player";
@@ -261,7 +262,7 @@ export function MancalaGame({
           setSelectedPit(pit);
           void makeMove(pit).finally(() => setSelectedPit(null));
         }}
-        className={`flex min-h-[82px] min-w-0 flex-col items-center justify-center gap-1 rounded-[45%] border-2 px-0.5 py-2 transition duration-200 motion-reduce:animate-none sm:min-h-[104px] sm:gap-2 sm:rounded-[50%] ${
+        className={`relative flex min-h-[88px] min-w-0 flex-col items-center justify-center gap-1 rounded-[48%] border-2 px-0.5 py-2 shadow-[inset_0_7px_12px_rgba(0,0,0,.42),inset_0_-3px_5px_rgba(255,255,255,.12),0_5px_0_rgba(18,10,35,.8)] transition duration-200 motion-reduce:animate-none sm:min-h-[118px] sm:gap-2 sm:rounded-[50%] ${
           activeDestination === key
             ? isCapture
               ? "scale-105 animate-pulse border-rose-200 bg-rose-500 ring-4 ring-rose-300/50"
@@ -269,8 +270,8 @@ export function MancalaGame({
             : selectedPit === pit && seat === me?.seat
               ? "scale-105 border-[#f4dc69] bg-violet-500 ring-4 ring-[#f4dc69]/40"
             : selectable
-              ? "cursor-pointer border-violet-300 bg-[#261b3c] hover:-translate-y-1 hover:border-[#f4dc69] hover:bg-[#39275a] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f4dc69]"
-              : "cursor-not-allowed border-white/10 bg-[#241b32] opacity-70"
+              ? "cursor-pointer border-[#c8a76a] bg-[radial-gradient(ellipse_at_35%_20%,#5d496f,#281d3d_70%)] hover:-translate-y-1 hover:border-[#f4dc69] hover:bg-[#39275a] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f4dc69]"
+              : "cursor-not-allowed border-white/10 bg-[radial-gradient(ellipse_at_35%_20%,#493c5b,#20172f_72%)] opacity-80"
         } ${selectable ? "motion-safe:hover:shadow-[0_0_18px_rgba(244,220,105,.25)]" : ""}`}
       >
         <Stones count={stones} />
@@ -287,10 +288,10 @@ export function MancalaGame({
         key={key}
         role="group"
         aria-label={`${names[seat]} store, ${count} stones`}
-        className={`row-span-2 flex min-h-[170px] flex-col items-center justify-center gap-2 rounded-[32px] border-2 p-1 text-center sm:min-h-[224px] sm:rounded-[40px] sm:p-3 ${
+        className={`row-span-2 flex min-h-[184px] flex-col items-center justify-center gap-2 rounded-[38%] border-[3px] p-1 text-center shadow-[inset_0_10px_16px_rgba(0,0,0,.46),inset_0_-4px_5px_rgba(255,255,255,.1),0_6px_0_rgba(18,10,35,.85)] sm:min-h-[252px] sm:rounded-[42%] sm:p-3 ${
           activeDestination === key
             ? "scale-[1.03] border-[#f4dc69] bg-violet-500 shadow-[0_0_22px_rgba(244,220,105,.35)]"
-            : "border-violet-300/50 bg-[#281d3d]"
+            : "border-[#c8a76a] bg-[radial-gradient(ellipse_at_35%_18%,#5d496f,#281d3d_74%)]"
         }`}
       >
         <span className="text-[8px] font-black uppercase leading-tight tracking-wide text-violet-200 sm:text-[10px]">
@@ -332,7 +333,7 @@ export function MancalaGame({
           </div>
           <div className="flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-600">
             <span className={`h-2.5 w-2.5 rounded-full ${opponentOnline ? "bg-emerald-500" : "bg-amber-500"}`} />
-            {opponentOnline ? `${opponent?.profile?.display_name || "Opponent"} connected` : `${opponent?.profile?.display_name || "Opponent"} disconnected · reconnecting`}
+            {opponentIsBot ? "Rally bot ready" : opponentOnline ? `${opponent?.profile?.display_name || "Opponent"} connected` : `${opponent?.profile?.display_name || "Opponent"} disconnected · reconnecting`}
           </div>
         </div>
 
@@ -344,7 +345,7 @@ export function MancalaGame({
             </p>
           )}
 
-          <div className="rounded-[26px] border-2 border-slate-950 bg-[#7357ff] p-2 shadow-[5px_5px_0_#171821] sm:rounded-[34px] sm:p-4">
+          <div className="rounded-[28px] border-[3px] border-[#6a4222] bg-[linear-gradient(135deg,#e3ba7a_0%,#b67a3f_16%,#d19a58_45%,#89552c_100%)] p-2 shadow-[inset_0_3px_5px_rgba(255,255,255,.45),inset_0_-8px_12px_rgba(47,24,9,.32),0_9px_0_#422718,0_14px_22px_rgba(15,23,42,.25)] sm:rounded-[34px] sm:p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
               {[2, 1].map((seat) => {
                 const player = players.find((candidate) => candidate.seat === seat);
@@ -358,7 +359,7 @@ export function MancalaGame({
                 );
               })}
             </div>
-            <div className="grid grid-cols-[32px_repeat(6,minmax(0,1fr))_32px] items-stretch gap-1 sm:grid-cols-[68px_repeat(6,minmax(0,1fr))_68px] sm:gap-3">
+            <div className="grid grid-cols-[42px_repeat(6,minmax(0,1fr))_42px] items-stretch gap-1.5 sm:grid-cols-[72px_repeat(6,minmax(0,1fr))_72px] sm:gap-3">
               {renderStore(2)}
               {pitOrder[2].map((pit) => renderPit(2, pit))}
               {pitOrder[1].map((pit) => renderPit(1, pit))}

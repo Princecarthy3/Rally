@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Chess, type Move } from "chess.js";
 import { generateSkribblWordsAI } from "@/lib/ai/gemini";
+import { applyMancalaMove, getLegalMancalaMoves, type MancalaState } from "@/features/games/mancala";
 
 export async function POST(request: Request) {
   try {
@@ -39,7 +40,39 @@ export async function POST(request: Request) {
       return best;
     };
 
-    if (gameType === "racing") {
+    if (gameType === "mancala") {
+      const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+      if (!token) return NextResponse.json({ error: "Sign in before asking the Rally bot to move." }, { status: 401 });
+      const botState = state as MancalaState;
+      if (botState.status !== "playing" || Number(botState.turn) !== botSeat) {
+        return NextResponse.json({ message: "No bot move required" });
+      }
+      const legal = getLegalMancalaMoves(botState, botSeat as 1 | 2);
+      if (!legal.length) return NextResponse.json({ message: "No legal bot moves" });
+      const ranked = legal.map((pit) => {
+        const next = applyMancalaMove(botState, botSeat as 1 | 2, pit);
+        const score = (next.stores[botSeat as 1 | 2] - botState.stores[botSeat as 1 | 2]) * 5 +
+          (next.turn === botSeat ? 3 : 0) + (next.lastMove?.captured ?? 0) * 1.4;
+        return { pit, score };
+      }).sort((a, b) => b.score - a.score);
+      const selected = difficulty === "easy"
+        ? legal[Math.floor(Math.random() * legal.length)]
+        : difficulty === "medium" && Math.random() < 0.28
+          ? ranked[Math.floor(Math.random() * Math.min(3, ranked.length))].pit
+          : ranked[0].pit;
+      const authenticated = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const { data, error } = await authenticated.rpc("play_mancala_bot_action", {
+        p_room: roomId,
+        p_pit: selected,
+        p_expected_version: Number(body.stateVersion),
+        p_bot_seat: botSeat,
+      });
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ success: true, action: "sow", value: String(selected), newState: data });
+    } else if (gameType === "racing") {
       const results = Array.isArray(state.results) ? state.results : [];
       const stage = String(state.stage || state.phase || "");
       if (

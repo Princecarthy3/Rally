@@ -76,17 +76,57 @@ begin
   if n<>2 or exists(select 1 from public.game_players where room_id=p_room and not is_ready) then
     raise exception 'Both players must be ready';
   end if;
+  if (select count(*) from public.game_players where room_id=p_room
+      and player_id::text like '11111111-1111-1111-1111-%') > 1 then
+    raise exception 'Mancala supports one solo bot';
+  end if;
   if exists(
     select 1 from public.game_players
      where room_id=p_room and player_id::text like '11111111-1111-1111-1111-%'
-  ) then
-    raise exception 'Mancala requires two human players';
+  ) and (select count(*) from public.game_players where room_id=p_room
+          and player_id::text not like '11111111-1111-1111-1111-%') <> 1 then
+    raise exception 'Mancala solo mode requires one human player';
   end if;
-
   state := private.mancala_initial_state(now());
   update public.game_rooms
      set status='playing', public_state=state, state_version=state_version+1, updated_at=now()
    where id=p_room;
+end
+$$;
+
+create or replace function public.play_mancala_bot_action(
+  p_room uuid,
+  p_pit integer,
+  p_expected_version bigint,
+  p_bot_seat integer
+)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare
+  actor public.game_players;
+  bot public.game_players;
+  previous_subject text;
+  result jsonb;
+begin
+  if auth.uid() is null then raise exception 'Sign in first'; end if;
+  select * into actor from public.game_players
+   where room_id=p_room and player_id=auth.uid();
+  if actor.id is null then raise exception 'You are not a player in this room'; end if;
+  select * into bot from public.game_players
+   where room_id=p_room and seat=p_bot_seat
+     and player_id::text like '11111111-1111-1111-1111-%';
+  if bot.id is null or actor.seat not in (1,2) or actor.seat=p_bot_seat then
+    raise exception 'Invalid Mancala bot turn';
+  end if;
+  previous_subject := current_setting('request.jwt.claim.sub',true);
+  perform set_config('request.jwt.claim.sub',bot.player_id::text,true);
+  begin
+    result := public.play_mancala_action(p_room,p_pit,p_expected_version);
+  exception when others then
+    perform set_config('request.jwt.claim.sub',coalesce(previous_subject,''),true);
+    raise;
+  end;
+  perform set_config('request.jwt.claim.sub',coalesce(previous_subject,''),true);
+  return result;
 end
 $$;
 
@@ -415,5 +455,7 @@ revoke all on function public.expire_mancala_turn(uuid,bigint) from public, anon
 revoke all on function public.request_mancala_rematch(uuid) from public, anon;
 grant execute on function public.start_mancala_game(uuid) to authenticated;
 grant execute on function public.play_mancala_action(uuid,integer,bigint) to authenticated;
+revoke all on function public.play_mancala_bot_action(uuid,integer,bigint,integer) from public, anon;
+grant execute on function public.play_mancala_bot_action(uuid,integer,bigint,integer) to authenticated;
 grant execute on function public.expire_mancala_turn(uuid,bigint) to authenticated;
 grant execute on function public.request_mancala_rematch(uuid) to authenticated;

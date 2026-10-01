@@ -187,6 +187,8 @@ export function GameBoard({
         const chessState = s.chess || {};
         const currentPlayerId = chessState.turn === "w" ? chessState.whitePlayerId : chessState.blackPlayerId;
         isBotTurn = chessState.status === "active" && currentPlayerId === botPlayer.player_id;
+      } else if (room.game_type === "mancala") {
+        isBotTurn = Number(s.turn) === botSeat && s.status === "playing";
       }
 
       if (!isBotTurn) return;
@@ -202,15 +204,17 @@ export function GameBoard({
               ? `bs:${s.phase || "placing"}:${s.placements?.[String(botSeat)] ? "locked" : "open"}:${turn}`
               : room.game_type === "racing"
                 ? `race:${s.stage || s.phase || ""}:${Array.isArray(s.results) ? s.results.length : 0}:${Math.floor(Number(s.start_time || 0))}`
-                : room.game_type === "chess"
+              : room.game_type === "chess"
                   ? `chess:${s.chess?.matchId || ""}:${s.chess?.revision ?? 0}`
+                  : room.game_type === "mancala"
+                    ? `mancala:${s.moveNumber ?? 0}:${turn}`
               : String(turn);
       const requestKey = `${room.id}:phase:${phaseKey}:bot:${botSeat}`;
       if (pendingBotMoves.current.has(requestKey)) return;
 
       scheduledKeys.push(requestKey);
 
-      const delayMs = room.game_type === "skribbl" ? 1400 : 700;
+      const delayMs = room.game_type === "skribbl" ? 1400 : room.game_type === "mancala" ? 1100 : 700;
       const timer = setTimeout(() => {
         // Mark in-flight only when the request actually starts
         if (pendingBotMoves.current.has(requestKey)) return;
@@ -221,6 +225,7 @@ export function GameBoard({
             gameType: room.game_type,
             publicState: room.public_state,
             botSeat,
+            stateVersion: room.state_version,
             difficulty:
               (typeof window !== "undefined" &&
               localStorage.getItem(`rally_bot_difficulty_${room.id}`)) ||
@@ -267,6 +272,7 @@ export function GameBoard({
                 gameType: room.game_type,
                 publicState: room.public_state,
                 botSeat,
+                stateVersion: room.state_version,
                 difficulty:
                   (typeof window !== "undefined" &&
                   localStorage.getItem(`rally_bot_difficulty_${room.id}`)) ||
@@ -465,7 +471,7 @@ export function GameBoard({
   );
 }
 
-async function sendBotMove(payload: { roomId: string; gameType: Room["game_type"]; publicState: Room["public_state"]; botSeat: number; difficulty: string }) {
+async function sendBotMove(payload: { roomId: string; gameType: Room["game_type"]; publicState: Room["public_state"]; botSeat: number; difficulty: string; stateVersion?: number }) {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) throw new Error("Supabase is not configured");
   const { data } = await supabase.auth.getSession();
