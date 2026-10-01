@@ -546,7 +546,7 @@ export function MancalaGame({
 
         {banner && (
           <div className="pointer-events-none absolute inset-x-4 bottom-8 z-20 flex justify-center">
-            <div className="rounded-full bg-[#c4785a]/px-8 py-3 text-lg font-black text-white shadow-lg">
+            <div className="rounded-full bg-[#c4785a] px-8 py-3 text-lg font-black text-white shadow-lg">
               {banner}
             </div>
           </div>
