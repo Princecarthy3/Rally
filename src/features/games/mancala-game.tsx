@@ -1,23 +1,18 @@
 "use client";
 
-import { ArrowLeft, Clock3, LoaderCircle, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowLeft, Clock3, LoaderCircle, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { UserAvatar } from "@/components/customization/user-avatar";
 import type { MancalaDestination, MancalaSeat, MancalaState } from "@/features/games/mancala";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
 import { sounds } from "@/lib/audio";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-const pitOrder = {
-  1: [0, 1, 2, 3, 4, 5],
-  2: [5, 4, 3, 2, 1, 0],
-} satisfies Record<MancalaSeat, number[]>;
-
 function friendlyError(message: string) {
   if (/state changed|stale/i.test(message)) return "The board just updated. Your game has been refreshed.";
   if (/wait for your turn/i.test(message)) return "It isn't your turn yet.";
-  if (/empty pit/i.test(message)) return "That pit is empty. Choose another pit.";
+  if (/empty/i.test(message)) return "That pit is empty. Choose another pit.";
   if (/turn expired/i.test(message)) return "Time ran out. The turn is being passed.";
   if (/not a player|not in this room/i.test(message)) return "You are no longer a player in this room.";
   if (/not active|complete/i.test(message)) return "This game has already ended.";
@@ -28,19 +23,43 @@ function destinationKey(destination: MancalaDestination) {
   return destination.type === "store" ? `store-${destination.seat}` : `pit-${destination.seat}-${destination.index}`;
 }
 
+/** Normalize pits whether stored as array or object (legacy jsonb_set). */
+function normalizeSide(raw: unknown): number[] {
+  if (Array.isArray(raw)) {
+    return Array.from({ length: 6 }, (_, i) => {
+      const n = Number(raw[i]);
+      return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+    });
+  }
+  if (raw && typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    return Array.from({ length: 6 }, (_, i) => {
+      const n = Number(obj[i] ?? obj[String(i)] ?? 0);
+      return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+    });
+  }
+  return [0, 0, 0, 0, 0, 0];
+}
+
 function Stones({ count }: { count: number }) {
-  const shown = Math.min(count, 24);
+  const shown = Math.min(count, 20);
   return (
-    <span aria-hidden="true" className="grid min-h-7 max-w-12 grid-cols-4 content-center justify-items-center gap-0.5 sm:min-h-9 sm:max-w-16 sm:gap-1">
+    <span aria-hidden="true" className="flex max-w-[4.5rem] flex-wrap content-center justify-center gap-0.5">
       {Array.from({ length: shown }, (_, index) => (
         <span
           key={index}
-          className={`h-2 w-2 rounded-full border border-black/15 shadow-[inset_1px_1px_1px_rgba(255,255,255,.85),inset_-1px_-2px_2px_rgba(0,0,0,.28),0_2px_2px_rgba(0,0,0,.38)] sm:h-3 sm:w-3 ${
-            index % 3 === 0 ? "bg-gradient-to-br from-[#fff3a6] via-[#f4dc69] to-[#b68b24]" : index % 3 === 1 ? "bg-gradient-to-br from-white via-[#eee9ff] to-[#9b91c5]" : "bg-gradient-to-br from-[#e5dcff] via-[#c4b5fd] to-[#7050bd]"
+          className={`h-2.5 w-2.5 rounded-full border border-black/15 shadow-[inset_1px_1px_1px_rgba(255,255,255,.85),0_1px_2px_rgba(0,0,0,.35)] sm:h-3 sm:w-3 ${
+            index % 3 === 0
+              ? "bg-gradient-to-br from-[#fff3a6] via-[#f4dc69] to-[#b68b24]"
+              : index % 3 === 1
+                ? "bg-gradient-to-br from-white via-[#eee9ff] to-[#9b91c5]"
+                : "bg-gradient-to-br from-[#e5dcff] via-[#c4b5fd] to-[#7050bd]"
           }`}
         />
       ))}
-      {count > shown && <span className="col-span-4 text-[8px] font-black text-white/80">+{count - shown}</span>}
+      {count > shown && (
+        <span className="w-full text-center text-[9px] font-black text-white/85">+{count - shown}</span>
+      )}
     </span>
   );
 }
@@ -71,14 +90,28 @@ export function MancalaGame({
   const [selectedPit, setSelectedPit] = useState<number | null>(null);
   const [activeDestination, setActiveDestination] = useState<string | null>(null);
   const timeoutRequestedVersion = useRef<number | null>(null);
-  const gameStateReady =
-    Array.isArray(state.pits?.[1]) &&
-    Array.isArray(state.pits?.[2]) &&
-    state.stores !== undefined &&
-    state.turn !== undefined;
-  const isCompleted = room.status === "completed";
+
+  const pits = useMemo(
+    () => ({
+      1: normalizeSide(state.pits?.[1] ?? (state.pits as { "1"?: unknown } | undefined)?.["1"]),
+      2: normalizeSide(state.pits?.[2] ?? (state.pits as { "2"?: unknown } | undefined)?.["2"]),
+    }),
+    [state.pits]
+  );
+  const stores = useMemo(
+    () => ({
+      1: Number(state.stores?.[1] ?? (state.stores as { "1"?: number } | undefined)?.["1"] ?? 0),
+      2: Number(state.stores?.[2] ?? (state.stores as { "2"?: number } | undefined)?.["2"] ?? 0),
+    }),
+    [state.stores]
+  );
+
+  const gameStateReady = pits[1].length === 6 && pits[2].length === 6 && state.turn !== undefined;
+  const isCompleted = room.status === "completed" || state.status === "completed";
   const secondsLeft = state.turnDeadline
-    ? now === 0 ? 30 : Math.max(0, Math.ceil((Date.parse(state.turnDeadline) - now) / 1000))
+    ? now === 0
+      ? 30
+      : Math.max(0, Math.ceil((Date.parse(String(state.turnDeadline)) - now) / 1000))
     : 0;
 
   useEffect(() => {
@@ -93,9 +126,7 @@ export function MancalaGame({
     let index = 0;
     const timers: number[] = [];
     for (const destination of move.path.slice(-18)) {
-      timers.push(
-        window.setTimeout(() => setActiveDestination(destinationKey(destination)), index * 42),
-      );
+      timers.push(window.setTimeout(() => setActiveDestination(destinationKey(destination)), index * 42));
       index += 1;
     }
     timers.push(window.setTimeout(() => setActiveDestination(null), index * 42 + 330));
@@ -117,21 +148,34 @@ export function MancalaGame({
         status?: Room["status"];
         state_version?: number;
       };
-      if (!payload.public_state) return;
-      applyPublicState?.(payload.public_state, {
-        ...(payload.status ? { status: payload.status } : {}),
-        ...(typeof payload.state_version === "number" ? { state_version: payload.state_version } : {}),
-      });
+      if (payload.public_state && applyPublicState) {
+        applyPublicState(payload.public_state, {
+          ...(payload.status ? { status: payload.status } : {}),
+          ...(typeof payload.state_version === "number" ? { state_version: payload.state_version } : {}),
+        });
+      } else {
+        void refresh();
+      }
     },
-    [applyPublicState],
+    [applyPublicState, refresh]
   );
 
   const makeMove = useCallback(
     async (pit: number) => {
-      if (busy || isSpectator || room.status !== "playing" || !me || !supabase) return;
+      if (!supabase || busy || isSpectator || !me || room.status !== "playing") return;
+      if (pit < 0 || pit > 5) return;
+      const seat = me.seat as MancalaSeat;
+      const stones = pits[seat]?.[pit] ?? 0;
+      if (stones <= 0) {
+        setNotice("That pit is empty. Choose another pit.");
+        return;
+      }
+      if (state.turn !== me.seat) {
+        setNotice("It isn't your turn yet.");
+        return;
+      }
       setBusy(true);
       setNotice("");
-      sounds.playClickSound();
       try {
         const { data, error } = await supabase.rpc("play_mancala_action", {
           p_room: room.id,
@@ -140,88 +184,63 @@ export function MancalaGame({
         });
         if (error) {
           setNotice(friendlyError(error.message));
-          if (/state changed|turn expired/i.test(error.message)) await refresh();
+          await refresh();
           return;
         }
+        sounds.playClickSound();
         applyResponse(data);
-        const updated = data as { public_state?: MancalaState };
-        const lastMove = updated.public_state?.lastMove;
-        if (lastMove?.captured) sounds.playTokenCaptureSound();
-        else if (lastMove?.extraTurn) sounds.playMessageSound();
-        else sounds.playTokenMoveSound();
-        await refresh();
-      } catch {
-        setNotice("Connection interrupted. Reconnecting to the room…");
+      } catch (err) {
+        setNotice(friendlyError(err instanceof Error ? err.message : "Move failed"));
         await refresh();
       } finally {
         setBusy(false);
       }
     },
-    [applyResponse, busy, isSpectator, me, refresh, room.id, room.state_version, room.status, supabase],
+    [applyResponse, busy, isSpectator, me, pits, refresh, room.id, room.state_version, room.status, state.turn, supabase]
   );
 
-  const expireTurn = useCallback(async () => {
+  useEffect(() => {
     if (
-      busy ||
-      !supabase ||
-      !me ||
       isSpectator ||
+      busy ||
       room.status !== "playing" ||
+      !me ||
       secondsLeft > 0 ||
       timeoutRequestedVersion.current === room.state_version
-    ) return;
-    timeoutRequestedVersion.current = room.state_version;
-    const { data, error } = await supabase.rpc("expire_mancala_turn", {
-      p_room: room.id,
-      p_expected_version: room.state_version,
-    });
-    if (error) {
-      if (/state changed|not active/i.test(error.message)) {
-        await refresh();
-        return;
-      }
-      timeoutRequestedVersion.current = null;
-      setNotice("The turn timer is reconnecting. Please wait a moment.");
-      window.setTimeout(() => setNow(Date.now()), 1500);
+    ) {
       return;
     }
-    setNotice("Time's up — the turn has passed.");
-    applyResponse(data);
-    await refresh();
+    timeoutRequestedVersion.current = room.state_version;
+    void (async () => {
+      if (!supabase) return;
+      const { data, error } = await supabase.rpc("expire_mancala_turn", {
+        p_room: room.id,
+        p_expected_version: room.state_version,
+      });
+      if (!error) applyResponse(data);
+      else await refresh();
+    })();
   }, [applyResponse, busy, isSpectator, me, refresh, room.id, room.state_version, room.status, secondsLeft, supabase]);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => void expireTurn(), 0);
-    return () => window.clearTimeout(timer);
-  }, [expireTurn]);
-
   const requestRematch = useCallback(async () => {
-    if (!supabase || !me || busy) return;
+    if (!supabase || busy || isSpectator) return;
     setBusy(true);
-    setNotice("");
     try {
       const { data, error } = await supabase.rpc("request_mancala_rematch", { p_room: room.id });
-      if (error) {
-        setNotice(friendlyError(error.message));
-        return;
-      }
-      applyResponse(data);
-      const payload = data as { status?: string };
-      setNotice(payload.status === "playing" ? "Rematch accepted — good luck!" : "Rematch request sent. Waiting for your opponent…");
-      sounds.playMessageSound();
-      await refresh();
-    } catch {
-      setNotice("Connection interrupted. Your rematch request may not have reached the room.");
-      await refresh();
+      if (error) setNotice(friendlyError(error.message));
+      else applyResponse(data);
     } finally {
       setBusy(false);
     }
-  }, [applyResponse, busy, me, refresh, room.id, supabase]);
+  }, [applyResponse, busy, isSpectator, room.id, supabase]);
 
   if (!gameStateReady) {
     return (
-      <div className="paper-card mx-auto grid min-h-72 max-w-4xl place-items-center p-8 text-center">
-        <div><LoaderCircle className="mx-auto animate-spin text-violet-600" /><p className="mt-3 font-black">Loading Mancala board…</p></div>
+      <div className="paper-card mx-auto grid min-h-72 max-w-md place-items-center p-8 text-center">
+        <div>
+          <LoaderCircle className="mx-auto animate-spin text-violet-600" />
+          <p className="mt-3 font-black">Loading Mancala board…</p>
+        </div>
       </div>
     );
   }
@@ -230,32 +249,32 @@ export function MancalaGame({
     1: players.find((player) => player.seat === 1)?.profile?.display_name || "Player 1",
     2: players.find((player) => player.seat === 2)?.profile?.display_name || "Player 2",
   };
-  const opponentSeat = me?.seat === 1 ? 2 : 1;
+  const opponentSeat: MancalaSeat = me?.seat === 1 ? 2 : 1;
   const opponent = players.find((player) => player.seat === opponentSeat);
   const opponentIsBot = Boolean(opponent?.player_id.startsWith("11111111-1111-1111-1111-"));
   const opponentOnline = Boolean(opponent && (opponentIsBot || onlineIds.includes(opponent.player_id)));
   const myTurn = !isSpectator && me?.seat === state.turn && !isCompleted;
-  const rematchRequestedByMe = Boolean(me && state.rematchRequests?.includes(me.seat));
-  const activeName = names[state.turn as MancalaSeat] || "Player";
+  const rematchRequestedByMe = Boolean(me && state.rematchRequests?.includes(me.seat as MancalaSeat));
+  const activeName = names[(state.turn as MancalaSeat) || 1] || "Player";
+
+  // Portrait: opponent (seat 2 from seat-1 view, or always top = other player) store on top.
+  // Board is oriented so *you* are always at the bottom.
+  const bottomSeat: MancalaSeat = (me?.seat as MancalaSeat) || 1;
+  const topSeat: MancalaSeat = bottomSeat === 1 ? 2 : 1;
+  // Visual order left→right for bottom = pit 0..5; for top (facing you) = 5..0
+  const topOrder = [5, 4, 3, 2, 1, 0];
+  const bottomOrder = [0, 1, 2, 3, 4, 5];
 
   function renderPit(seat: MancalaSeat, pit: number) {
-    const stones = state.pits?.[seat]?.[pit] ?? 0;
+    const stones = pits[seat][pit] ?? 0;
     const selectable = myTurn && seat === me?.seat && stones > 0 && !busy;
-    const label = `Player ${seat} pit ${pit + 1}, ${stones} ${stones === 1 ? "stone" : "stones"}${
-      selectable ? ", selectable" : stones === 0 ? ", empty" : ""
-    }`;
     const key = `pit-${seat}-${pit}`;
-    const isCapture = Boolean(
-      state.lastMove?.captured &&
-        state.lastMove.path.length > 0 &&
-        destinationKey(state.lastMove.path[state.lastMove.path.length - 1]) === key,
-    );
+    const lit = activeDestination === key;
     return (
       <button
         key={key}
         type="button"
-        style={{ gridColumnStart: seat === 2 ? 2 + (5 - pit) : 2 + pit, gridRowStart: seat === 2 ? 1 : 2 }}
-        aria-label={label}
+        aria-label={`Player ${seat} pit ${pit + 1}, ${stones} stones`}
         aria-disabled={!selectable}
         aria-pressed={selectedPit === pit && seat === me?.seat}
         disabled={!selectable}
@@ -263,160 +282,171 @@ export function MancalaGame({
           setSelectedPit(pit);
           void makeMove(pit).finally(() => setSelectedPit(null));
         }}
-        className={`relative flex min-h-[88px] min-w-0 flex-col items-center justify-center gap-1 rounded-[48%] border-2 px-0.5 py-2 shadow-[inset_0_7px_12px_rgba(0,0,0,.42),inset_0_-3px_5px_rgba(255,255,255,.12),0_5px_0_rgba(18,10,35,.8)] transition duration-200 motion-reduce:animate-none sm:min-h-[118px] sm:gap-2 sm:rounded-[50%] ${
-          activeDestination === key
-            ? isCapture
-              ? "scale-105 animate-pulse border-rose-200 bg-rose-500 ring-4 ring-rose-300/50"
-              : "scale-105 border-[#f4dc69] bg-violet-500 ring-4 ring-[#f4dc69]/40"
-            : selectedPit === pit && seat === me?.seat
-              ? "scale-105 border-[#f4dc69] bg-violet-500 ring-4 ring-[#f4dc69]/40"
-            : selectable
-              ? "cursor-pointer border-[#c8a76a] bg-[radial-gradient(ellipse_at_35%_20%,#5d496f,#281d3d_70%)] hover:-translate-y-1 hover:border-[#f4dc69] hover:bg-[#39275a] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f4dc69]"
-              : "cursor-not-allowed border-white/10 bg-[radial-gradient(ellipse_at_35%_20%,#493c5b,#20172f_72%)] opacity-80"
-        } ${selectable ? "motion-safe:hover:shadow-[0_0_18px_rgba(244,220,105,.25)]" : ""}`}
+        className={[
+          "relative flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-[42%] border-2 transition",
+          "shadow-[inset_0_6px_10px_rgba(0,0,0,.35),inset_0_-2px_4px_rgba(255,255,255,.12),0_4px_0_rgba(18,10,35,.75)]",
+          selectable
+            ? "cursor-pointer border-[#f4dc69] bg-[#5b3d9c] hover:scale-[1.03] active:translate-y-0.5"
+            : "cursor-default border-[#2a1a4a] bg-[#3d2a6b]",
+          lit ? "ring-2 ring-[#f4dc69] ring-offset-2 ring-offset-[#1a1030]" : "",
+          selectedPit === pit && seat === me?.seat ? "scale-105" : "",
+        ].join(" ")}
       >
         <Stones count={stones} />
-        <span className="text-sm font-black tabular-nums text-white sm:text-base">{stones}</span>
+        <span className="text-[10px] font-black tabular-nums text-white/90 sm:text-xs">{stones}</span>
       </button>
     );
   }
 
-  function renderStore(seat: MancalaSeat) {
-    const count = state.stores?.[seat] ?? 0;
+  function renderStore(seat: MancalaSeat, position: "top" | "bottom") {
+    const stones = stores[seat];
     const key = `store-${seat}`;
+    const lit = activeDestination === key;
     return (
       <div
-        key={key}
-        role="group"
-        style={{ gridColumnStart: seat === 2 ? 1 : 8, gridRow: "1 / span 2" }}
-        aria-label={`${names[seat]} store, ${count} stones`}
-        className={`row-span-2 flex min-h-[184px] flex-col items-center justify-center gap-2 rounded-[38%] border-[3px] p-1 text-center shadow-[inset_0_10px_16px_rgba(0,0,0,.46),inset_0_-4px_5px_rgba(255,255,255,.1),0_6px_0_rgba(18,10,35,.85)] sm:min-h-[252px] sm:rounded-[42%] sm:p-3 ${
-          activeDestination === key
-            ? "scale-[1.03] border-[#f4dc69] bg-violet-500 shadow-[0_0_22px_rgba(244,220,105,.35)]"
-            : "border-[#c8a76a] bg-[radial-gradient(ellipse_at_35%_18%,#5d496f,#281d3d_74%)]"
-        }`}
+        className={[
+          "mx-auto flex w-full max-w-[9rem] flex-col items-center justify-center gap-1 rounded-[2rem] border-2 border-[#2a1a4a] bg-[#2d1b56] px-3 py-4 shadow-[inset_0_8px_14px_rgba(0,0,0,.4),0_5px_0_rgba(18,10,35,.8)] sm:max-w-[11rem] sm:py-5",
+          lit ? "ring-2 ring-[#f4dc69]" : "",
+          position === "top" ? "mt-1" : "mb-1",
+        ].join(" ")}
+        aria-label={`${names[seat]} store, ${stones} stones`}
       >
-        <span className="text-[8px] font-black uppercase leading-tight tracking-wide text-violet-200 sm:text-[10px]">
-          {names[seat]}<br />Store
-        </span>
-        <Stones count={count} />
-        <span className="text-xl font-black tabular-nums text-white sm:text-3xl">{count}</span>
+        <p className="truncate text-[10px] font-black uppercase tracking-wider text-violet-200">{names[seat]}</p>
+        <Stones count={stones} />
+        <p className="text-2xl font-black tabular-nums text-white sm:text-3xl">{stones}</p>
+        <p className="text-[9px] font-bold uppercase tracking-widest text-violet-300">store</p>
       </div>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-4 pb-10">
-      <header className="paper-card flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[.2em] text-violet-600">Mancala · Kalah</p>
-          <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Classic stones. Smart moves.</h1>
+    <main className="mx-auto flex w-full max-w-lg flex-col gap-3 px-1 sm:gap-4">
+      <header className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-slate-950 bg-white px-3 py-2 shadow-[3px_3px_0_#171821]">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-wider text-violet-600">Mancala</p>
+          <p className="truncate text-sm font-black text-slate-900">
+            {isCompleted ? "Game over" : myTurn ? "Your turn" : `${activeName}'s turn`}
+          </p>
         </div>
-        {room.status === "playing" && (
-          <div className="flex items-center gap-2 rounded-full border-2 border-slate-950 bg-violet-100 px-3 py-2 text-xs font-black text-violet-950 sm:px-4">
-            <Clock3 size={15} aria-hidden="true" />
-            <span aria-live="polite">{secondsLeft}s</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <span
+            className={`inline-flex items-center gap-1 rounded-full border-2 border-slate-950 px-2.5 py-1 text-xs font-black tabular-nums ${
+              secondsLeft <= 5 && !isCompleted ? "bg-rose-200" : "bg-violet-100"
+            }`}
+          >
+            <Clock3 size={14} /> {isCompleted ? "—" : `${secondsLeft}s`}
+          </span>
+          {opponent && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold">
+              <span className={`h-2 w-2 rounded-full ${opponentOnline ? "bg-emerald-500" : "bg-slate-300"}`} />
+              {opponentIsBot ? "Bot" : opponentOnline ? "Online" : "Away"}
+            </span>
+          )}
+        </div>
       </header>
 
-      <section className="paper-card overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-slate-950 bg-[#eee9ff] p-4 sm:p-5">
-          <div className="flex min-w-0 items-center gap-3">
-            {me && <UserAvatar avatarUrl={players.find((player) => player.player_id === userId)?.profile?.avatar_url} fallbackName={names[me.seat as MancalaSeat]} size="sm" />}
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-widest text-violet-700">
-                {isSpectator ? "Spectating" : myTurn ? "Your turn" : "Opponent's turn"}
-              </p>
-              <p className="truncate text-lg font-black text-slate-950">
-                {myTurn ? `${names[state.turn as MancalaSeat]}'s turn` : `${activeName}'s turn`}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-600">
-            <span className={`h-2.5 w-2.5 rounded-full ${opponentOnline ? "bg-emerald-500" : "bg-amber-500"}`} />
-            {opponentIsBot ? "Rally bot ready" : opponentOnline ? `${opponent?.profile?.display_name || "Opponent"} connected` : `${opponent?.profile?.display_name || "Opponent"} disconnected · reconnecting`}
-          </div>
+      {notice && (
+        <p role="alert" className="rounded-xl border-2 border-rose-300 bg-rose-50 px-3 py-2 text-center text-sm font-bold text-rose-800">
+          {notice}
+        </p>
+      )}
+
+      {/* Portrait board: top store → top pits → bottom pits → bottom store */}
+      <section
+        className="rounded-[28px] border-2 border-slate-950 bg-gradient-to-b from-[#4c2f8f] via-[#3a2170] to-[#2a1754] p-3 shadow-[5px_5px_0_#171821] sm:p-4"
+        aria-label="Mancala board"
+      >
+        <div className="mb-2 flex items-center justify-center gap-2 text-white">
+          <UserAvatar
+            avatarUrl={players.find((p) => p.seat === topSeat)?.profile?.avatar_url}
+            fallbackName={names[topSeat]}
+            size="xs"
+            className="border border-white/30"
+          />
+          <p className="truncate text-xs font-black">{names[topSeat]}</p>
+          {state.turn === topSeat && !isCompleted && (
+            <span className="rounded-full bg-[#f4dc69] px-2 py-0.5 text-[9px] font-black text-slate-950">playing</span>
+          )}
         </div>
 
-        <div className="p-3 sm:p-6">
-          {notice && <p role="status" className="mb-3 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-center text-sm font-bold text-violet-900">{notice}</p>}
-          {state.message && room.status === "playing" && (
-            <p aria-live="polite" className="mb-3 text-center text-sm font-black text-violet-800">
-              {state.message}
-            </p>
-          )}
+        {renderStore(topSeat, "top")}
 
-          <div className="rounded-[28px] border-[3px] border-[#6a4222] bg-[linear-gradient(135deg,#e3ba7a_0%,#b67a3f_16%,#d19a58_45%,#89552c_100%)] p-2 shadow-[inset_0_3px_5px_rgba(255,255,255,.45),inset_0_-8px_12px_rgba(47,24,9,.32),0_9px_0_#422718,0_14px_22px_rgba(15,23,42,.25)] sm:rounded-[34px] sm:p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              {[2, 1].map((seat) => {
-                const player = players.find((candidate) => candidate.seat === seat);
-                const isActive = state.turn === seat && room.status === "playing";
-                return (
-                  <div key={seat} className={`flex min-w-0 items-center gap-2 rounded-full border px-2 py-1.5 sm:px-3 ${isActive ? "border-[#f4dc69] bg-[#f4dc69] text-slate-950" : "border-white/30 bg-[#281d3d] text-white"}`}>
-                    <UserAvatar avatarUrl={player?.profile?.avatar_url} fallbackName={names[seat as MancalaSeat]} size="xs" />
-                    <span className="max-w-28 truncate text-[10px] font-black sm:max-w-40 sm:text-xs">{names[seat as MancalaSeat]}</span>
-                    {isActive && <span className="hidden text-[9px] font-black uppercase sm:inline">Playing</span>}
-                  </div>
-                );
-              })}
-            </div>
-            <div className="grid grid-cols-[42px_repeat(6,minmax(0,1fr))_42px] grid-rows-[minmax(88px,auto)_minmax(88px,auto)] items-stretch gap-1.5 sm:grid-cols-[72px_repeat(6,minmax(0,1fr))_72px] sm:grid-rows-[minmax(118px,auto)_minmax(118px,auto)] sm:gap-3">
-              {renderStore(2)}
-              {pitOrder[2].map((pit) => renderPit(2, pit))}
-              {pitOrder[1].map((pit) => renderPit(1, pit))}
-              {renderStore(1)}
-            </div>
-            <div className="mt-3 flex items-center justify-between px-1 text-[9px] font-black uppercase tracking-widest text-white/80 sm:px-3 sm:text-[10px]">
-              <span>{names[2]} · Player 2</span>
-              <span>{names[1]} · Player 1</span>
-            </div>
-          </div>
-          <p className="mt-4 text-center text-xs font-semibold text-slate-500">
-            Choose a non-empty pit on your side. Land in your store for an extra turn.
-          </p>
+        <div className="my-3 grid grid-cols-6 gap-1.5 sm:gap-2">
+          {topOrder.map((pit) => renderPit(topSeat, pit))}
+        </div>
+
+        <div className="my-1 flex items-center gap-2 px-1">
+          <div className="h-px flex-1 bg-white/20" />
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/50">board</span>
+          <div className="h-px flex-1 bg-white/20" />
+        </div>
+
+        <div className="my-3 grid grid-cols-6 gap-1.5 sm:gap-2">
+          {bottomOrder.map((pit) => renderPit(bottomSeat, pit))}
+        </div>
+
+        {renderStore(bottomSeat, "bottom")}
+
+        <div className="mt-2 flex items-center justify-center gap-2 text-white">
+          <UserAvatar
+            avatarUrl={players.find((p) => p.seat === bottomSeat)?.profile?.avatar_url}
+            fallbackName={names[bottomSeat]}
+            size="xs"
+            className="border border-white/30"
+          />
+          <p className="truncate text-xs font-black">{names[bottomSeat]}{me?.seat === bottomSeat ? " (you)" : ""}</p>
+          {state.turn === bottomSeat && !isCompleted && (
+            <span className="rounded-full bg-[#f4dc69] px-2 py-0.5 text-[9px] font-black text-slate-950">playing</span>
+          )}
         </div>
       </section>
 
+      <p className="text-center text-xs font-bold text-slate-600">
+        {state.message || "Pick a pit on your side to sow stones counterclockwise."}
+      </p>
+
       {isCompleted ? (
-        <section className="paper-card mx-auto max-w-3xl overflow-hidden text-center">
-          <div className="border-b-2 border-slate-950 bg-violet-100 px-5 py-7 sm:py-9">
-            <Sparkles className="mx-auto text-violet-600" size={28} aria-hidden="true" />
-            <p className="mt-2 text-xs font-black uppercase tracking-[.2em] text-violet-700">Game over</p>
-            <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+        <section className="overflow-hidden rounded-3xl border-2 border-slate-950 bg-white shadow-[4px_4px_0_#171821]">
+          <div className="border-b-2 border-slate-950 bg-[#f4dc69] px-5 py-4 text-center">
+            <p className="text-xs font-black uppercase tracking-[.2em] text-violet-700">Game over</p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
               {state.winnerSeat ? `${names[state.winnerSeat as MancalaSeat]} wins!` : "It's a draw!"}
             </h2>
           </div>
-          <div className="flex items-center justify-center gap-4 p-5 sm:gap-8 sm:p-7">
-            {[1, 2].map((seat) => (
-              <div key={seat} className={`min-w-0 flex-1 rounded-2xl border-2 border-slate-950 p-4 ${state.winnerSeat === seat ? "bg-[#f4dc69] shadow-[3px_3px_0_#171821]" : "bg-white"}`}>
-                <p className="truncate text-xs font-black text-slate-600">{names[seat as MancalaSeat]}</p>
-                <p className="mt-1 text-4xl font-black tabular-nums text-slate-950 sm:text-5xl">{state.scores?.[seat as MancalaSeat] ?? state.stores?.[seat as MancalaSeat] ?? 0}</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-violet-700">stones</p>
+          <div className="flex gap-3 p-4">
+            {([1, 2] as MancalaSeat[]).map((seat) => (
+              <div
+                key={seat}
+                className={`min-w-0 flex-1 rounded-2xl border-2 border-slate-950 p-3 ${
+                  state.winnerSeat === seat ? "bg-[#f4dc69]" : "bg-white"
+                }`}
+              >
+                <p className="truncate text-xs font-black text-slate-600">{names[seat]}</p>
+                <p className="mt-1 text-3xl font-black tabular-nums">{state.scores?.[seat] ?? stores[seat]}</p>
               </div>
             ))}
           </div>
-          <div className="flex flex-col justify-center gap-3 p-5 pt-0 sm:flex-row">
+          <div className="flex flex-col gap-2 px-4 pb-4 sm:flex-row">
             {!isSpectator && (
               <button
                 type="button"
                 onClick={() => void requestRematch()}
                 disabled={busy || rematchRequestedByMe}
-                className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-slate-950 bg-violet-600 px-6 py-3 font-black text-white shadow-[3px_3px_0_#171821] transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border-2 border-slate-950 bg-violet-600 px-5 py-3 font-black text-white shadow-[3px_3px_0_#171821] disabled:opacity-60"
               >
                 {busy ? <LoaderCircle className="animate-spin" size={17} /> : <RotateCcw size={17} />}
-                {rematchRequestedByMe ? "Waiting for opponent…" : "Rematch"}
+                {rematchRequestedByMe ? "Waiting…" : "Rematch"}
               </button>
             )}
-            <Link href="/games" className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-slate-950 bg-white px-6 py-3 font-black text-slate-950 transition hover:-translate-y-0.5">
-              <ArrowLeft size={17} /> Back to Games
+            <Link
+              href="/games"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border-2 border-slate-950 bg-white px-5 py-3 font-black"
+            >
+              <ArrowLeft size={17} /> Games
             </Link>
           </div>
-          {rematchRequestedByMe && <p className="pb-5 text-xs font-bold text-slate-500">Your opponent must also agree before the next game begins.</p>}
         </section>
       ) : null}
-
-      {room.status === "playing" && secondsLeft === 0 && <p className="text-center text-xs font-bold text-slate-500">Passing the turn…</p>}
     </main>
   );
 }
