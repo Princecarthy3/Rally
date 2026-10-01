@@ -1,48 +1,34 @@
--- Fix Mancala moves: reliable pit stone counts + stable state updates.
--- Prior versions could mis-read pit arrays after nested jsonb_set paths.
+-- Fix Mancala sowing: reliably read/write pit arrays and avoid false "empty pit".
 
-create or replace function private.mancala_side_array(p_pits jsonb, p_seat int)
+create or replace function private.mancala_side_to_ints(side jsonb)
 returns int[]
-language plpgsql
+language sql
 immutable
-set search_path = public
+set search_path = ''
 as $$
-declare
-  side jsonb;
-  result int[] := array[0,0,0,0,0,0];
-  i int;
-  v text;
-begin
-  if p_pits is null then return result; end if;
-  side := p_pits -> p_seat::text;
-  if side is null then
-    side := p_pits -> (p_seat - 1)::text; -- tolerate 0-based seats if ever present
-  end if;
-  if side is null then return result; end if;
-
-  if jsonb_typeof(side) = 'array' then
-    for i in 0..5 loop
-      v := side ->> i;
-      result[i + 1] := coalesce(v::int, 0);
-    end loop;
-  elsif jsonb_typeof(side) = 'object' then
-    for i in 0..5 loop
-      v := coalesce(side ->> i::text, side ->> (i + 1)::text, '0');
-      result[i + 1] := coalesce(v::int, 0);
-    end loop;
-  end if;
-  return result;
-end;
+  select array[
+    coalesce((side->>0)::int, (side->>'0')::int, 0),
+    coalesce((side->>1)::int, (side->>'1')::int, 0),
+    coalesce((side->>2)::int, (side->>'2')::int, 0),
+    coalesce((side->>3)::int, (side->>'3')::int, 0),
+    coalesce((side->>4)::int, (side->>'4')::int, 0),
+    coalesce((side->>5)::int, (side->>'5')::int, 0)
+  ];
 $$;
 
-create or replace function private.mancala_pits_json(p1 int[], p2 int[])
+create or replace function private.mancala_ints_to_side(arr int[])
 returns jsonb
 language sql
 immutable
+set search_path = ''
 as $$
-  select jsonb_build_object(
-    '1', to_jsonb(p1),
-    '2', to_jsonb(p2)
+  select jsonb_build_array(
+    coalesce(arr[1], 0),
+    coalesce(arr[2], 0),
+    coalesce(arr[3], 0),
+    coalesce(arr[4], 0),
+    coalesce(arr[5], 0),
+    coalesce(arr[6], 0)
   );
 $$;
 
@@ -60,11 +46,12 @@ declare
   r public.game_rooms;
   me public.game_players;
   state jsonb;
+  pits jsonb;
   stores jsonb;
   side1 int[];
   side2 int[];
-  my_side int[];
-  opp_side int[];
+  store1 int;
+  store2 int;
   stones int;
   cursor_seat int;
   cursor_pit int;
@@ -74,28 +61,24 @@ declare
   opposite_stones int;
   captured int := 0;
   path jsonb := '[]'::jsonb;
-  last_destination jsonb;
   last_type text;
   last_seat int;
   last_pit int;
   extra_turn boolean := false;
-  result_status text := 'playing';
-  version_after bigint;
-  next_seat int;
   side_empty boolean;
+  seat_to_sweep int;
   remaining int;
-  i int;
-  deadline timestamptz;
-  deadline_raw text;
+  now_ts timestamptz := clock_timestamp();
+  version_after bigint;
+  winner int;
+  result_status text := 'playing';
 begin
   if auth.uid() is null then raise exception 'Sign in first'; end if;
 
   select * into r from public.game_rooms where id = p_room for update;
   if r.id is null or r.game_type <> 'mancala' then raise exception 'Mancala game not found'; end if;
   if r.status <> 'playing' then raise exception 'Game is not active'; end if;
-
-  -- Soft version check: allow same or +0 drift by re-reading locked row
-  if p_expected_version is not null and p_expected_version <> r.state_version then
+  if p_expected_version is null or p_expected_version <> r.state_version then
     raise exception 'Game state changed. Refresh and try again.';
   end if;
 
@@ -104,46 +87,51 @@ begin
   if me.seat not in (1, 2) then raise exception 'Invalid Mancala seat'; end if;
 
   state := coalesce(r.public_state, '{}'::jsonb);
-  if coalesce((state->>'status'), 'playing') = 'completed' then
+  if coalesce(state->>'status', 'playing') = 'completed' then
     raise exception 'Game is not active';
+  end if;
+
+  -- Soft-expire: still allow move if deadline just passed by a few seconds to avoid race with client timer
+  if coalesce((state->>'turnDeadline')::timestamptz, now_ts) < now_ts - interval '2 seconds' then
+    raise exception 'Turn expired. The next turn is loading.';
   end if;
 
   if coalesce((state->>'turn')::int, 0) <> me.seat then
     raise exception 'Wait for your turn';
   end if;
 
-  deadline_raw := state->>'turnDeadline';
-  if deadline_raw is not null and length(trim(deadline_raw)) > 0 then
-    begin
-      deadline := deadline_raw::timestamptz;
-    exception when others then
-      deadline := null;
-    end;
-    -- Only block if clearly expired by >2s (clock skew tolerance)
-    if deadline is not null and deadline < (now() - interval '2 seconds') then
-      raise exception 'Turn expired. The next turn is loading.';
-    end if;
-  end if;
-
   if p_pit is null or p_pit < 0 or p_pit > 5 then
     raise exception 'Invalid pit';
   end if;
 
-  side1 := private.mancala_side_array(state->'pits', 1);
-  side2 := private.mancala_side_array(state->'pits', 2);
-  stores := coalesce(state->'stores', '{"1":0,"2":0}'::jsonb);
+  pits := coalesce(state->'pits', '{}'::jsonb);
+  stores := coalesce(state->'stores', '{}'::jsonb);
+
+  side1 := private.mancala_side_to_ints(coalesce(pits->'1', pits->1, '[]'::jsonb));
+  side2 := private.mancala_side_to_ints(coalesce(pits->'2', pits->2, '[]'::jsonb));
+  store1 := coalesce((stores->>'1')::int, (stores->'1')::int, 0);
+  store2 := coalesce((stores->>'2')::int, (stores->'2')::int, 0);
 
   player_seat := me.seat;
   opposite_seat := case when player_seat = 1 then 2 else 1 end;
-  my_side := case when player_seat = 1 then side1 else side2 end;
-  opp_side := case when player_seat = 1 then side2 else side1 end;
 
-  stones := my_side[p_pit + 1];
-  if stones is null or stones <= 0 then
+  -- p_pit is 0-based; PostgreSQL arrays are 1-based
+  if player_seat = 1 then
+    stones := side1[p_pit + 1];
+  else
+    stones := side2[p_pit + 1];
+  end if;
+
+  if coalesce(stones, 0) <= 0 then
     raise exception 'That pit is empty';
   end if;
 
-  my_side[p_pit + 1] := 0;
+  if player_seat = 1 then
+    side1[p_pit + 1] := 0;
+  else
+    side2[p_pit + 1] := 0;
+  end if;
+
   cursor_seat := player_seat;
   cursor_pit := p_pit;
 
@@ -151,136 +139,150 @@ begin
     if cursor_seat = player_seat then
       if cursor_pit < 5 then
         cursor_pit := cursor_pit + 1;
-        my_side[cursor_pit + 1] := my_side[cursor_pit + 1] + 1;
-        last_destination := jsonb_build_object('type', 'pit', 'seat', cursor_seat, 'index', cursor_pit);
+        if cursor_seat = 1 then
+          side1[cursor_pit + 1] := side1[cursor_pit + 1] + 1;
+        else
+          side2[cursor_pit + 1] := side2[cursor_pit + 1] + 1;
+        end if;
+        path := path || jsonb_build_array(jsonb_build_object('type', 'pit', 'seat', cursor_seat, 'index', cursor_pit));
+        last_type := 'pit';
+        last_seat := cursor_seat;
+        last_pit := cursor_pit;
+        stones := stones - 1;
       else
-        -- land in own store
-        stores := jsonb_set(
-          stores,
-          array[player_seat::text],
-          to_jsonb(coalesce((stores ->> player_seat::text)::int, 0) + 1),
-          true
-        );
-        last_destination := jsonb_build_object('type', 'store', 'seat', player_seat);
-        -- next continues on opponent side from their pit 0
+        -- reach own store
+        if player_seat = 1 then store1 := store1 + 1; else store2 := store2 + 1; end if;
+        path := path || jsonb_build_array(jsonb_build_object('type', 'store', 'seat', player_seat));
+        last_type := 'store';
+        last_seat := player_seat;
+        last_pit := null;
+        stones := stones - 1;
+        -- after store, continue on opponent side from pit 0
         cursor_seat := opposite_seat;
         cursor_pit := -1;
       end if;
     else
-      -- sowing on opponent side: pits 0..5 only (never opponent store)
+      -- opponent side: sow pits 0..5, skip opponent store
       if cursor_pit < 5 then
         cursor_pit := cursor_pit + 1;
-        opp_side[cursor_pit + 1] := opp_side[cursor_pit + 1] + 1;
-        last_destination := jsonb_build_object('type', 'pit', 'seat', cursor_seat, 'index', cursor_pit);
+        if cursor_seat = 1 then
+          side1[cursor_pit + 1] := side1[cursor_pit + 1] + 1;
+        else
+          side2[cursor_pit + 1] := side2[cursor_pit + 1] + 1;
+        end if;
+        path := path || jsonb_build_array(jsonb_build_object('type', 'pit', 'seat', cursor_seat, 'index', cursor_pit));
+        last_type := 'pit';
+        last_seat := cursor_seat;
+        last_pit := cursor_pit;
+        stones := stones - 1;
       else
-        -- after opponent's last pit, return to own side pit 0
+        -- leave opponent side back to own pits
         cursor_seat := player_seat;
-        cursor_pit := 0;
-        my_side[1] := my_side[1] + 1;
-        last_destination := jsonb_build_object('type', 'pit', 'seat', cursor_seat, 'index', 0);
+        cursor_pit := -1;
       end if;
     end if;
-
-    path := path || jsonb_build_array(last_destination);
-    stones := stones - 1;
   end loop;
 
-  -- Capture: last stone in empty own pit, opposite has stones
-  last_type := last_destination ->> 'type';
-  last_seat := (last_destination ->> 'seat')::int;
-  if last_type = 'store' then
-    extra_turn := last_seat = player_seat;
-  elsif last_seat = player_seat then
-    last_pit := (last_destination ->> 'index')::int;
-    opposite_pit := 5 - last_pit;
-    if my_side[last_pit + 1] = 1 then
-      opposite_stones := opp_side[opposite_pit + 1];
-      if opposite_stones > 0 then
-        captured := opposite_stones + 1;
-        my_side[last_pit + 1] := 0;
-        opp_side[opposite_pit + 1] := 0;
-        stores := jsonb_set(
-          stores,
-          array[player_seat::text],
-          to_jsonb(coalesce((stores ->> player_seat::text)::int, 0) + captured),
-          true
-        );
+  -- Capture: last stone in own empty pit, opposite has stones
+  if last_type = 'pit' and last_seat = player_seat and last_pit is not null then
+    if player_seat = 1 then
+      if side1[last_pit + 1] = 1 then
+        opposite_pit := 5 - last_pit;
+        opposite_stones := side2[opposite_pit + 1];
+        if opposite_stones > 0 then
+          captured := opposite_stones + 1;
+          side1[last_pit + 1] := 0;
+          side2[opposite_pit + 1] := 0;
+          store1 := store1 + captured;
+        end if;
+      end if;
+    else
+      if side2[last_pit + 1] = 1 then
+        opposite_pit := 5 - last_pit;
+        opposite_stones := side1[opposite_pit + 1];
+        if opposite_stones > 0 then
+          captured := opposite_stones + 1;
+          side2[last_pit + 1] := 0;
+          side1[opposite_pit + 1] := 0;
+          store2 := store2 + captured;
+        end if;
       end if;
     end if;
   end if;
 
-  -- Write sides back
-  if player_seat = 1 then
-    side1 := my_side;
-    side2 := opp_side;
-  else
-    side2 := my_side;
-    side1 := opp_side;
-  end if;
+  extra_turn := (last_type = 'store' and last_seat = player_seat);
 
   -- End game if either side empty
-  side_empty := true;
-  for i in 1..6 loop
-    if side1[i] <> 0 then side_empty := false; exit; end if;
+  side_empty := false;
+  for seat_to_sweep in 1..2 loop
+    if seat_to_sweep = 1 then
+      side_empty := (side1[1]+side1[2]+side1[3]+side1[4]+side1[5]+side1[6]) = 0;
+    else
+      side_empty := (side2[1]+side2[2]+side2[3]+side2[4]+side2[5]+side2[6]) = 0;
+    end if;
+    if side_empty then
+      if seat_to_sweep = 1 then
+        remaining := side2[1]+side2[2]+side2[3]+side2[4]+side2[5]+side2[6];
+        store2 := store2 + remaining;
+        side2 := array[0,0,0,0,0,0];
+      else
+        remaining := side1[1]+side1[2]+side1[3]+side1[4]+side1[5]+side1[6];
+        store1 := store1 + remaining;
+        side1 := array[0,0,0,0,0,0];
+      end if;
+      result_status := 'completed';
+      exit;
+    end if;
   end loop;
-  if not side_empty then
-    side_empty := true;
-    for i in 1..6 loop
-      if side2[i] <> 0 then side_empty := false; exit; end if;
-    end loop;
-  end if;
 
-  if side_empty then
-    remaining := 0;
-    for i in 1..6 loop remaining := remaining + side1[i]; side1[i] := 0; end loop;
-    stores := jsonb_set(stores, array['1'], to_jsonb(coalesce((stores ->> '1')::int, 0) + remaining), true);
-    remaining := 0;
-    for i in 1..6 loop remaining := remaining + side2[i]; side2[i] := 0; end loop;
-    stores := jsonb_set(stores, array['2'], to_jsonb(coalesce((stores ->> '2')::int, 0) + remaining), true);
-    result_status := 'completed';
-  end if;
+  pits := jsonb_build_object(
+    '1', private.mancala_ints_to_side(side1),
+    '2', private.mancala_ints_to_side(side2)
+  );
+  stores := jsonb_build_object('1', store1, '2', store2);
 
-  if extra_turn and result_status = 'playing' then
-    next_seat := player_seat;
-  else
-    next_seat := opposite_seat;
-  end if;
+  state := state || jsonb_build_object(
+    'pits', pits,
+    'stores', stores,
+    'moveNumber', coalesce((state->>'moveNumber')::int, 0) + 1,
+    'lastMove', jsonb_build_object(
+      'seat', player_seat,
+      'pit', p_pit,
+      'path', path,
+      'captured', captured,
+      'extraTurn', extra_turn,
+      'at', now_ts
+    ),
+    'scores', stores
+  );
 
-  state := state
-    || jsonb_build_object(
-      'pits', private.mancala_pits_json(side1, side2),
-      'stores', stores,
-      'scores', stores,
-      'turn', next_seat,
-      'moveNumber', coalesce((state ->> 'moveNumber')::int, 0) + 1,
-      'lastMove', jsonb_build_object(
-        'seat', player_seat,
-        'pit', p_pit,
-        'path', path,
-        'captured', captured,
-        'extraTurn', extra_turn,
-        'at', now()
-      ),
-      'turnDeadline', (now() + interval '30 seconds')::text,
-      'status', result_status,
+  if result_status = 'completed' then
+    winner := case
+      when store1 > store2 then 1
+      when store2 > store1 then 2
+      else null
+    end;
+    state := state || jsonb_build_object(
+      'status', 'completed',
+      'turn', player_seat,
+      'winnerSeat', winner,
       'message', case
-        when result_status = 'completed' then
-          case
-            when (stores ->> '1')::int = (stores ->> '2')::int then 'It''s a draw!'
-            when (stores ->> '1')::int > (stores ->> '2')::int then 'Player 1 wins!'
-            else 'Player 2 wins!'
-          end
-        when extra_turn then 'Extra turn!'
-        else 'Player ' || next_seat || '''s turn.'
-      end,
-      'winnerSeat', case
-        when result_status <> 'completed' then null
-        when (stores ->> '1')::int = (stores ->> '2')::int then null
-        when (stores ->> '1')::int > (stores ->> '2')::int then 1
-        else 2
-      end,
-      'rematchRequests', '[]'::jsonb
+        when winner is null then 'It''s a draw!'
+        else format('Player %s wins!', winner)
+      end
     );
+  else
+    state := state || jsonb_build_object(
+      'status', 'playing',
+      'turn', case when extra_turn then player_seat else opposite_seat end,
+      'turnDeadline', (now_ts + interval '30 seconds'),
+      'message', case
+        when extra_turn then format('Player %s landed in their store — play again!', player_seat)
+        when captured > 0 then format('Player %s captured %s stones.', player_seat, captured)
+        else format('Player %s sowed. Player %s to move.', player_seat, case when extra_turn then player_seat else opposite_seat end)
+      end
+    );
+  end if;
 
   update public.game_rooms
   set public_state = state,
@@ -291,11 +293,7 @@ begin
   returning state_version into version_after;
 
   if result_status = 'completed' then
-    begin
-      perform public.finalize_room(p_room, state, 'mancala');
-    exception when others then
-      null; -- optional scoring hook
-    end;
+    perform public.finalize_room(p_room, state, 'mancala');
   end if;
 
   return jsonb_build_object(
@@ -307,30 +305,5 @@ end;
 $$;
 
 grant execute on function public.play_mancala_action(uuid, integer, bigint) to authenticated;
-
--- Keep initial state format consistent
-create or replace function private.mancala_initial_state(p_now timestamptz)
-returns jsonb
-language sql
-stable
-set search_path = public
-as $$
-  select jsonb_build_object(
-    'pits', jsonb_build_object(
-      '1', jsonb_build_array(4,4,4,4,4,4),
-      '2', jsonb_build_array(4,4,4,4,4,4)
-    ),
-    'stores', jsonb_build_object('1', 0, '2', 0),
-    'turn', 1,
-    'status', 'playing',
-    'winnerSeat', null,
-    'scores', jsonb_build_object('1', 0, '2', 0),
-    'moveNumber', 0,
-    'lastMove', null,
-    'turnDeadline', (p_now + interval '30 seconds')::text,
-    'rematchRequests', '[]'::jsonb,
-    'message', 'Player 1 goes first.'
-  );
-$$;
 
 notify pgrst, 'reload schema';

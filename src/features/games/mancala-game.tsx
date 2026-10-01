@@ -25,18 +25,17 @@ function destinationKey(destination: MancalaDestination) {
 
 /** Normalize pits whether stored as array or object (legacy jsonb_set). */
 function normalizeSide(raw: unknown): number[] {
+  const read = (value: unknown) => {
+    const n = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.floor(n);
+  };
   if (Array.isArray(raw)) {
-    return Array.from({ length: 6 }, (_, i) => {
-      const n = Number(raw[i]);
-      return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
-    });
+    return Array.from({ length: 6 }, (_, i) => read(raw[i]));
   }
   if (raw && typeof raw === "object") {
     const obj = raw as Record<string, unknown>;
-    return Array.from({ length: 6 }, (_, i) => {
-      const n = Number(obj[i] ?? obj[String(i)] ?? 0);
-      return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
-    });
+    return Array.from({ length: 6 }, (_, i) => read(obj[i] ?? obj[String(i)]));
   }
   return [0, 0, 0, 0, 0, 0];
 }
@@ -165,12 +164,12 @@ export function MancalaGame({
       if (!supabase || busy || isSpectator || !me || room.status !== "playing") return;
       if (pit < 0 || pit > 5) return;
       const seat = me.seat as MancalaSeat;
-      const stones = pits[seat]?.[pit] ?? 0;
-      if (stones <= 0) {
+      const stones = Number(pits[seat]?.[pit] ?? 0);
+      if (!(stones > 0)) {
         setNotice("That pit is empty. Choose another pit.");
         return;
       }
-      if (state.turn !== me.seat) {
+      if (Number(state.turn) !== Number(me.seat)) {
         setNotice("It isn't your turn yet.");
         return;
       }
@@ -179,7 +178,7 @@ export function MancalaGame({
       try {
         const { data, error } = await supabase.rpc("play_mancala_action", {
           p_room: room.id,
-          p_pit: pit,
+          p_pit: Math.floor(pit),
           p_expected_version: room.state_version,
         });
         if (error) {
@@ -253,7 +252,7 @@ export function MancalaGame({
   const opponent = players.find((player) => player.seat === opponentSeat);
   const opponentIsBot = Boolean(opponent?.player_id.startsWith("11111111-1111-1111-1111-"));
   const opponentOnline = Boolean(opponent && (opponentIsBot || onlineIds.includes(opponent.player_id)));
-  const myTurn = !isSpectator && me?.seat === state.turn && !isCompleted;
+  const myTurn = !isSpectator && Number(me?.seat) === Number(state.turn) && !isCompleted;
   const rematchRequestedByMe = Boolean(me && state.rematchRequests?.includes(me.seat as MancalaSeat));
   const activeName = names[(state.turn as MancalaSeat) || 1] || "Player";
 
@@ -283,7 +282,7 @@ export function MancalaGame({
           void makeMove(pit).finally(() => setSelectedPit(null));
         }}
         className={[
-          "relative flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-[42%] border-2 transition",
+          "relative flex aspect-square min-h-[3.4rem] w-full flex-col items-center justify-center gap-1 rounded-[42%] border-2 transition sm:min-h-[4.25rem]",
           "shadow-[inset_0_6px_10px_rgba(0,0,0,.35),inset_0_-2px_4px_rgba(255,255,255,.12),0_4px_0_rgba(18,10,35,.75)]",
           selectable
             ? "cursor-pointer border-[#f4dc69] bg-[#5b3d9c] hover:scale-[1.03] active:translate-y-0.5"
@@ -305,7 +304,7 @@ export function MancalaGame({
     return (
       <div
         className={[
-          "mx-auto flex w-full max-w-[9rem] flex-col items-center justify-center gap-1 rounded-[2rem] border-2 border-[#2a1a4a] bg-[#2d1b56] px-3 py-4 shadow-[inset_0_8px_14px_rgba(0,0,0,.4),0_5px_0_rgba(18,10,35,.8)] sm:max-w-[11rem] sm:py-5",
+          "mx-auto flex w-full max-w-[12rem] flex-col items-center justify-center gap-1.5 rounded-[2rem] border-2 border-[#2a1a4a] bg-[#2d1b56] px-4 py-5 shadow-[inset_0_8px_14px_rgba(0,0,0,.4),0_5px_0_rgba(18,10,35,.8)] sm:max-w-[14rem] sm:py-6",
           lit ? "ring-2 ring-[#f4dc69]" : "",
           position === "top" ? "mt-1" : "mb-1",
         ].join(" ")}
@@ -320,7 +319,7 @@ export function MancalaGame({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-col gap-3 px-1 sm:gap-4">
+    <main className="mx-auto flex w-full max-w-md flex-col gap-3 px-1 sm:max-w-lg sm:gap-4">
       <header className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-slate-950 bg-white px-3 py-2 shadow-[3px_3px_0_#171821]">
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-wider text-violet-600">Mancala</p>
@@ -353,7 +352,7 @@ export function MancalaGame({
 
       {/* Portrait board: top store → top pits → bottom pits → bottom store */}
       <section
-        className="rounded-[28px] border-2 border-slate-950 bg-gradient-to-b from-[#4c2f8f] via-[#3a2170] to-[#2a1754] p-3 shadow-[5px_5px_0_#171821] sm:p-4"
+        className="rounded-[28px] border-2 border-slate-950 bg-gradient-to-b from-[#4c2f8f] via-[#3a2170] to-[#2a1754] p-4 shadow-[5px_5px_0_#171821] sm:p-5"
         aria-label="Mancala board"
       >
         <div className="mb-2 flex items-center justify-center gap-2 text-white">
@@ -371,7 +370,7 @@ export function MancalaGame({
 
         {renderStore(topSeat, "top")}
 
-        <div className="my-3 grid grid-cols-6 gap-1.5 sm:gap-2">
+        <div className="my-4 grid grid-cols-6 gap-2 sm:gap-2.5">
           {topOrder.map((pit) => renderPit(topSeat, pit))}
         </div>
 
@@ -381,7 +380,7 @@ export function MancalaGame({
           <div className="h-px flex-1 bg-white/20" />
         </div>
 
-        <div className="my-3 grid grid-cols-6 gap-1.5 sm:gap-2">
+        <div className="my-4 grid grid-cols-6 gap-2 sm:gap-2.5">
           {bottomOrder.map((pit) => renderPit(bottomSeat, pit))}
         </div>
 
