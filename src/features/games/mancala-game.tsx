@@ -523,11 +523,15 @@ export function MancalaGame({
               <div className="flex flex-1 flex-col justify-around py-1">
                 {leftOrder.map((pit, row) => {
                   const rightPit = rightOrder[row];
+                  const leftCount = pits[leftSeat][pit];
+                  const rightCount = pits[rightSeat][rightPit];
                   return (
                     <div key={row} className="flex items-center justify-center gap-3">
-                      <span className="w-5 text-center text-sm font-black tabular-nums text-[#8b5a2b]/pits[leftSeat][pit]}</span>
                       <span className="w-5 text-center text-sm font-black tabular-nums text-[#8b5a2b]">
-                        {pits[rightSeat][rightPit]}
+                        {leftCount}
+                      </span>
+                      <span className="w-5 text-center text-sm font-black tabular-nums text-[#8b5a2b]">
+                        {rightCount}
                       </span>
                     </div>
                   );
