@@ -19,6 +19,7 @@ import { UnoGame } from "./uno-game";
 import { EmojiDecodeGame } from "./emoji-decode-game";
 import { SudokuBattleGame } from "./sudoku-battle-game";
 import { ChessGame } from "./chess-game";
+import { MancalaGame } from "./mancala-game";
 // pong removed
 
 import { sounds } from "@/lib/audio";
@@ -318,6 +319,20 @@ export function GameBoard({
     refresh,
     applyPublicState,
   ]);
+
+  if (room.game_type === "mancala") {
+    return (
+      <MancalaGame
+        room={room}
+        players={players}
+        userId={userId}
+        onlineIds={onlineIds}
+        refresh={refresh}
+        applyPublicState={applyPublicState}
+        isSpectator={isSpectator}
+      />
+    );
+  }
 
   if (room.game_type === "chess") {
     return <ChessGame room={room} players={players} userId={userId} onlineIds={onlineIds} isSpectator={isSpectator} refresh={refresh} />;

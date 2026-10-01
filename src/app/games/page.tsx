@@ -34,6 +34,7 @@ export const metadata: Metadata = {
     "emoji puzzles with friends",
     "Chess online",
     "Sudoku Battle online",
+    "Mancala online",
   ],
   alternates: {
     canonical: "https://rallygames.vercel.app/games",
@@ -182,6 +183,13 @@ const games = [
     players: "2–4 players",
     category: "Board Game",
   },
+  {
+    icon: "🪨",
+    title: "Mancala",
+    description: "Classic stones. Smart moves. One winner.",
+    players: "2 players",
+    category: "Board Game",
+  },
 ];
 
 export default function GamesPage() {
@@ -278,8 +286,8 @@ export default function GamesPage() {
                   </span>
                 </div>
               </article>;
-              return game.title === "Emoji Decode" || game.title === "Chess" || game.title === "Sudoku Battle" ? (
-                <Link key={game.title} href={game.title === "Chess" ? "/games/chess" : game.title === "Sudoku Battle" ? "/games/sudoku-battle" : "/games/emoji-decode"} className="block rounded-[28px] focus-visible:outline-4 focus-visible:outline-violet-500">{card}</Link>
+              return game.title === "Emoji Decode" || game.title === "Chess" || game.title === "Sudoku Battle" || game.title === "Mancala" ? (
+                <Link key={game.title} href={game.title === "Chess" ? "/games/chess" : game.title === "Sudoku Battle" ? "/games/sudoku-battle" : game.title === "Mancala" ? "/games/mancala" : "/games/emoji-decode"} className="block rounded-[28px] focus-visible:outline-4 focus-visible:outline-violet-500">{card}</Link>
               ) : card;
             })}
           </div>

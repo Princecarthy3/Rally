@@ -1,4 +1,5 @@
 import type { GameKey } from "@/features/games/registry";
+import type { MancalaLastMove, MancalaSeat } from "@/features/games/mancala";
 import type { ShopItem } from "@/lib/customization";
 
 export type RoomStatus = "waiting" | "playing" | "completed" | "cancelled";
@@ -37,6 +38,12 @@ export type PublicGameState = {
   solvedSeats?: number[];
   roundPoints?: Record<string, number>;
   categoryPreference?: string;
+  pits?: Record<MancalaSeat, number[]>;
+  stores?: Record<MancalaSeat, number>;
+  moveNumber?: number;
+  lastMove?: MancalaLastMove | null;
+  turnDeadline?: string;
+  rematchRequests?: number[];
   chess?: {
     matchId: string; fen: string; moves: Array<{ from: string; to: string; san: string; promotion?: string; captured?: string; flags: string }>;
     turn: "w" | "b"; whitePlayerId: string; blackPlayerId: string; status: string; winnerPlayerId?: string | null;

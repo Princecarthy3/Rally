@@ -120,6 +120,8 @@ export function GameRoom() {
         ? "start_battleship"
         : room.game_type === "uno"
         ? "start_uno_game"
+        : room.game_type === "mancala"
+        ? "start_mancala_game"
         : "start_game";
     const { error } = await supabase!.rpc(startRpc, { p_room: room.id });
     if (error) setNotice(error.message);
@@ -574,7 +576,7 @@ function Lobby({
 
               {/* Action Buttons: Full width on mobile for easy single-thumb tapping */}
               <div className="grid grid-cols-1 w-full gap-2.5 sm:w-auto sm:flex sm:flex-wrap sm:gap-3">
-                {host && players.length < room.max_players && (
+                {host && players.length < room.max_players && room.game_type !== "mancala" && (
                   <button onClick={() => openBotPicker()} disabled={busy} className="arcade-button justify-center bg-[#77dce7] text-slate-950 text-xs py-3 sm:py-2.5 shadow-[3px_3px_0_#171821]">
                     🎮 PLAY SOLO
                   </button>

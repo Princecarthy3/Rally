@@ -1,4 +1,4 @@
-export type GameKey = "uno" | "rps" | "number_guess" | "memory_match" | "mini_golf" | "battleship" | "tic_tac_toe" | "connect_four" | "dots_boxes" | "skribbl" | "ludo" | "racing" | "rally_combat" | "emoji_decode" | "chess" | "sudoku_battle";
+export type GameKey = "uno" | "rps" | "number_guess" | "memory_match" | "mini_golf" | "battleship" | "tic_tac_toe" | "connect_four" | "dots_boxes" | "skribbl" | "ludo" | "racing" | "rally_combat" | "emoji_decode" | "chess" | "sudoku_battle" | "mancala";
 
 export type GameDefinition = {
   key: GameKey; name: string; shortName: string; icon: string; description: string;
@@ -22,7 +22,7 @@ export const games: GameDefinition[] = [
   { key:"tic_tac_toe", name:"Tic-Tac-Toe", shortName:"Tic-Tac-Toe", icon:"⭕", description:"The timeless three-in-a-row duel, sharpened for 3-round battles.", players:"2", minPlayers:2, maxPlayers:2, color:"#ff9eaa", ink:"#651927", tag:"Duel" },
   { key:"connect_four", name:"Connect Four", shortName:"Connect Four", icon:"🔴", description:"Drop discs, line up four, and block your rival before they connect.", players:"2", minPlayers:2, maxPlayers:2, color:"#fdb4d5", ink:"#741b47", tag:"Strategy" },
   { key:"ludo", name:"Ludo", shortName:"Ludo", icon:"🎲", description:"Race four tokens around the board, send rivals home, and finish every piece first.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#f4dc69", ink:"#5b3a00", tag:"Board Game" },
+  { key:"mancala", name:"Mancala", shortName:"Mancala", icon:"🪨", description:"Classic stones. Smart moves. One winner.", players:"2", minPlayers:2, maxPlayers:2, color:"#e8e1ff", ink:"#30206c", tag:"Board Game" },
 ];
 
 export const gameByKey = Object.fromEntries(games.map(game => [game.key, game])) as Record<GameKey, GameDefinition>;
-
