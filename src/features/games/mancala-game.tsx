@@ -370,9 +370,8 @@ export function MancalaGame({
       : `${activePlayerName.toUpperCase()}${activePlayer?.player_id.startsWith("11111111-1111-1111-1111-") ? " · BOT TURN" : " · SOWING"}`;
   const rematchRequestedByMe = Boolean(me && state.rematchRequests?.includes(me.seat as MancalaSeat));
 
-  const topSeat = oppSeat;
-  const topOrder = [5, 4, 3, 2, 1, 0];
-  const bottomOrder = [0, 1, 2, 3, 4, 5];
+  const leftOrder = [5, 4, 3, 2, 1, 0];
+  const rightOrder = [0, 1, 2, 3, 4, 5];
 
   function renderPit(seat: MancalaSeat, pit: number) {
     const stones = pits[seat][pit] ?? 0;
@@ -387,7 +386,6 @@ export function MancalaGame({
       <button
         key={key}
         type="button"
-        style={{ gridColumnStart: seat === mySeat ? pit + 2 : 7 - pit, gridRowStart: seat === mySeat ? 2 : 1 }}
         disabled={!selectable}
         aria-label={`${names[seat]} pit ${pit + 1}, ${stones} stones`}
         onClick={() => {
@@ -422,7 +420,7 @@ export function MancalaGame({
     );
   }
 
-  function renderStore(seat: MancalaSeat, position: "left" | "right") {
+  function renderStore(seat: MancalaSeat, position: "top" | "bottom") {
     const stones = stores[seat];
     const key = `store-${seat}`;
     const lit = flying?.key === key;
@@ -434,30 +432,32 @@ export function MancalaGame({
 
     return (
       <div
-        style={{ gridColumnStart: position === "left" ? 1 : 8, gridRow: "1 / span 2" }}
         className={[
-          "relative flex min-h-[132px] w-full flex-col items-center justify-center gap-1 rounded-[42%] border-[3px] sm:min-h-[188px]",
+          "relative mx-auto flex h-12 w-[88%] items-center justify-center rounded-full border-[3px] sm:h-14",
           "shadow-[inset_0_5px_10px_rgba(0,0,0,.28),0_3px_0_rgba(0,0,0,.18)]",
           color,
           lit ? "ring-2 ring-white scale-[1.02]" : "",
+          position === "top" ? "mb-1" : "mt-1",
         ].join(" ")}
         aria-label={`${names[seat]} store, ${stones} stones`}
       >
-        <span className="text-[8px] font-black uppercase leading-tight text-white/80 sm:text-[10px]">Store</span>
-        <span className="relative flex w-full flex-1 flex-wrap items-center justify-center gap-0.5 px-1">
+        <span className="relative flex h-full w-full flex-wrap items-center justify-center gap-0.5 px-12">
           {offsets.map((o, i) => (
-            <span key={i} style={{ transform: `translate(${o.x * 0.12}px, ${o.y * 0.08}px)` }}>
+            <span key={i} style={{ transform: `translate(${o.x * 0.15}px, ${o.y * 0.1}px)` }}>
               <StoneDot />
             </span>
           ))}
         </span>
-        <span className="text-xl font-black tabular-nums text-white sm:text-2xl">{stones}</span>
+        <span className="absolute left-3 text-[8px] font-black uppercase text-white/80 sm:text-[10px]">
+          {seat === mySeat ? "Your store" : "Opponent"}
+        </span>
+        <span className="absolute right-3 text-xl font-black tabular-nums text-white sm:text-2xl">{stones}</span>
       </div>
     );
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-3 px-1">
+    <main className="mx-auto flex w-full max-w-md flex-col gap-3 px-1">
       {/* Score header like the video */}
       <div className="mx-auto flex w-full max-w-xs items-center justify-center gap-2 rounded-2xl border-2 border-slate-950 bg-[#3d4454] px-3 py-2 text-white shadow-[3px_3px_0_#171821]">
         <div className="min-w-0 flex-1 text-center">
@@ -487,7 +487,7 @@ export function MancalaGame({
         {activeTurnLabel}
       </div>
 
-      <div className="relative mx-auto w-full max-w-3xl">
+      <div className="relative mx-auto w-full max-w-[22rem]">
         {/* Wooden board shell */}
         <div
           className="relative overflow-hidden rounded-[2.2rem] border-[5px] border-[#3b2412] px-3 py-4 shadow-[6px_8px_0_rgba(0,0,0,.35)] sm:px-4 sm:py-5"
@@ -507,11 +507,30 @@ export function MancalaGame({
             }}
           />
 
-          <div className="relative z-[1] grid grid-cols-[42px_repeat(6,minmax(0,1fr))_42px] grid-rows-[minmax(64px,auto)_minmax(64px,auto)] items-stretch gap-1.5 sm:grid-cols-[68px_repeat(6,minmax(0,1fr))_68px] sm:grid-rows-[minmax(92px,auto)_minmax(92px,auto)] sm:gap-3">
-            {renderStore(oppSeat, "left")}
-            {topOrder.map((pit) => renderPit(topSeat, pit))}
-            {bottomOrder.map((pit) => renderPit(mySeat, pit))}
-            {renderStore(mySeat, "right")}
+          <div className="relative z-[1] flex flex-col gap-1.5">
+            {renderStore(mySeat, "top")}
+
+            <div className="flex items-stretch justify-between gap-2 px-1">
+              <div className="flex flex-col items-center gap-2.5 sm:gap-3">
+                {leftOrder.map((pit) => renderPit(mySeat, pit))}
+              </div>
+              <div className="flex flex-1 flex-col justify-around py-1">
+                {leftOrder.map((pit, row) => {
+                  const rightPit = rightOrder[row];
+                  return (
+                    <div key={row} className="flex items-center justify-center gap-3">
+                      <span className="w-5 text-center text-sm font-black tabular-nums text-[#8b5a2b]">{pits[mySeat][pit]}</span>
+                      <span className="w-5 text-center text-sm font-black tabular-nums text-[#8b5a2b]">{pits[oppSeat][rightPit]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex flex-col items-center gap-2.5 sm:gap-3">
+                {rightOrder.map((pit) => renderPit(oppSeat, pit))}
+              </div>
+            </div>
+
+            {renderStore(oppSeat, "bottom")}
           </div>
         </div>
 
