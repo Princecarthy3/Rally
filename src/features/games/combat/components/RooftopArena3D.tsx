@@ -28,23 +28,33 @@ export function RooftopArena3D() {
       {/* Concrete rooftop and a raised steel combat deck */}
       <mesh position={[0, -0.55, 0]} receiveShadow>
         <cylinderGeometry args={[15, 15.5, 1.2, 48]} />
-        <meshStandardMaterial color="#77736b" roughness={0.92} metalness={0.05} />
+        <meshStandardMaterial color="#c9c9bb" roughness={0.88} metalness={0.04} />
       </mesh>
       <mesh position={[0, 0.08, 0]} receiveShadow>
         <cylinderGeometry args={[13.6, 13.9, 0.32, 48]} />
-        <meshStandardMaterial color="#343a3d" roughness={0.7} metalness={0.6} />
+        <meshStandardMaterial color="#52666a" roughness={0.66} metalness={0.28} />
       </mesh>
       <mesh position={[0, 0.25, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[12.9, 13.05, 64]} />
-        <meshStandardMaterial color="#d7a84b" emissive="#8a5d17" emissiveIntensity={0.35} metalness={0.8} roughness={0.35} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#f5a942" emissive="#b45a16" emissiveIntensity={0.18} metalness={0.45} roughness={0.4} side={THREE.DoubleSide} />
       </mesh>
       <mesh position={[0, 0.26, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[3.2, 32]} />
-        <meshStandardMaterial color="#24292b" roughness={0.65} metalness={0.5} />
+        <meshStandardMaterial color="#8eaaa0" roughness={0.78} metalness={0.08} />
       </mesh>
       <mesh position={[0, 0.28, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[3.05, 3.12, 48]} />
-        <meshStandardMaterial color="#c48a36" emissive="#8a5d17" emissiveIntensity={0.5} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#f7bf59" emissive="#a3551f" emissiveIntensity={0.22} side={THREE.DoubleSide} />
+      </mesh>
+
+      {/* Painted competition markings and the warm-up ring */}
+      <mesh position={[0, 0.255, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[8.1, 8.2, 64]} />
+        <meshBasicMaterial color="#eaf4dd" transparent opacity={0.8} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0.255, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[12.5, 12.57, 64]} />
+        <meshBasicMaterial color="#ed8558" transparent opacity={0.88} side={THREE.DoubleSide} />
       </mesh>
 
       {/* Safety posts and practical floodlights */}
@@ -54,21 +64,21 @@ export function RooftopArena3D() {
         const z = Math.sin(angle) * 13.35;
         return (
           <group key={i} position={[x, 1.25, z]}>
-            <mesh castShadow><cylinderGeometry args={[0.18, 0.24, 2.5, 12]} /><meshStandardMaterial color="#24282a" metalness={0.85} roughness={0.3} /></mesh>
-            <mesh position={[0, 1.3, 0]}><sphereGeometry args={[0.18, 12, 12]} /><meshStandardMaterial color="#f2c45c" emissive="#b26c18" emissiveIntensity={1.2} /></mesh>
+            <mesh castShadow><cylinderGeometry args={[0.18, 0.24, 2.5, 12]} /><meshStandardMaterial color="#52666a" metalness={0.6} roughness={0.38} /></mesh>
+            <mesh position={[0, 1.3, 0]}><sphereGeometry args={[0.18, 12, 12]} /><meshStandardMaterial color="#fff0b5" emissive="#eca942" emissiveIntensity={0.35} /></mesh>
           </group>
         );
       })}
 
-      {/* Warm city skyline instead of an empty neon void */}
+      {/* Sunlit city skyline behind the open rooftop arena */}
       {cityBuildings.map((b) => (
         <group key={b.id} position={b.position}>
-          <mesh castShadow><boxGeometry args={b.args} /><meshStandardMaterial color={b.id % 3 === 0 ? "#5b5148" : "#3d4546"} roughness={0.86} metalness={0.12} /></mesh>
-          <mesh position={[0, 0, b.args[2] / 2 + 0.02]}><planeGeometry args={[b.args[0] * 0.7, b.args[1] * 0.55]} /><meshStandardMaterial color="#d4a94d" emissive="#8f5f1b" emissiveIntensity={0.45} /></mesh>
+          <mesh castShadow><boxGeometry args={b.args} /><meshStandardMaterial color={b.id % 3 === 0 ? "#9caeb0" : "#78939a"} roughness={0.86} metalness={0.08} /></mesh>
+          <mesh position={[0, 0, b.args[2] / 2 + 0.02]}><planeGeometry args={[b.args[0] * 0.7, b.args[1] * 0.55]} /><meshStandardMaterial color="#f4d99e" emissive="#bf8b45" emissiveIntensity={0.12} /></mesh>
         </group>
       ))}
       <mesh position={[0, -2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[65, 64]} /><meshStandardMaterial color="#1d2525" roughness={1} />
+        <circleGeometry args={[65, 64]} /><meshStandardMaterial color="#86b9c3" roughness={1} />
       </mesh>
     </group>
   );

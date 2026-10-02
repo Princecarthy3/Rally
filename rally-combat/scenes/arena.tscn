@@ -4,12 +4,12 @@
 size = Vector3(28, 1, 28)
 
 [sub_resource type="StandardMaterial3D" id="FloorMaterial"]
-albedo_color = Color(0.025, 0.04, 0.09, 1)
-metallic = 0.65
-roughness = 0.26
+albedo_color = Color(0.34, 0.43, 0.4, 1)
+metallic = 0.2
+roughness = 0.72
 emission_enabled = true
-emission = Color(0.03, 0.1, 0.22, 1)
-emission_energy_multiplier = 0.8
+emission = Color(0.04, 0.08, 0.05, 1)
+emission_energy_multiplier = 0.25
 
 [sub_resource type="BoxMesh" id="FloorMesh"]
 material = SubResource("FloorMaterial")
@@ -59,13 +59,13 @@ size = Vector3(28, 4, 0.35)
 
 [sub_resource type="Environment" id="Environment"]
 background_mode = 1
-background_color = Color(0.005, 0.008, 0.025, 1)
+background_color = Color(0.52, 0.75, 0.86, 1)
 ambient_light_source = 3
-ambient_light_color = Color(0.16, 0.2, 0.4, 1)
-ambient_light_energy = 0.55
+ambient_light_color = Color(0.88, 0.91, 0.82, 1)
+ambient_light_energy = 1.15
 tonemap_mode = 2
 glow_enabled = true
-glow_intensity = 1.2
+glow_intensity = 0.35
 
 [node name="Arena" type="Node3D"]
 
@@ -117,27 +117,27 @@ mesh = SubResource("BarrierMesh")
 
 [node name="KeyLight" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-48, -28, 0)
-light_color = Color(0.55, 0.72, 1, 1)
-light_energy = 1.4
+light_color = Color(1, 0.91, 0.73, 1)
+light_energy = 2.1
 shadow_enabled = true
 
 [node name="RimLight" type="OmniLight3D" parent="."]
 position = Vector3(-8, 5, -8)
-light_color = Color(1, 0.05, 0.3, 1)
+light_color = Color(1, 0.47, 0.28, 1)
 omni_range = 22.0
-light_energy = 9.0
+light_energy = 3.0
 
 [node name="FillLight" type="OmniLight3D" parent="."]
 position = Vector3(8, 4, 8)
-light_color = Color(0.02, 0.5, 1, 1)
+light_color = Color(0.25, 0.75, 0.95, 1)
 omni_range = 22.0
-light_energy = 10.0
+light_energy = 3.2
 
 [node name="CenterGlow" type="OmniLight3D" parent="."]
 position = Vector3(0, 2.2, 0)
-light_color = Color(1, 0.12, 0.35, 1)
+light_color = Color(1, 0.68, 0.3, 1)
 omni_range = 14.0
-light_energy = 3.0
+light_energy = 1.4
 
 [node name="ArenaBounds" type="Node3D" parent="."]
 metadata/arena_radius = 12.0
@@ -193,14 +193,14 @@ position = Vector3(0, 1, 0)
 
 [node name="NorthBeaconLight" type="OmniLight3D" parent="."]
 position = Vector3(0, 2.5, -12.8)
-light_color = Color(0.02, 0.65, 1, 1)
+light_color = Color(0.35, 0.79, 0.9, 1)
 omni_range = 10.0
-light_energy = 4.0
+light_energy = 1.5
 [node name="SouthBeaconLight" type="OmniLight3D" parent="."]
 position = Vector3(0, 2.5, 12.8)
-light_color = Color(1, 0.05, 0.3, 1)
+light_color = Color(1, 0.53, 0.32, 1)
 omni_range = 10.0
-light_energy = 4.0
+light_energy = 1.5
 
 [node name="GridAccentA" type="MeshInstance3D" parent="."]
 position = Vector3(0, 0.79, 0)

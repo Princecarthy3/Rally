@@ -16,10 +16,10 @@ import { RooftopArena3D } from "./components/RooftopArena3D";
 import { CharacterArchetype, CombatMatchResult, FighterTransform, TouchCombatInputs } from "./types";
 
 const START_POSITIONS: [number, number, number][] = [
-  [-6, 0.1, -6],
-  [6, 0.1, 6],
-  [-6, 0.1, 6],
-  [6, 0.1, -6],
+  [-6, 0.4, -6],
+  [6, 0.4, 6],
+  [-6, 0.4, 6],
+  [6, 0.4, -6],
 ];
 
 export function RallyCombatGame({
@@ -44,6 +44,13 @@ export function RallyCombatGame({
   // Character Archetype Selection State
   const [selectedArchetype, setSelectedArchetype] = useState<CharacterArchetype>("balanced");
   const [characterConfirmed, setCharacterConfirmed] = useState(false);
+  const onActRef = useRef(onAct);
+  const processedHitsRef = useRef(new Set<string>());
+  const attackResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attackHandlerRef = useRef<(type: "light" | "heavy" | "special") => void>(() => undefined);
+  useEffect(() => {
+    onActRef.current = onAct;
+  }, [onAct]);
 
   // Match is live as soon as the fighter is confirmed (no countdown).
   const fightActive = characterConfirmed;
@@ -177,7 +184,7 @@ export function RallyCombatGame({
   // Keyboard Listeners
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (["w", "W", "a", "A", "s", "S", "d", "D", " ", "Shift", "e", "E", "q", "Q"].includes(e.key)) {
+      if (["w", "W", "a", "A", "s", "S", "d", "D", " ", "Shift", "e", "E", "q", "Q", "f", "F", "r", "R"].includes(e.key)) {
         if (e.target instanceof HTMLInputElement) return;
         e.preventDefault();
       }
@@ -191,6 +198,9 @@ export function RallyCombatGame({
       }
       if (e.key === "Shift") keysRef.current.shift = true;
       if (e.key === "e" || e.key === "E") keysRef.current.block = true;
+      if (!e.repeat && (e.key === "q" || e.key === "Q")) attackHandlerRef.current("special");
+      if (!e.repeat && (e.key === "f" || e.key === "F")) attackHandlerRef.current("light");
+      if (!e.repeat && (e.key === "r" || e.key === "R")) attackHandlerRef.current("heavy");
     }
 
     function handleKeyUp(e: KeyboardEvent) {
@@ -216,47 +226,54 @@ export function RallyCombatGame({
   useEffect(() => {
     if (!channel) return;
 
-    const sub = channel.on("broadcast", { event: "combat_transform" }, (payload: any) => {
-      if (payload.payload && payload.payload.seat !== meSeat) {
-        const fighter = payload.payload as FighterTransform;
+    channel.on("broadcast", { event: "combat_transform" }, (payload: any) => {
+      const data = payload?.payload ?? payload;
+      if (data?.seat && data.seat !== meSeat) {
+        const fighter = data as FighterTransform;
         setAllFighters((prev) => ({ ...prev, [fighter.seat]: fighter }));
       }
     });
 
-    const hitSub = channel.on("broadcast", { event: "combat_hit" }, (payload: any) => {
-      if (payload.payload) {
-        const { victimSeat, damage, position } = payload.payload;
-        sounds.playHitSound();
-        setHitParticles((prev) => [
-          ...prev,
-          { id: Date.now() + Math.random(), position: position || [0, 1, 0], color: "#ff3366", createdAt: Date.now() },
-        ]);
-        if (victimSeat === meSeat) {
-          setMyFighter((prev) => {
-            const nextHp = Math.max(0, prev.hp - damage);
-            const isElim = nextHp <= 0;
-            if (isElim && !prev.isEliminated) {
-              sounds.playEliminationSound();
-              void onAct("eliminate_player", String(meSeat));
-            }
-            return {
-              ...prev,
-              hp: nextHp,
-              damageReceived: prev.damageReceived + damage,
-              isEliminated: isElim,
-            };
-          });
-        }
+    channel.on("broadcast", { event: "combat_hit" }, (payload: any) => {
+      const hit = payload?.payload ?? payload;
+      if (!hit || typeof hit.victimSeat !== "number") return;
+      const hitId = typeof hit.hitId === "string" ? hit.hitId : `${hit.attackerSeat}:${hit.victimSeat}:${hit.createdAt}`;
+      if (processedHitsRef.current.has(hitId)) return;
+      processedHitsRef.current.add(hitId);
+      if (processedHitsRef.current.size > 100) {
+        const oldest = processedHitsRef.current.values().next().value;
+        if (oldest) processedHitsRef.current.delete(oldest);
       }
+      const damage = Math.max(0, Number(hit.damage) || 0);
+      const position: [number, number, number] = Array.isArray(hit.position) ? hit.position as [number, number, number] : [0, 1, 0];
+      sounds.playHitSound();
+      setHitParticles((prev) => [
+        ...prev,
+        { id: Date.now() + Math.random(), position, color: "#ff8a38", createdAt: Date.now() },
+      ]);
+      if (hit.victimSeat !== meSeat || damage <= 0) return;
+
+      setMyFighter((prev) => {
+        if (prev.isEliminated) return prev;
+        const nextHp = Math.max(0, prev.hp - damage);
+        const isElim = nextHp <= 0;
+        if (isElim && !prev.isEliminated) {
+          sounds.playEliminationSound();
+          void onActRef.current("eliminate_player", String(meSeat));
+        }
+        return {
+          ...prev,
+          hp: nextHp,
+          damageReceived: prev.damageReceived + damage,
+          isEliminated: isElim,
+          attackState: "hit",
+        };
+      });
     });
 
-    return () => {
-      try {
-        sub?.unsubscribe?.();
-        hitSub?.unsubscribe?.();
-      } catch {}
-    };
-  }, [channel, meSeat, onAct]);
+    // This is useRoom's shared channel; its owner removes it. Unsubscribing here
+    // would also stop presence, room updates, and every other game's broadcasts.
+  }, [channel, meSeat]);
 
   // Main 60 Hz Physics, Movement, Combat, and Broadcast Loop
   useEffect(() => {
@@ -397,14 +414,20 @@ export function RallyCombatGame({
     }
 
     // Check hit collision against nearby opponent fighters
+    const facing: [number, number] = [Math.sin(myFighter.rotationY), Math.cos(myFighter.rotationY)];
+    const reach = type === "special" ? 5.5 : type === "heavy" ? 3.8 : 3.2;
+    let hitCount = 0;
     fightersList.forEach((target) => {
       if (target.seat !== meSeat && !target.isEliminated && target.hp > 0) {
         const dx = target.position[0] - myFighter.position[0];
         const dz = target.position[2] - myFighter.position[2];
         const distance = Math.sqrt(dx * dx + dz * dz);
 
-        // Hitbox reach check (within 2.4m in front)
-        if (distance <= 2.4) {
+        const directionX = distance > 0 ? dx / distance : 0;
+        const directionZ = distance > 0 ? dz / distance : 0;
+        const inFront = facing[0] * directionX + facing[1] * directionZ >= -0.25;
+        // Wide, forgiving melee arcs make touch and pointer attacks dependable.
+        if (distance <= reach && inFront) {
           const finalDamage = target.isBlocking ? damage * (1 - getCharacterConfig(target.archetype).blockMitigation) : damage;
 
           channel?.send({
@@ -415,8 +438,11 @@ export function RallyCombatGame({
               victimSeat: target.seat,
               damage: finalDamage,
               position: target.position,
+              hitId: `${meSeat}-${target.seat}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              createdAt: Date.now(),
             },
           });
+          hitCount += 1;
 
           setMyFighter((prev) => ({
             ...prev,
@@ -426,7 +452,26 @@ export function RallyCombatGame({
         }
       }
     });
+
+    setMyFighter((prev) => ({ ...prev, attackState: type }));
+    if (attackResetRef.current) clearTimeout(attackResetRef.current);
+    attackResetRef.current = setTimeout(() => {
+      setMyFighter((prev) => prev.attackState === type ? { ...prev, attackState: "idle" } : prev);
+    }, type === "heavy" || type === "special" ? 480 : 300);
+
+    if (hitCount === 0) {
+      setHitParticles((prev) => [...prev, {
+        id: Date.now() + Math.random(),
+        position: [myFighter.position[0] + facing[0] * 1.2, myFighter.position[1] + 1.2, myFighter.position[2] + facing[1] * 1.2],
+        color: "#fbbf24",
+        createdAt: Date.now(),
+      }]);
+    }
   };
+
+  useEffect(() => {
+    attackHandlerRef.current = handleAttack;
+  });
 
   
 
@@ -465,12 +510,12 @@ export function RallyCombatGame({
       <div
         onPointerDown={handlePointerDown}
         onContextMenu={(e) => e.preventDefault()}
-        className="fixed inset-0 z-[60] isolate h-[100dvh] min-h-screen w-screen overflow-hidden bg-slate-950 select-none"
+        className="fixed inset-0 z-[60] isolate h-[100dvh] min-h-screen w-screen overflow-hidden bg-sky-100 select-none"
       >
         {/* Pre-Match Character Archetype Picker Modal */}
         {!characterConfirmed && (
-          <div className="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-slate-950/90 p-3 backdrop-blur-md sm:p-6">
-            <div className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl flex-col overflow-y-auto rounded-3xl border-4 border-slate-950 bg-white p-4 shadow-2xl sm:max-h-[calc(100dvh-3rem)] sm:p-8">
+          <div className="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-sky-950/35 p-3 backdrop-blur-sm sm:p-6">
+            <div className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-y-auto rounded-3xl border-4 border-slate-900 bg-gradient-to-br from-white via-sky-50 to-amber-50 p-4 shadow-[0_24px_70px_rgba(15,23,42,.35)] sm:max-h-[calc(100dvh-3rem)] sm:p-8">
               <div className="shrink-0 text-center">
                 <span className="text-4xl sm:text-6xl">⚔️</span>
                 <h2 className="mt-1 text-2xl font-black uppercase text-slate-950 sm:mt-2 sm:text-4xl">Choose Your Fighter</h2>
@@ -487,13 +532,16 @@ export function RallyCombatGame({
                       type="button"
                       aria-pressed={isSelected}
                       onClick={() => setSelectedArchetype(arch)}
-                      className={`min-h-[178px] rounded-2xl border-2 border-slate-950 p-3 text-left transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-400 sm:min-h-[230px] sm:p-4 ${
+                      className={`relative min-h-[178px] overflow-hidden rounded-2xl border-2 border-slate-900 p-3 text-left transition duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-400 sm:min-h-[230px] sm:p-4 ${
                         isSelected
-                          ? "bg-rose-100 ring-4 ring-rose-500 shadow-[3px_3px_0_#171821]"
-                          : "bg-slate-50 shadow-[2px_2px_0_#171821] hover:bg-slate-100"
+                          ? "bg-white ring-4 ring-rose-500 shadow-[0_12px_30px_rgba(225,29,72,.22)] -translate-y-1"
+                          : "bg-white/75 shadow-[0_5px_0_#cbd5e1] hover:-translate-y-1 hover:bg-white"
                       }`}
                     >
-                      <span className="block text-2xl sm:text-3xl">{cfg.modelIcon}</span>
+                      <span className="mb-2 flex h-16 items-center justify-center overflow-hidden rounded-xl sm:h-24" style={{ background: `radial-gradient(ellipse at 50% 100%, ${cfg.color}75, transparent 68%),linear-gradient(145deg,#dbeafe,#f8fafc)` }}>
+                        <svg viewBox="0 0 120 90" className="h-full w-full" aria-hidden="true"><ellipse cx="60" cy="80" rx="28" ry="5" fill="#0f172a" opacity=".18"/><path d="M42 78 46 54 39 42q-4-8 3-13l10 8h16l10-8q7 5 3 13l-7 12 4 24z" fill={cfg.color} stroke="#172033" strokeWidth="3" strokeLinejoin="round"/><path d="M48 42q12 6 24 0l6 15H42z" fill="#f8fafc" stroke="#172033" strokeWidth="2"/><circle cx="60" cy="24" r="13" fill="#c68c68" stroke="#172033" strokeWidth="3"/><path d="M47 23q2-15 15-13 10 1 12 12l-5 2-4-6q-7 6-18 5z" fill="#253047"/><path d="M51 25h7m5 0h7" stroke="#172033" strokeWidth="2" strokeLinecap="round"/><path d="M35 44 24 54m61-10 11 10" stroke="#172033" strokeWidth="9" strokeLinecap="round"/><circle cx="23" cy="55" r="6" fill={cfg.color} stroke="#172033" strokeWidth="2"/><circle cx="97" cy="55" r="6" fill={cfg.color} stroke="#172033" strokeWidth="2"/></svg>
+                      </span>
+                      <span className="mr-1 inline-block text-lg align-middle">{cfg.modelIcon}</span>
                       <strong className="mt-1 block text-xs font-black text-slate-950 sm:mt-2 sm:text-sm">{cfg.name}</strong>
                       <span className="block text-[9px] font-bold uppercase text-slate-600 sm:text-[10px]">{cfg.title}</span>
                       <p className="mt-1 line-clamp-3 text-[10px] font-medium leading-tight text-slate-700 sm:mt-2 sm:text-[11px]">{cfg.description}</p>
@@ -509,7 +557,7 @@ export function RallyCombatGame({
               <button
                 type="button"
                 onClick={() => confirmCharacter(selectedArchetype)}
-                className="arcade-button mx-auto mt-4 w-full shrink-0 bg-[#ff3366] px-6 py-3 text-xs font-black text-white shadow-[4px_4px_0_#171821] sm:mt-6 sm:w-auto sm:px-10 sm:py-4 sm:text-sm"
+                className="mx-auto mt-4 w-full shrink-0 rounded-2xl border-2 border-slate-950 bg-gradient-to-r from-rose-500 to-orange-400 px-6 py-3 text-sm font-black uppercase tracking-wider text-white shadow-[0_6px_0_#9f1239,0_12px_24px_rgba(225,29,72,.28)] transition hover:-translate-y-0.5 hover:brightness-105 active:translate-y-1 active:shadow-[0_2px_0_#9f1239] sm:mt-6 sm:w-auto sm:px-10 sm:py-4"
               >
                 ENTER ARENA ⚔️
               </button>

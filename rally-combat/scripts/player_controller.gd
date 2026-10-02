@@ -7,6 +7,7 @@ extends CharacterBody3D
 signal health_changed(current_hp, max_hp)
 signal player_eliminated(seat_number)
 signal combo_updated(combo_count)
+signal hit_landed(attacker_seat, victim_seat, damage, hit_position)
 
 @export var seat_number: int = 1
 @export var is_local_player: bool = true
@@ -40,7 +41,73 @@ var combo_window_timer: float = 0.0
 func _ready() -> void:
 	config = CharacterData.get_character_config(archetype)
 	current_health = config.max_health
+	_build_fighter_visuals()
 	emit_signal("health_changed", current_health, config.max_health)
+
+func _build_fighter_visuals() -> void:
+	var armor := StandardMaterial3D.new()
+	armor.albedo_color = config.primary_color
+	armor.metallic = 0.42
+	armor.roughness = 0.34
+	var dark_armor := StandardMaterial3D.new()
+	dark_armor.albedo_color = Color(0.09, 0.14, 0.2)
+	dark_armor.metallic = 0.28
+	dark_armor.roughness = 0.52
+	var skin := StandardMaterial3D.new()
+	skin.albedo_color = Color(0.72, 0.48, 0.34)
+	skin.roughness = 0.78
+	var visor := StandardMaterial3D.new()
+	visor.albedo_color = Color(0.86, 0.95, 1.0)
+	visor.metallic = 0.65
+	visor.roughness = 0.2
+	_add_part("Head", _sphere(0.3), skin, Vector3(0, 0.77, 0))
+	_add_part("Helmet", _sphere(0.31), armor, Vector3(0, 0.91, -0.04), Vector3(1.0, 0.58, 1.0))
+	_add_part("Visor", _box(Vector3(0.38, 0.1, 0.08)), visor, Vector3(0, 0.79, 0.25))
+	_add_part("ChestPlate", _sphere(0.48), armor, Vector3(0, 0.13, 0.1), Vector3(1.0, 1.05, 0.68))
+	_add_part("ChestCore", _sphere(0.14), visor, Vector3(0, 0.16, 0.43))
+	_add_part("Belt", _cylinder(0.33, 0.14), dark_armor, Vector3(0, -0.37, 0))
+	for side in [-1.0, 1.0]:
+		_add_part("Shoulder", _sphere(0.23), armor, Vector3(side * 0.49, 0.36, 0))
+		_add_part("Forearm", _capsule(0.15, 0.42), dark_armor, Vector3(side * 0.48, -0.05, 0.1))
+		_add_part("Gauntlet", _sphere(0.19), armor, Vector3(side * 0.49, -0.34, 0.17))
+		_add_part("Thigh", _capsule(0.19, 0.46), armor, Vector3(side * 0.21, -0.58, 0))
+		_add_part("Boot", _box(Vector3(0.34, 0.2, 0.48)), dark_armor, Vector3(side * 0.21, -0.91, 0.1))
+
+func _add_part(part_name: String, primitive: PrimitiveMesh, material: StandardMaterial3D, local_position: Vector3, part_scale: Vector3 = Vector3.ONE) -> void:
+	var part := MeshInstance3D.new()
+	part.name = part_name
+	part.mesh = primitive
+	part.material_override = material
+	part.position = local_position
+	part.scale = part_scale
+	part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	mesh_instance.add_child(part)
+
+func _sphere(radius: float) -> SphereMesh:
+	var mesh := SphereMesh.new()
+	mesh.radius = radius
+	mesh.height = radius * 2.0
+	mesh.radial_segments = 16
+	mesh.rings = 12
+	return mesh
+
+func _box(size: Vector3) -> BoxMesh:
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	return mesh
+
+func _capsule(radius: float, height: float) -> CapsuleMesh:
+	var mesh := CapsuleMesh.new()
+	mesh.radius = radius
+	mesh.height = height
+	return mesh
+
+func _cylinder(radius: float, height: float) -> CylinderMesh:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = height
+	return mesh
 
 func _physics_process(delta: float) -> void:
 	if not is_alive:
@@ -146,14 +213,34 @@ func _execute_special_ability() -> void:
 	_trigger_hitbox(config.special_damage, config.knockback_strength * 2.0, 0.6)
 
 func _trigger_hitbox(damage: float, knockback: float, active_time: float) -> void:
-	# Active hitbox check against overlapping enemy hurtboxes
-	var overlapping_areas = hitbox_area.get_overlapping_areas()
-	for area in overlapping_areas:
-		if area.owner != self and area.owner.has_method("take_damage"):
-			var target = area.owner as PlayerController
-			var kb_dir = (target.global_position - global_position).normalized()
+	# Physics overlap lists are updated at the end of a physics frame. Waiting
+	# one frame makes quick attacks register consistently, including on Web builds.
+	await get_tree().physics_frame
+	var elapsed := 0.0
+	var hit_targets: Dictionary = {}
+	while elapsed < active_time and is_alive:
+		for area in hitbox_area.get_overlapping_areas():
+			var target := _fighter_for_area(area)
+			if target == null or target == self or not target.is_alive:
+				continue
+			var target_id := target.get_instance_id()
+			if hit_targets.has(target_id):
+				continue
+			hit_targets[target_id] = true
+			var kb_dir := (target.global_position - global_position).normalized()
 			kb_dir.y = 0.4
 			target.take_damage(damage, kb_dir * (knockback * 8.0), seat_number)
+			emit_signal("hit_landed", seat_number, target.seat_number, damage, target.global_position + Vector3.UP)
+		await get_tree().physics_frame
+		elapsed += get_physics_process_delta_time()
+
+func _fighter_for_area(area: Area3D) -> PlayerController:
+	var node: Node = area
+	while node != null:
+		if node is PlayerController:
+			return node as PlayerController
+		node = node.get_parent()
+	return null
 
 func apply_remote_state(remote_position: Vector3, remote_rotation_y: float, remote_hp: float, remote_state: String) -> void:
 	global_position = global_position.lerp(remote_position, 0.35)

@@ -6,6 +6,7 @@ const ARENA_RADIUS := 11.5
 
 @onready var bridge: NetworkBridge = $NetworkBridge
 @onready var spawner: Node3D = $FighterSpawner
+@onready var hud: HUDController = $HUDCanvas
 
 var fighters: Dictionary = {}
 var local_seat := 1
@@ -13,7 +14,8 @@ var broadcast_timer := 0.0
 
 func _ready() -> void:
 	bridge.sync_event_received.connect(_on_network_event)
-	_spawn_fighter(local_seat, true)
+	var local_fighter := _spawn_fighter(local_seat, true)
+	hud.update_health(local_seat, local_fighter.current_health, local_fighter.config.max_health)
 	bridge.send_player_ready(local_seat, "neon_rooftop_v2")
 
 func _physics_process(delta: float) -> void:
@@ -32,9 +34,18 @@ func _spawn_fighter(seat: int, local: bool) -> PlayerController:
 	fighter.is_local_player = local
 	fighter.global_position = SPAWN_POINTS[clampi(seat - 1, 0, SPAWN_POINTS.size() - 1)]
 	fighter.player_eliminated.connect(_on_fighter_eliminated)
+	fighter.health_changed.connect(func(hp: float, max_hp: float) -> void: hud.update_health(seat, hp, max_hp))
+	if local:
+		fighter.combo_updated.connect(hud.display_combo)
+	fighter.hit_landed.connect(_on_hit_landed)
 	spawner.add_child(fighter)
 	fighters[seat] = fighter
 	return fighter
+
+func _on_hit_landed(attacker_seat: int, victim_seat: int, damage: float, _hit_position: Vector3) -> void:
+	# The attacking client is the authority for sending this confirmed hit.
+	if attacker_seat == local_seat:
+		bridge.send_hit_event(attacker_seat, victim_seat, damage)
 
 func _on_network_event(event_name: String, payload: Variant) -> void:
 	if event_name == "rally_player_state":
