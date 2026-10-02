@@ -37,7 +37,7 @@ const games = [
   },
   {
     icon: "✊",
-    image: "/images/games/rock-paper-scissors.svg",
+    image: "/images/games/rock-paper-scissors.jpg",
     title: "Rock Paper Scissors",
     text: "Classic. Quick. Clever.",
     color: "bg-[#eee9ff]",
@@ -45,7 +45,7 @@ const games = [
   },
   {
     icon: "🧠",
-    image: "/images/games/memory-match.svg",
+    image: "/images/games/memory-match.jpg",
     title: "Memory Match",
     text: "Find pairs and build your score",
     color: "bg-[#ffe8cc]",
@@ -53,7 +53,7 @@ const games = [
   },
   {
     icon: "⛳",
-    image: "/images/games/mini-golf.svg",
+    image: "/images/games/mini-golf.jpg",
     title: "Mini Golf",
     text: "Pick your power and sink the lowest score",
     color: "bg-[#e5f8df]",
@@ -61,7 +61,7 @@ const games = [
   },
   {
     icon: "⭕",
-    image: "/images/games/tic-tac-toe.svg",
+    image: "/images/games/tic-tac-toe.jpg",
     title: "Tic-Tac-Toe",
     text: "Three in a row",
     color: "bg-[#ffe7eb]",
@@ -69,7 +69,7 @@ const games = [
   },
   {
     icon: "🔴",
-    image: "/images/games/connect-four.svg",
+    image: "/images/games/connect-four.jpg",
     title: "Connect Four",
     text: "Line up four before they do",
     color: "bg-[#ffe0ef]",
@@ -77,7 +77,7 @@ const games = [
   },
   {
     icon: "🔲",
-    image: "/images/games/dots-boxes.svg",
+    image: "/images/games/dots-boxes.jpg",
     title: "Dots & Boxes",
     text: "Claim the grid",
     color: "bg-[#e4f8ef]",
@@ -93,7 +93,7 @@ const games = [
   },
   {
     icon: "🎲",
-    image: "/images/games/ludo.svg",
+    image: "/images/games/ludo.jpg",
     title: "Ludo",
     text: "Race your tokens to victory",
     color: "bg-[#fff2bd]",
@@ -101,7 +101,7 @@ const games = [
   },
   {
     icon: "🪨",
-    image: "/images/games/mancala.svg",
+    image: "/images/games/mancala.jpg",
     title: "Mancala",
     text: "Sow. Capture. Outsmart.",
     color: "bg-[#eee9ff]",
@@ -117,7 +117,7 @@ const games = [
   },
   {
     icon: "9️⃣",
-    image: "/images/games/sudoku-battle.svg",
+    image: "/images/games/sudoku-battle.jpg",
     title: "Sudoku Battle",
     text: "Race your friends to solve the same Sudoku puzzle.",
     color: "bg-[#eee9ff]",
@@ -125,7 +125,7 @@ const games = [
   },
   {
     icon: "♟",
-    image: "/images/games/chess.svg",
+    image: "/images/games/chess.jpg",
     title: "Chess",
     text: "Challenge a friend to a battle of strategy",
     color: "bg-[#eee9ff]",

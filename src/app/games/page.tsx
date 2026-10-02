@@ -103,7 +103,7 @@ const games = [
   },
   {
     icon: "♟",
-    image: "/images/games/chess.svg",
+    image: "/images/games/chess.jpg",
     title: "Chess",
     description: "Challenge a friend to a battle of strategy. Every move counts.",
     players: "2 players",
@@ -111,7 +111,7 @@ const games = [
   },
   {
     icon: "🔢",
-    image: "/images/games/sudoku-battle.svg",
+    image: "/images/games/sudoku-battle.jpg",
     title: "Sudoku Battle",
     description:
       "Race your friends or a Rally bot to solve the same Sudoku puzzle. Fill the grid accurately before time runs out.",
@@ -120,7 +120,7 @@ const games = [
   },
   {
     icon: "🔲",
-    image: "/images/games/dots-boxes.svg",
+    image: "/images/games/dots-boxes.jpg",
     title: "Dots & Boxes",
     description:
       "Take turns connecting dots to claim boxes and capture the grid. Complete the most boxes to win.",
@@ -129,7 +129,7 @@ const games = [
   },
   {
     icon: "✊",
-    image: "/images/games/rock-paper-scissors.svg",
+    image: "/images/games/rock-paper-scissors.jpg",
     title: "Rock Paper Scissors",
     description:
       "Make your secret pick, reveal it at the same time, and outsmart your opponent in the classic quick-fire duel.",
@@ -138,7 +138,7 @@ const games = [
   },
   {
     icon: "🔎",
-    image: "/images/games/number-hunt.svg",
+    image: "/images/games/number-hunt.jpg",
     title: "Number Hunt",
     description:
       "A fast number challenge where players choose tiles and try to find the hidden target while earning points.",
@@ -147,7 +147,7 @@ const games = [
   },
   {
     icon: "🧠",
-    image: "/images/games/memory-match.svg",
+    image: "/images/games/memory-match.jpg",
     title: "Memory Match",
     description:
       "Flip cards, find matching pairs, and build the biggest memory streak before your opponents.",
@@ -156,7 +156,7 @@ const games = [
   },
   {
     icon: "⛳",
-    image: "/images/games/mini-golf.svg",
+    image: "/images/games/mini-golf.jpg",
     title: "Mini Golf",
     description:
       "Aim, choose your power, avoid hazards, and finish the course with the lowest score.",
@@ -165,7 +165,7 @@ const games = [
   },
   {
     icon: "🚢",
-    image: "/images/games/battleship.svg",
+    image: "/images/games/battleship.jpg",
     title: "Battleship",
     description:
       "Take turns firing at hidden coordinates and try to sink your opponent's fleet before they find yours.",
@@ -174,7 +174,7 @@ const games = [
   },
   {
     icon: "⭕",
-    image: "/images/games/tic-tac-toe.svg",
+    image: "/images/games/tic-tac-toe.jpg",
     title: "Tic-Tac-Toe",
     description:
       "The timeless three-in-a-row duel. Place your marks, create a line, and beat your opponent.",
@@ -183,7 +183,7 @@ const games = [
   },
   {
     icon: "🔴",
-    image: "/images/games/connect-four.svg",
+    image: "/images/games/connect-four.jpg",
     title: "Connect Four",
     description:
       "Drop discs into the grid, connect four before your opponent, and block their winning move.",
@@ -192,7 +192,7 @@ const games = [
   },
   {
     icon: "🎲",
-    image: "/images/games/ludo.svg",
+    image: "/images/games/ludo.jpg",
     title: "Ludo",
     description:
       "Race your tokens around the board, send rivals home, and get all your pieces to the finish first.",
@@ -201,7 +201,7 @@ const games = [
   },
   {
     icon: "🪨",
-    image: "/images/games/mancala.svg",
+    image: "/images/games/mancala.jpg",
     title: "Mancala",
     description: "Classic stones. Smart moves. One winner.",
     players: "2 players",
