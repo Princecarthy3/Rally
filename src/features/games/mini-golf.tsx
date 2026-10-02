@@ -1,6 +1,6 @@
 "use client";
 
-import { Flag, Waves } from "lucide-react";
+import { Flag } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
 import { sounds } from "@/lib/audio";
@@ -110,6 +110,11 @@ export function MiniGolf({
   const cup = state.cup || { x: 50, y: 12 };
   const difficultyLabel =
     hole <= 3 ? "Easy" : hole <= 6 ? "Medium" : "Hard";
+  const asPercent = (value: string | undefined, fallback = 0) => {
+    if (!value) return fallback;
+    const parsed = Number.parseFloat(value);
+    return value.endsWith("%") ? parsed : parsed * 1.25;
+  };
 
   function setAimFromPointer(event: React.PointerEvent<HTMLDivElement>) {
     if (!canShoot || !ball || !fieldRef.current) return;
@@ -136,6 +141,7 @@ export function MiniGolf({
 
   return (
     <div className="mx-auto w-full max-w-lg space-y-3 px-1">
+      <style>{"@keyframes golf-roll{0%{transform:rotate(0) scale(1)}35%{transform:rotate(240deg) scale(1.18)}100%{transform:rotate(720deg) scale(1)}}"}</style>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border-2 border-slate-950 bg-gradient-to-r from-emerald-800 to-green-700 px-3 py-2 text-white shadow-[3px_3px_0_#171821]">
         <div>
           <p className="text-[10px] font-black uppercase tracking-wider text-emerald-100">
@@ -162,106 +168,37 @@ export function MiniGolf({
         onPointerDown={setAimFromPointer}
         onPointerMove={(e) => e.buttons === 1 && setAimFromPointer(e)}
         onPointerUp={() => void releaseShot()}
-        onPointerLeave={() => aim && void releaseShot()}
+        onPointerCancel={() => setAim(null)}
         className={`relative mx-auto aspect-[3/4] w-full max-h-[70vh] touch-none overflow-hidden rounded-[28px] border-[3px] border-[#2d5a1b] shadow-[0_12px_0_#1a3a10,0_16px_24px_rgba(0,0,0,0.25)] ${
           canShoot ? "cursor-crosshair" : "cursor-default"
         }`}
-        style={{
-          background: `
-            radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.12), transparent 50%),
-            linear-gradient(160deg, #3d9e3a 0%, #2d7a2a 40%, #256b22 100%)
-          `,
-        }}
+        style={{ background: "linear-gradient(145deg,#58b64e 0%,#31883c 48%,#175d32 100%)" }}
       >
-        {/* Fairway stripes */}
-        <div
-          className="pointer-events-none absolute inset-0 opacity-20"
-          style={{
-            backgroundImage:
-              "repeating-linear-gradient(90deg, transparent, transparent 18px, rgba(0,0,0,0.08) 18px, rgba(0,0,0,0.08) 20px)",
-          }}
-        />
-
-        {/* Hazards */}
-        {hazards.map((h, i) => {
-          if (h.type === "water") {
-            return (
-              <div
-                key={i}
-                className="absolute border border-sky-300/40 shadow-inner"
-                style={{
-                  left: h.left,
-                  top: h.top,
-                  width: h.width,
-                  height: h.height,
-                  borderRadius: h.radius || "12px",
-                  background:
-                    "linear-gradient(180deg, #38bdf8 0%, #0ea5e9 40%, #0284c7 100%)",
-                }}
-              >
-                <Waves className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 text-white/50" />
-              </div>
-            );
-          }
-          if (h.type === "sand") {
-            return (
-              <div
-                key={i}
-                className="absolute border border-amber-200/50"
-                style={{
-                  left: h.left,
-                  top: h.top,
-                  width: h.width,
-                  height: h.height,
-                  borderRadius: h.radius || "40%",
-                  background: "radial-gradient(circle at 30% 30%, #fde68a, #d97706)",
-                }}
-              />
-            );
-          }
-          if (h.type === "wall") {
-            return (
-              <div
-                key={i}
-                className="absolute rounded-sm border border-stone-600 bg-gradient-to-b from-stone-400 to-stone-700 shadow-md"
-                style={{
-                  left: h.left,
-                  top: h.top,
-                  width: h.width,
-                  height: h.height,
-                  transform: h.rotate ? `rotate(${h.rotate})` : undefined,
-                }}
-              />
-            );
-          }
-          if (h.type === "rock") {
-            return (
-              <div
-                key={i}
-                className="absolute rounded-full bg-gradient-to-br from-stone-400 to-stone-700 shadow"
-                style={{ left: h.left, top: h.top, width: h.size, height: h.size }}
-              />
-            );
-          }
-          if (h.type === "tree") {
-            return (
-              <div key={i} className="absolute" style={{ left: h.left, top: h.top }}>
-                <div className="h-3 w-2 translate-x-[7px] rounded-sm bg-amber-900" />
-                <div className="-mt-1 h-8 w-8 rounded-full bg-gradient-to-b from-green-500 to-green-800 shadow" />
-              </div>
-            );
-          }
-          if (h.type === "bridge") {
-            return (
-              <div
-                key={i}
-                className="absolute rounded-sm border border-amber-900/40 bg-gradient-to-b from-amber-700 to-amber-900"
-                style={{ left: h.left, top: h.top, width: h.width, height: h.height }}
-              />
-            );
-          }
-          return null;
-        })}
+        <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="golf-turf" x2="0" y2="1"><stop stopColor="#b8ee81" stopOpacity=".18"/><stop offset="1" stopColor="#073d25" stopOpacity=".28"/></linearGradient>
+            <linearGradient id="golf-water" x2="0" y2="1"><stop stopColor="#8af4ff"/><stop offset=".48" stopColor="#24aee9"/><stop offset="1" stopColor="#07559b"/></linearGradient>
+            <linearGradient id="golf-sand" x2="0" y2="1"><stop stopColor="#fff2ad"/><stop offset="1" stopColor="#d48a32"/></linearGradient>
+            <linearGradient id="golf-wood" x2="0" y2="1"><stop stopColor="#f4c274"/><stop offset="1" stopColor="#81502b"/></linearGradient>
+            <radialGradient id="golf-rock"><stop stopColor="#d7e2d0"/><stop offset="1" stopColor="#52645a"/></radialGradient>
+            <radialGradient id="golf-ball" cx="32%" cy="25%"><stop stopColor="white"/><stop offset=".5" stopColor="#f3f7ff"/><stop offset="1" stopColor="#aab6c9"/></radialGradient>
+            <filter id="golf-shadow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.4"/></filter>
+          </defs>
+          <rect width="100" height="100" fill="url(#golf-turf)" />
+          {Array.from({length: 10}, (_, i) => <path key={`stripe-${i}`} d={`M${i * 11} 0v100`} stroke="#d9ffb2" strokeOpacity=".035" strokeWidth="5" />)}
+          {hazards.map((h, i) => {
+            const x = asPercent(h.left), y = asPercent(h.top), w = asPercent("width" in h ? h.width : undefined, 5), ht = asPercent("height" in h ? h.height : undefined, 5);
+            if (h.type === "water") return <g key={i}><ellipse cx={x+w/2} cy={y+ht/2+1} rx={w/2} ry={ht/2} fill="#083b42" opacity=".4"/><ellipse cx={x+w/2} cy={y+ht/2} rx={w/2} ry={ht/2} fill="url(#golf-water)" stroke="#b5f8ff" strokeOpacity=".7" strokeWidth=".7"/><path d={`M${x+w*.2} ${y+ht*.42}q${w*.12} -2 ${w*.24} 0t${w*.24} 0`} fill="none" stroke="white" strokeOpacity=".65" strokeWidth=".7"/></g>;
+            if (h.type === "sand") return <g key={i}><ellipse cx={x+w/2} cy={y+ht/2+1} rx={w/2} ry={ht/2} fill="#593e1f" opacity=".3"/><ellipse cx={x+w/2} cy={y+ht/2} rx={w/2} ry={ht/2} fill="url(#golf-sand)" stroke="#fff1b1" strokeWidth=".6"/><path d={`M${x+w*.18} ${y+ht*.45}q${w*.28} ${ht*.25} ${w*.62} -.04`} fill="none" stroke="#fff9d8" strokeOpacity=".55" strokeWidth=".45"/></g>;
+            if (h.type === "wall" || h.type === "bridge") {
+              const horizontal = h.type === "bridge" || w > ht;
+              const rw = h.type === "bridge" ? w : horizontal ? w : Math.max(w, 2.3), rh = h.type === "bridge" ? Math.max(ht, 2) : horizontal ? Math.max(ht, 2.3) : ht;
+              return <g key={i} transform={h.type === "wall" && h.rotate ? `rotate(${Number.parseFloat(h.rotate)} ${x+w/2} ${y+ht/2})` : undefined}><rect x={x} y={y+1} width={rw} height={rh} rx="1.2" fill="#092e20" opacity=".35"/><rect x={x} y={y} width={rw} height={rh} rx="1.2" fill={h.type === "bridge" ? "url(#golf-wood)" : "#747d76"} stroke={h.type === "bridge" ? "#ffdda2" : "#d7e0d4"} strokeWidth=".55"/><path d={`M${x+1} ${y+rh*.28}h${rw-2}`} stroke="white" strokeOpacity=".4" strokeWidth=".45"/></g>;
+            }
+            if (h.type === "rock") { const r = Math.max(asPercent(h.size) / 2, 1); return <g key={i}><ellipse cx={x+r} cy={y+r+1} rx={r} ry={r*.65} fill="#072a1c" opacity=".4"/><circle cx={x+r} cy={y+r} r={r} fill="url(#golf-rock)" stroke="#e2eadf" strokeOpacity=".65" strokeWidth=".4"/></g>; }
+            return <g key={i}><ellipse cx={x+2.5} cy={y+5} rx="3.8" ry="1.2" fill="#073b20" opacity=".35"/><path d={`M${x+2.5} ${y+5}v-2.5`} stroke="#79502d" strokeWidth="1.4"/><circle cx={x+2.5} cy={y+1.8} r="3.2" fill="#126333"/><circle cx={x+1.5} cy={y+1} r="1.5" fill="#48a84e"/><circle cx={x+3.4} cy={y+1} r="1.6" fill="#2c873e"/></g>;
+          })}
+        </svg>
 
         {/* Cup */}
         <div
@@ -269,7 +206,7 @@ export function MiniGolf({
           style={{ left: `${cup.x}%`, top: `${cup.y}%` }}
         >
           <Flag size={16} className="text-white drop-shadow" />
-          <div className="h-4 w-4 rounded-full border-2 border-white/80 bg-slate-900 shadow-inner" />
+          <div className="h-4 w-4 rounded-full border-2 border-white/80 bg-slate-950 shadow-[inset_0_2px_4px_#000,0_2px_5px_#0008]" />
         </div>
 
         {/* Balls */}
@@ -280,15 +217,15 @@ export function MiniGolf({
           return (
             <div
               key={p.seat}
-              className="absolute z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-black/30 shadow-md transition-all duration-300 sm:h-5 sm:w-5"
+              className="absolute z-20 h-5 w-5 -translate-x-1/2 -translate-y-1/2 transition-[left,top] duration-500 ease-out sm:h-6 sm:w-6"
               style={{
                 left: `${b.x}%`,
                 top: `${b.y}%`,
-                background: colors[idx % colors.length],
                 opacity: b.finished ? 0.35 : 1,
+                filter: "drop-shadow(0 4px 2px #09281999)",
               }}
               title={p.profile?.display_name || `P${p.seat}`}
-            />
+            ><svg key={b.strokes} viewBox="0 0 32 32" className="h-full w-full overflow-visible" style={b.strokes ? { animation: "golf-roll 650ms cubic-bezier(.2,.75,.3,1)" } : undefined}><defs><radialGradient id={`ball-${p.seat}`} cx="30%" cy="24%"><stop stopColor="#fff"/><stop offset=".38" stopColor={colors[idx % colors.length]}/><stop offset="1" stopColor="#334155"/></radialGradient></defs><ellipse cx="16" cy="28" rx="10" ry="3" fill="#061b12" opacity=".38"/><circle cx="16" cy="15" r="12" fill={`url(#ball-${p.seat})`} stroke="white" strokeOpacity=".8" strokeWidth="1.4"/><ellipse cx="12" cy="10" rx="4" ry="2.4" fill="white" opacity=".72"/><path d="M8 19q8 3 16 0" fill="none" stroke="white" strokeOpacity=".3" strokeWidth=".8"/></svg></div>
           );
         })}
 
@@ -301,11 +238,12 @@ export function MiniGolf({
                 y1={`${ball.y}%`}
                 x2={`${ball.x + Math.cos(aim.angle) * aim.visual}%`}
                 y2={`${ball.y + Math.sin(aim.angle) * aim.visual}%`}
-                stroke="white"
-                strokeWidth="2"
-                strokeDasharray="4 3"
-                opacity="0.85"
+                stroke="#fff5b1"
+                strokeWidth="0.7"
+                strokeDasharray="1.4 1"
+                opacity="0.95"
               />
+              <circle cx={`${ball.x}%`} cy={`${ball.y}%`} r="3.2%" fill="none" stroke="#fff5b1" strokeOpacity=".55" strokeWidth=".55" />
             </svg>
             <div
               className="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-full rounded-lg border-2 border-slate-950 bg-white px-2 py-0.5 text-[11px] font-black shadow-[2px_2px_0_#171821]"
@@ -314,7 +252,8 @@ export function MiniGolf({
                 top: `${ball.y + Math.sin(aim.angle) * aim.visual}%`,
               }}
             >
-              Power {Math.round(aim.power)}
+              <span className="flex items-center gap-1.5">⛳ Power {Math.round(aim.power)}</span>
+              <span className="mt-1 block h-1.5 w-16 overflow-hidden rounded-full bg-slate-200"><span className="block h-full rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500 transition-[width]" style={{ width: `${aim.power}%` }} /></span>
             </div>
           </>
         )}
