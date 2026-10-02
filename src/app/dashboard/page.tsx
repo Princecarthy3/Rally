@@ -132,21 +132,32 @@ export default function DashboardPage() {
                   className="group relative overflow-hidden rounded-[26px] border-2 border-slate-950 p-4 transition hover:-translate-y-2 hover:rotate-[-1deg] hover:shadow-[6px_7px_0_#171821] cursor-pointer"
                   style={{ backgroundColor: game.color }}
                 >
-                  <div className="flex items-start justify-between">
-                    <span className="grid h-20 w-20 place-items-center rounded-2xl border-2 border-slate-950 bg-white/75 text-5xl transition group-hover:rotate-6 group-hover:scale-105">
+                  <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl border-2 border-slate-950 bg-slate-900 shadow-sm">
+                    {game.image ? (
+                      <img
+                        src={game.image}
+                        alt={game.name}
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center bg-white/75 text-5xl">
+                        {game.icon}
+                      </div>
+                    )}
+                    <div className="absolute top-2 left-2 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-950/70 text-sm text-white backdrop-blur-md">
                       {game.icon}
-                    </span>
-                    <span className="rounded-full border-2 border-slate-950 bg-white px-2.5 py-1 text-[10px] font-black uppercase">
+                    </div>
+                    <span className="absolute top-2 right-2 rounded-full border-2 border-slate-950 bg-white px-2 py-0.5 text-[9px] font-black uppercase">
                       {game.tag}
                     </span>
                   </div>
-                  <h3 className="mt-5 text-xl font-black leading-tight" style={{ color: game.ink }}>
+                  <h3 className="mt-4 text-xl font-black leading-tight" style={{ color: game.ink }}>
                     {game.name}
                   </h3>
-                  <p className="mt-2 min-h-15 text-sm leading-5 opacity-70">{game.description}</p>
-                  <div className="mt-5 flex items-center justify-between border-t-2 border-slate-950/15 pt-3">
+                  <p className="mt-1.5 min-h-12 text-xs font-semibold leading-5 opacity-80">{game.description}</p>
+                  <div className="mt-4 flex items-center justify-between border-t-2 border-slate-950/15 pt-3">
                     <span className="text-xs font-black">{game.players} PLAYERS</span>
-                    <span className="text-lg font-black">0{i + 1}</span>
+                    <span className="text-base font-black">{String(i + 1).padStart(2, "0")}</span>
                   </div>
                 </article>
               ))}

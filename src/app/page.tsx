@@ -13,6 +13,7 @@ import { Brand } from "@/components/brand";
 const games = [
   {
     icon: "⚔️",
+    image: "/images/games/rally-combat.jpg",
     title: "Rally Combat",
     text: "Fight, dodge, and outplay your rivals",
     color: "bg-[#eee9ff]",
@@ -20,6 +21,7 @@ const games = [
   },
   {
     icon: "🏎️",
+    image: "/images/games/rally-racing.jpg",
     title: "Rally Racing",
     text: "Race your friends to the finish",
     color: "bg-[#e5f8df]",
@@ -27,6 +29,7 @@ const games = [
   },
   {
     icon: "🃏",
+    image: "/images/games/rally-cards.jpg",
     title: "Rally Cards",
     text: "Match, attack, and outplay your friends",
     color: "bg-[#ffe8cc]",
@@ -34,14 +37,15 @@ const games = [
   },
   {
     icon: "✊",
+    image: "/images/games/rock-paper-scissors.svg",
     title: "Rock Paper Scissors",
     text: "Classic. Quick. Clever.",
     color: "bg-[#eee9ff]",
     tilt: "rotate-2",
   },
-
   {
     icon: "🧠",
+    image: "/images/games/memory-match.svg",
     title: "Memory Match",
     text: "Find pairs and build your score",
     color: "bg-[#ffe8cc]",
@@ -49,14 +53,15 @@ const games = [
   },
   {
     icon: "⛳",
+    image: "/images/games/mini-golf.svg",
     title: "Mini Golf",
     text: "Pick your power and sink the lowest score",
     color: "bg-[#e5f8df]",
     tilt: "rotate-2",
   },
-  
   {
     icon: "⭕",
+    image: "/images/games/tic-tac-toe.svg",
     title: "Tic-Tac-Toe",
     text: "Three in a row",
     color: "bg-[#ffe7eb]",
@@ -64,6 +69,7 @@ const games = [
   },
   {
     icon: "🔴",
+    image: "/images/games/connect-four.svg",
     title: "Connect Four",
     text: "Line up four before they do",
     color: "bg-[#ffe0ef]",
@@ -71,6 +77,7 @@ const games = [
   },
   {
     icon: "🔲",
+    image: "/images/games/dots-boxes.svg",
     title: "Dots & Boxes",
     text: "Claim the grid",
     color: "bg-[#e4f8ef]",
@@ -78,6 +85,7 @@ const games = [
   },
   {
     icon: "🎨",
+    image: "/images/games/skribbl.jpg",
     title: "Draw & Guess",
     text: "Sketch it before time runs out",
     color: "bg-[#fff6c9]",
@@ -85,6 +93,7 @@ const games = [
   },
   {
     icon: "🎲",
+    image: "/images/games/ludo.svg",
     title: "Ludo",
     text: "Race your tokens to victory",
     color: "bg-[#fff2bd]",
@@ -92,6 +101,7 @@ const games = [
   },
   {
     icon: "🪨",
+    image: "/images/games/mancala.svg",
     title: "Mancala",
     text: "Sow. Capture. Outsmart.",
     color: "bg-[#eee9ff]",
@@ -99,10 +109,15 @@ const games = [
   },
   {
     icon: "🧩✨",
+    image: "/images/games/emoji-decode.jpg",
     title: "Emoji Decode",
     text: "Decode the emojis. Beat your friends.",
+    color: "bg-[#e8e1ff]",
+    tilt: "rotate-1",
   },
   {
+    icon: "9️⃣",
+    image: "/images/games/sudoku-battle.svg",
     title: "Sudoku Battle",
     text: "Race your friends to solve the same Sudoku puzzle.",
     color: "bg-[#eee9ff]",
@@ -110,6 +125,7 @@ const games = [
   },
   {
     icon: "♟",
+    image: "/images/games/chess.svg",
     title: "Chess",
     text: "Challenge a friend to a battle of strategy",
     color: "bg-[#eee9ff]",
@@ -279,17 +295,32 @@ export default function HomePage() {
               <Link
                 key={game.title}
                 href={game.title === "Emoji Decode" ? "/games/emoji-decode" : game.title === "Sudoku Battle" ? "/games/sudoku-battle" : game.title === "Chess" ? "/games/chess" : game.title === "Mancala" ? "/games/mancala" : "/games"}
-                className={`${game.color} ${game.tilt} group block rounded-[32px] p-6 transition duration-300 hover:rotate-0 hover:-translate-y-2`}
+                className={`${game.color} ${game.tilt} group block rounded-[32px] p-4 transition duration-300 hover:rotate-0 hover:-translate-y-2 border-2 border-slate-950/10 shadow-sm hover:shadow-xl`}
               >
-                <div className="grid aspect-square place-items-center rounded-[24px] bg-white/55 text-7xl shadow-sm transition group-hover:scale-[1.03]">
-                  {game.icon}
+                <div className="relative aspect-square overflow-hidden rounded-[24px] bg-slate-900 shadow-inner">
+                  {game.image ? (
+                    <img
+                      src={game.image}
+                      alt={game.title}
+                      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="grid h-full w-full place-items-center bg-white/55 text-7xl">
+                      {game.icon}
+                    </div>
+                  )}
+                  {game.icon && (
+                    <div className="absolute top-3 stroke-slate-900 left-3 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950/65 text-lg text-white backdrop-blur-md">
+                      {game.icon}
+                    </div>
+                  )}
                 </div>
 
-                <h3 className="mt-6 text-xl font-extrabold tracking-tight">
+                <h3 className="mt-4 text-xl font-extrabold tracking-tight text-slate-950">
                   {game.title}
                 </h3>
 
-                <p className="mt-1 text-sm text-slate-500">{game.text}</p>
+                <p className="mt-1 text-sm font-medium text-slate-600">{game.text}</p>
               </Link>
             ))}
           </div>

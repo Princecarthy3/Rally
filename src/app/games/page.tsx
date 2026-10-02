@@ -58,6 +58,7 @@ export const metadata: Metadata = {
 const games = [
   {
     icon: "⚔️",
+    image: "/images/games/rally-combat.jpg",
     title: "Rally Combat",
     description:
       "A 3D multiplayer fighting game. Pick your fighter, land combos, dodge attacks, and be the last one standing in the arena.",
@@ -66,6 +67,7 @@ const games = [
   },
   {
     icon: "🏎️",
+    image: "/images/games/rally-racing.jpg",
     title: "Rally Racing",
     description:
       "Real-time 3D arcade racing. Drift around dirt trails, hit checkpoints, and race your friends to the finish line.",
@@ -74,6 +76,7 @@ const games = [
   },
   {
     icon: "🃏",
+    image: "/images/games/rally-cards.jpg",
     title: "Rally Cards",
     description:
       "Match colors and numbers, play skips, reverses, and wild cards, and battle your friends in fast multiplayer card games.",
@@ -82,6 +85,7 @@ const games = [
   },
   {
     icon: "🎨",
+    image: "/images/games/skribbl.jpg",
     title: "Skribbl Draw & Guess",
     description:
       "Pick a word, draw it on the canvas, and guess what your friends are drawing before time runs out.",
@@ -90,6 +94,7 @@ const games = [
   },
   {
     icon: "🧩✨",
+    image: "/images/games/emoji-decode.jpg",
     title: "Emoji Decode",
     description:
       "Decode fresh AI-generated emoji clues and race your friends to the answer in eight fast rounds.",
@@ -98,6 +103,7 @@ const games = [
   },
   {
     icon: "♟",
+    image: "/images/games/chess.svg",
     title: "Chess",
     description: "Challenge a friend to a battle of strategy. Every move counts.",
     players: "2 players",
@@ -105,6 +111,7 @@ const games = [
   },
   {
     icon: "🔢",
+    image: "/images/games/sudoku-battle.svg",
     title: "Sudoku Battle",
     description:
       "Race your friends or a Rally bot to solve the same Sudoku puzzle. Fill the grid accurately before time runs out.",
@@ -113,6 +120,7 @@ const games = [
   },
   {
     icon: "🔲",
+    image: "/images/games/dots-boxes.svg",
     title: "Dots & Boxes",
     description:
       "Take turns connecting dots to claim boxes and capture the grid. Complete the most boxes to win.",
@@ -121,6 +129,7 @@ const games = [
   },
   {
     icon: "✊",
+    image: "/images/games/rock-paper-scissors.svg",
     title: "Rock Paper Scissors",
     description:
       "Make your secret pick, reveal it at the same time, and outsmart your opponent in the classic quick-fire duel.",
@@ -129,6 +138,7 @@ const games = [
   },
   {
     icon: "🔎",
+    image: "/images/games/number-hunt.svg",
     title: "Number Hunt",
     description:
       "A fast number challenge where players choose tiles and try to find the hidden target while earning points.",
@@ -137,6 +147,7 @@ const games = [
   },
   {
     icon: "🧠",
+    image: "/images/games/memory-match.svg",
     title: "Memory Match",
     description:
       "Flip cards, find matching pairs, and build the biggest memory streak before your opponents.",
@@ -145,6 +156,7 @@ const games = [
   },
   {
     icon: "⛳",
+    image: "/images/games/mini-golf.svg",
     title: "Mini Golf",
     description:
       "Aim, choose your power, avoid hazards, and finish the course with the lowest score.",
@@ -153,6 +165,7 @@ const games = [
   },
   {
     icon: "🚢",
+    image: "/images/games/battleship.svg",
     title: "Battleship",
     description:
       "Take turns firing at hidden coordinates and try to sink your opponent's fleet before they find yours.",
@@ -161,6 +174,7 @@ const games = [
   },
   {
     icon: "⭕",
+    image: "/images/games/tic-tac-toe.svg",
     title: "Tic-Tac-Toe",
     description:
       "The timeless three-in-a-row duel. Place your marks, create a line, and beat your opponent.",
@@ -169,6 +183,7 @@ const games = [
   },
   {
     icon: "🔴",
+    image: "/images/games/connect-four.svg",
     title: "Connect Four",
     description:
       "Drop discs into the grid, connect four before your opponent, and block their winning move.",
@@ -177,6 +192,7 @@ const games = [
   },
   {
     icon: "🎲",
+    image: "/images/games/ludo.svg",
     title: "Ludo",
     description:
       "Race your tokens around the board, send rivals home, and get all your pieces to the finish first.",
@@ -185,6 +201,7 @@ const games = [
   },
   {
     icon: "🪨",
+    image: "/images/games/mancala.svg",
     title: "Mancala",
     description: "Classic stones. Smart moves. One winner.",
     players: "2 players",
@@ -251,32 +268,36 @@ export default function GamesPage() {
             {games.map((game, index) => {
               const card = <article
                 key={game.title}
-                className="group flex min-h-[310px] flex-col rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl"
+                className="group flex min-h-[340px] flex-col rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-xl"
               >
-                {/* Icon + category */}
-                <div className="flex items-start justify-between gap-4">
-                  <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-violet-50 text-4xl transition group-hover:scale-105">
+                {/* Image + category */}
+                <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-slate-900 shadow-sm">
+                  <img
+                    src={game.image}
+                    alt={game.title}
+                    className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                  />
+                  <div className="absolute top-3 stroke-slate-900 left-3 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950/65 text-lg text-white backdrop-blur-md">
                     {game.icon}
                   </div>
-
-                  <span className="rounded-full border border-slate-300 bg-white px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-700">
+                  <span className="absolute top-3 right-3 rounded-full border border-white/20 bg-slate-950/70 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white backdrop-blur-md">
                     {game.category}
                   </span>
                 </div>
 
                 {/* Game information */}
-                <div className="mt-6">
+                <div className="mt-5">
                   <h3 className="text-2xl font-black tracking-tight text-slate-950">
                     {game.title}
                   </h3>
 
-                  <p className="mt-3 leading-6 text-slate-500">
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
                     {game.description}
                   </p>
                 </div>
 
                 {/* Footer */}
-                <div className="mt-auto flex items-center justify-between border-t border-slate-200 pt-5">
+                <div className="mt-auto flex items-center justify-between border-t border-slate-200 pt-4">
                   <span className="text-xs font-extrabold uppercase tracking-wide text-slate-500">
                     {game.players}
                   </span>

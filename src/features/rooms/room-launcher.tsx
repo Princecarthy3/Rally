@@ -194,16 +194,25 @@ export function RoomLauncher({
                     setSelected(game);
                     setMax(game.maxPlayers === 2 ? 2 : Math.max(2, Math.min(max, game.maxPlayers)));
                   }}
-                  className={`cursor-pointer rounded-2xl border-2 p-3 text-left transition ${
+                  className={`cursor-pointer overflow-hidden rounded-2xl border-2 p-2.5 text-left transition ${
                     selected.key === game.key
                       ? "-translate-y-1 border-slate-950 shadow-[3px_3px_0_#171821]"
                       : "border-slate-200 bg-white hover:border-slate-400"
                   }`}
                   style={selected.key === game.key ? { backgroundColor: game.color } : undefined}
                 >
-                  <span className="text-3xl">{game.icon}</span>
-                  <strong className="mt-2 block text-sm leading-tight">{game.shortName}</strong>
-                  <span className="mt-1 block text-[11px] opacity-60">{game.players} players</span>
+                  <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-slate-950/20 bg-slate-900 shadow-sm">
+                    {game.image ? (
+                      <img src={game.image} alt={game.shortName} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="grid h-full w-full place-items-center text-2xl">{game.icon}</span>
+                    )}
+                    <div className="absolute top-1 left-1 flex h-6 w-6 items-center justify-center rounded-md bg-slate-950/70 text-xs text-white backdrop-blur-md">
+                      {game.icon}
+                    </div>
+                  </div>
+                  <strong className="mt-2 block truncate text-xs font-black leading-tight">{game.shortName}</strong>
+                  <span className="mt-0.5 block text-[10px] font-extrabold opacity-65">{game.players} players</span>
                 </button>
               ))}
             </div>
