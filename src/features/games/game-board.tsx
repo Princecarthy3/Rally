@@ -667,6 +667,13 @@ function NumberGuess({ state, guess, setGuess, submit, busy }: { state: Room["pu
 function TicTacToe({ state, mySeat, place, busy }: { state: Room["public_state"]; mySeat?: number; place: (i: number) => void; busy: boolean }) {
   const curRound = (state.round as number) || 1;
   const roundWins = (state.roundWins || {}) as Record<string, number>;
+  const board = Array.isArray(state.board) ? state.board.map((cell) => String(cell || "")) : Array(9).fill("");
+  const winningLines = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6],
+  ];
+  const winningLine = winningLines.find(([a, b, c]) => Boolean(board[a]) && board[a] === board[b] && board[b] === board[c]);
   const history = (state.history || []) as Array<{
     round: number;
     winnerSeat: number | null;
@@ -687,15 +694,32 @@ function TicTacToe({ state, mySeat, place, busy }: { state: Room["public_state"]
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        {(state.board || Array(9).fill("")).map((cell: string, i: number) => (
+      <div className="grid grid-cols-3 gap-2 rounded-3xl border-2 border-slate-950 bg-slate-900 p-2.5 shadow-[4px_4px_0_#171821] sm:gap-3 sm:p-3">
+        {board.map((cell, i) => (
           <button
             key={i}
             onClick={() => place(i)}
             disabled={Boolean(cell) || state.turn !== mySeat || busy}
-            className="aspect-square cursor-pointer rounded-2xl border-2 border-slate-950 bg-[#fff8dd] text-5xl font-black shadow-[3px_3px_0_#171821] transition hover:bg-[#fff0b3] disabled:cursor-not-allowed"
+            aria-label={`Cell ${i + 1}${cell ? `, ${cell === "X" ? "blue cross" : "coral ring"}` : ", empty"}`}
+            className={`group relative aspect-square cursor-pointer rounded-2xl border-2 border-slate-950 bg-gradient-to-br from-white via-[#f0fbff] to-[#c7f2ff] shadow-[3px_3px_0_#171821] transition duration-150 enabled:hover:-translate-y-1 enabled:hover:scale-[1.03] enabled:hover:from-[#fffef3] enabled:hover:to-[#d9f7ff] enabled:active:translate-y-0 enabled:active:scale-95 disabled:cursor-default disabled:opacity-100 ${
+              winningLine?.includes(i) ? "z-10 scale-[1.03] border-amber-400 bg-gradient-to-br from-[#fff3a6] to-[#ffcc54] shadow-[0_0_0_3px_#f59e0b,3px_3px_0_#171821]" : ""
+            }`}
           >
-            {cell}
+            {cell === "X" && (
+              <svg viewBox="0 0 64 64" aria-hidden="true" className="pop-in mx-auto h-14 w-14 drop-shadow-[0_4px_2px_rgba(8,145,178,.28)] sm:h-16 sm:w-16">
+                <path d="M18 17 47 47M46 17 17 47" fill="none" stroke="#087e9b" strokeLinecap="round" strokeWidth="13" />
+                <path d="M18 17 47 47M46 17 17 47" fill="none" stroke="#22d3ee" strokeLinecap="round" strokeWidth="8" />
+              </svg>
+            )}
+            {cell === "O" && (
+              <svg viewBox="0 0 64 64" aria-hidden="true" className="pop-in mx-auto h-14 w-14 drop-shadow-[0_4px_2px_rgba(225,29,72,.25)] sm:h-16 sm:w-16">
+                <circle cx="32" cy="32" r="20" fill="#fb7185" stroke="#be123c" strokeWidth="8" />
+                <path d="M22 20a15 15 0 0 1 14-4" fill="none" stroke="#ffe4e6" strokeLinecap="round" strokeWidth="4" />
+              </svg>
+            )}
+            {!cell && state.turn === mySeat && !busy && (
+              <span aria-hidden="true" className="pointer-events-none absolute inset-0 m-auto h-3 w-3 scale-0 rounded-full bg-cyan-400/50 transition group-hover:scale-100" />
+            )}
           </button>
         ))}
       </div>
