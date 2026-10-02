@@ -245,7 +245,6 @@ export function MancalaGame({
               count: move.captured,
             });
             sounds.playTokenCaptureSound();
-            timers.push(window.setTimeout(() => setCaptureEffect(null), 1300));
           }
         }, delay)
       );
@@ -262,8 +261,14 @@ export function MancalaGame({
     );
 
     return () => timers.forEach((t) => window.clearTimeout(t));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- animate only when moveNumber changes
-  }, [room.public_state?.moveNumber, state.lastMove]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the committed move number is the animation identity
+  }, [room.public_state?.moveNumber]);
+
+  useEffect(() => {
+    if (!captureEffect) return;
+    const timeout = window.setTimeout(() => setCaptureEffect(null), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [captureEffect]);
 
   useEffect(() => {
     if (!isCompleted || state.status !== "completed") return;
