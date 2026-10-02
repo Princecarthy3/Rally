@@ -81,6 +81,13 @@ type DisplayBoard = {
   stores: Record<MancalaSeat, number>;
 };
 
+type CaptureEffect = {
+  landingKey: string;
+  oppositeKey: string;
+  storeKey: string;
+  count: number;
+};
+
 export function MancalaGame({
   room,
   players,
@@ -106,6 +113,7 @@ export function MancalaGame({
   const [now, setNow] = useState(0);
   const [selectedPit, setSelectedPit] = useState<number | null>(null);
   const [flying, setFlying] = useState<{ key: string; id: number } | null>(null);
+  const [captureEffect, setCaptureEffect] = useState<CaptureEffect | null>(null);
   const [display, setDisplay] = useState<DisplayBoard | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const animating = useRef(false);
@@ -212,11 +220,12 @@ export function MancalaGame({
     );
 
     for (const destination of move.path) {
-      const delay = 80 + step * stepMs;
+      const destinationIndex = step;
+      const delay = 80 + destinationIndex * stepMs;
       const key = destinationKey(destination);
       timers.push(
         window.setTimeout(() => {
-          setFlying({ key, id: step });
+          setFlying({ key, id: destinationIndex });
           if (destination.type === "store") {
             working.stores[destination.seat as MancalaSeat] += 1;
           } else {
@@ -226,10 +235,21 @@ export function MancalaGame({
             pits: { 1: [...working.pits[1]], 2: [...working.pits[2]] },
             stores: { ...working.stores },
           });
-          sounds.playClickSound();
+          sounds.playTokenMoveSound();
+          if (move.captured > 0 && destinationIndex === move.path.length - 1 && destination.type === "pit") {
+            const oppositeSeat: MancalaSeat = destination.seat === 1 ? 2 : 1;
+            setCaptureEffect({
+              landingKey: key,
+              oppositeKey: `pit-${oppositeSeat}-${5 - destination.index}`,
+              storeKey: `store-${seat}`,
+              count: move.captured,
+            });
+            sounds.playTokenCaptureSound();
+            timers.push(window.setTimeout(() => setCaptureEffect(null), 1300));
+          }
         }, delay)
       );
-      step += 1;
+      step = destinationIndex + 1;
     }
 
     timers.push(
@@ -379,6 +399,7 @@ export function MancalaGame({
     const selectable = myTurn && mine && stones > 0 && !busy;
     const key = `pit-${seat}-${pit}`;
     const lit = flying?.key === key;
+    const capturedHere = captureEffect?.landingKey === key || captureEffect?.oppositeKey === key;
     const rim = mine ? "border-[#1d9bb8] bg-[#2ec4d6]" : "border-[#c23b4a] bg-[#e85a66]";
     const offsets = stoneOffsets(stones);
 
@@ -399,6 +420,7 @@ export function MancalaGame({
           rim,
           selectable ? "cursor-pointer ring-2 ring-[#f4dc69] ring-offset-2 ring-offset-[#c4a574] hover:scale-105 active:scale-95" : "cursor-default",
           lit ? "scale-110 ring-2 ring-white" : "",
+          capturedHere ? "z-10 scale-110 animate-pulse ring-4 ring-amber-300 bg-amber-400" : "",
           selectedPit === pit && mine ? "scale-105" : "",
         ].join(" ")}
       >
@@ -424,6 +446,7 @@ export function MancalaGame({
     const stones = stores[seat];
     const key = `store-${seat}`;
     const lit = flying?.key === key;
+    const captureLanded = captureEffect?.storeKey === key;
     const isMine = seat === mySeat;
     const color = isMine
       ? "border-[#1d9bb8] bg-[#2ec4d6]"
@@ -437,6 +460,7 @@ export function MancalaGame({
           "shadow-[inset_0_5px_10px_rgba(0,0,0,.28),0_3px_0_rgba(0,0,0,.18)]",
           color,
           lit ? "ring-2 ring-white scale-[1.02]" : "",
+          captureLanded ? "scale-105 animate-pulse ring-4 ring-amber-300" : "",
           position === "top" ? "mb-1" : "mt-1",
         ].join(" ")}
         aria-label={`${names[seat]} store, ${stones} stones`}
@@ -534,6 +558,14 @@ export function MancalaGame({
           </div>
         </div>
 
+        {captureEffect && (
+          <div className="pointer-events-none absolute inset-x-0 top-1/2 z-20 flex -translate-y-1/2 justify-center">
+            <span className="animate-bounce rounded-full border-2 border-amber-200 bg-amber-500 px-5 py-2 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_0_#8a4a12,0_8px_18px_rgba(0,0,0,.3)]">
+              Capture +{captureEffect.count}
+            </span>
+          </div>
+        )}
+
       </div>
 
       <p className="text-center text-xs font-bold text-slate-600">
@@ -579,10 +611,10 @@ export function MancalaGame({
               </button>
             )}
             <Link
-              href="/games"
+              href="/dashboard"
               className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border-2 border-slate-950 bg-white px-5 py-3 font-black"
             >
-              <ArrowLeft size={17} /> Games
+              <ArrowLeft size={17} /> Return to the arcade
             </Link>
           </div>
         </section>
