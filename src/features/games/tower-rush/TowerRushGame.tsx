@@ -686,6 +686,7 @@ export function TowerRushGame({
               targetVel={focusedRunner.velocity}
               targetRotationY={focusedRunner.rotationY}
               animState={focusedRunner.animState}
+              checkpointIdx={focusedRunner.checkpointIdx}
               cameraAngleYRef={cameraAngleYRef}
             />
           )}
