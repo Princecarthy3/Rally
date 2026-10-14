@@ -12,6 +12,14 @@ import { Brand } from "@/components/brand";
 
 const games = [
   {
+    icon: "🗼",
+    image: "/images/games/tower-rush.jpg",
+    title: "Rally Tower Rush",
+    text: "Climb the 3D obby tower and reach the summit",
+    color: "bg-[#f3e8ff]",
+    tilt: "-rotate-1",
+  },
+  {
     icon: "⚔️",
     image: "/images/games/rally-combat.jpg",
     title: "Rally Combat",

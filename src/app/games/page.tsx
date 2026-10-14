@@ -17,6 +17,9 @@ export const metadata: Metadata = {
     "private multiplayer games",
     "party games online",
     "Rally games",
+    "Rally Tower Rush",
+    "tower climbing game online",
+    "Roblox obby online",
     "Rally Racing",
     "Rally Combat",
     "Rally Cards",
@@ -56,6 +59,15 @@ export const metadata: Metadata = {
 };
 
 const games = [
+  {
+    icon: "🗼",
+    image: "/images/games/tower-rush.jpg",
+    title: "Rally Tower Rush",
+    description:
+      "A thrilling 3D obstacle tower climbing obby. Race rivals up rotating hazard beams, oscillating platforms, and crumbling blocks to reach the summit first.",
+    players: "2–8 players",
+    category: "3D Obby Rush",
+  },
   {
     icon: "🔷",
     image: "/images/games/hex-fall.jpg",

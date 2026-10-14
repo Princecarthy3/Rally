@@ -1,4 +1,4 @@
-export type GameKey = "uno" | "rps" | "number_guess" | "memory_match" | "mini_golf" | "battleship" | "tic_tac_toe" | "connect_four" | "dots_boxes" | "skribbl" | "ludo" | "racing" | "rally_combat" | "emoji_decode" | "chess" | "sudoku_battle" | "mancala" | "hex_fall";
+export type GameKey = "uno" | "rps" | "number_guess" | "memory_match" | "mini_golf" | "battleship" | "tic_tac_toe" | "connect_four" | "dots_boxes" | "skribbl" | "ludo" | "racing" | "rally_combat" | "emoji_decode" | "chess" | "sudoku_battle" | "mancala" | "hex_fall" | "tower_rush";
 
 export type GameDefinition = {
   key: GameKey; name: string; shortName: string; icon: string; image: string; description: string;
@@ -6,6 +6,7 @@ export type GameDefinition = {
 };
 
 export const games: GameDefinition[] = [
+  { key:"tower_rush", name:"Rally Tower Rush", shortName:"Tower Rush", icon:"🗼", image:"/images/games/tower-rush.jpg", description:"3D Multiplayer Tower Obby Climbing Race! Scale moving hazards, spinning laser beams, and crumbling platforms to conquer the summit first!", players:"2–8", minPlayers:2, maxPlayers:8, color:"#8b5cf6", ink:"#3b0764", tag:"3D Obby Rush" },
   { key:"hex_fall", name:"Hex Fall 3D", shortName:"Hex Fall", icon:"🔷", image:"/images/games/hex-fall.jpg", description:"3D Falling Hex Platform Survival! Jump, dive, and stay on upper floors as tiles crumble beneath your feet. Outlast all rivals to win!", players:"2–8", minPlayers:2, maxPlayers:8, color:"#38bdf8", ink:"#0c4a6e", tag:"3D Party Royale" },
   { key:"rally_combat", name:"Rally Combat", shortName:"Rally Combat", icon:"⚔️", image:"/images/games/rally-combat.jpg", description:"3D Multiplayer Arena Fighting! Pick your fighter, land combos, dodge attacks, and be the last one standing in the rooftop arena.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#ff3366", ink:"#800020", tag:"3D Brawler" },
   { key:"racing", name:"Rally Racing", shortName:"Rally Racing", icon:"🏎️", image:"/images/games/rally-racing.jpg", description:"Real-time 3D arcade rally racing! Drift around dirt trails, hit checkpoints, and cross the finish line first.", players:"2–4", minPlayers:2, maxPlayers:4, color:"#ff4d4d", ink:"#800000", tag:"3D Arcade" },

@@ -459,6 +459,7 @@ class SoundManager {
       rally_combat: "battle",
       combat: "battle",
       hex_fall: "hex_fall",
+      tower_rush: "hex_fall",
     };
     this.startBgm(map[gameType] || "battle");
   }

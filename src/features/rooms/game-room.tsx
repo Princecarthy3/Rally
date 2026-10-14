@@ -100,7 +100,9 @@ export function GameRoom() {
     setBusy(true);
     setNotice("");
     const startRpc =
-      room.game_type === "hex_fall"
+      room.game_type === "tower_rush"
+        ? "start_tower_rush_game"
+        : room.game_type === "hex_fall"
         ? "start_hex_fall_game"
         : room.game_type === "racing"
         ? "start_racing_game"
