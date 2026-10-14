@@ -57,6 +57,15 @@ export const metadata: Metadata = {
 
 const games = [
   {
+    icon: "🔷",
+    image: "/images/games/hex-fall.jpg",
+    title: "Hex Fall 3D",
+    description:
+      "A fast-paced 3D falling platform party royale. Jump and dive across crumbling hexagonal floors and be the last one standing.",
+    players: "2–8 players",
+    category: "3D Party Royale",
+  },
+  {
     icon: "⚔️",
     image: "/images/games/rally-combat.jpg",
     title: "Rally Combat",

@@ -50,6 +50,11 @@ export type PublicGameState = {
     resultReason?: string | null; drawOfferedBy?: string | null; revision: number; inCheck: boolean;
     lastMove?: { from: string; to: string } | null; message?: string;
   };
+  hexFall?: {
+    stage: "countdown" | "playing" | "results";
+    startTime?: number;
+    winnerSeat?: number | null;
+  };
 };
 export type Room = { id:string; code:string; game_type:GameKey; host_id:string; status:RoomStatus; max_players:number; public_state:PublicGameState; state_version:number; match_number:number; created_at:string; updated_at:string };
 export type RoomPlayer = {

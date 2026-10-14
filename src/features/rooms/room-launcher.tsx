@@ -226,7 +226,7 @@ export function RoomLauncher({
               {selected.maxPlayers > 2 && (
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="text-xs font-bold">Room size</span>
-                  {[2, 3, 4].map((n) => (
+                  {(selected.maxPlayers > 4 ? [2, 4, 6, 8] : [2, 3, 4]).map((n) => (
                     <button
                       key={n}
                       onClick={() => setMax(n)}

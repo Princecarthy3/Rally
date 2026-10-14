@@ -19,7 +19,7 @@ import { PlayerCardModal } from "@/components/customization/player-card-modal";
 import { getRoomThemeStyle } from "@/lib/customization";
 import { sounds } from "@/lib/audio";
 
-const colors = ["#ff9eaa", "#77dce7", "#f4dc69", "#8de2bd"];
+const colors = ["#ff9eaa", "#77dce7", "#f4dc69", "#8de2bd", "#c084fc", "#fb923c", "#f43f5e", "#38bdf8"];
 const isBotId = (id: string) => id.startsWith("11111111-1111-1111-1111-");
 
 export function GameRoom() {
@@ -100,7 +100,9 @@ export function GameRoom() {
     setBusy(true);
     setNotice("");
     const startRpc =
-      room.game_type === "racing"
+      room.game_type === "hex_fall"
+        ? "start_hex_fall_game"
+        : room.game_type === "racing"
         ? "start_racing_game"
         : room.game_type === "rally_combat"
         ? "start_rally_combat_game"
@@ -510,7 +512,7 @@ function Lobby({
                     if (!isBot) onSelectPlayer(player.player_id);
                   }}
                   className="relative flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-slate-950 p-3 sm:p-4 shadow-[3px_3px_0_#171821] transition hover:scale-[1.02]"
-                  style={{ backgroundColor: colors[i] }}
+                  style={{ backgroundColor: colors[i % colors.length] }}
                 >
                   {/* Floating Emote animation */}
                   {emotesForSeat.map((e) => (
