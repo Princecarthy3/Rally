@@ -78,7 +78,9 @@ export function HexFallGame({
   // Tiles & Runners
   const [tiles, setTiles] = useState<Record<string, HexTile>>(() => generateAllFloors());
   const tilesRef = useRef(tiles);
-  tilesRef.current = tiles;
+  useEffect(() => {
+    tilesRef.current = tiles;
+  }, [tiles]);
 
   // Seed initial runners
   const startPositions = useMemo(() => getStartingPositions(players.length), [players.length]);
@@ -108,7 +110,9 @@ export function HexFallGame({
   });
 
   const runnersRef = useRef(runners);
-  runnersRef.current = runners;
+  useEffect(() => {
+    runnersRef.current = runners;
+  }, [runners]);
 
   // Inputs
   const keysDown = useRef(new Set<string>());
@@ -238,28 +242,31 @@ export function HexFallGame({
     if (alive.length <= 1 && players.length > 1) {
       const winner = alive[0];
       const winSeat = winner ? winner.seat : null;
-      setWinnerSeat(winSeat);
-      setStage("results");
-      sounds.playWinSound();
+      const timer = setTimeout(() => {
+        setWinnerSeat(winSeat);
+        setStage("results");
+        sounds.playWinSound();
 
-      if (winner) {
-        setPlacements((prev) => [
-          {
-            seat: winner.seat,
-            playerId: winner.playerId,
-            displayName: winner.displayName,
-            color: winner.color,
-            placement: 1,
-            survivalTime: elapsedSeconds,
-            isBot: winner.isBot,
-          },
-          ...prev,
-        ]);
-      }
+        if (winner) {
+          setPlacements((prev) => [
+            {
+              seat: winner.seat,
+              playerId: winner.playerId,
+              displayName: winner.displayName,
+              color: winner.color,
+              placement: 1,
+              survivalTime: elapsedSeconds,
+              isBot: winner.isBot,
+            },
+            ...prev,
+          ]);
+        }
 
-      if (isHost && winSeat !== null) {
-        void onAct("eliminate_player", String(winSeat));
-      }
+        if (isHost && winSeat !== null) {
+          void onAct("eliminate_player", String(winSeat));
+        }
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [runners, stage, players.length, elapsedSeconds, isHost, onAct]);
 
@@ -622,7 +629,7 @@ export function HexFallGame({
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [stage, meSeat, isSpectator, isHost, channel, triggerTileDecay, eliminatePlayer]);
+  }, [stage, meSeat, isSpectator, isHost, channel, triggerTileDecay, eliminatePlayer, players.length]);
 
   const aliveCount = Object.values(runners).filter((r) => !r.isEliminated).length;
   const localRunner = runners[meSeat];

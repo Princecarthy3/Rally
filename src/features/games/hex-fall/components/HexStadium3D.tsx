@@ -5,49 +5,57 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { FLOOR_HEIGHTS } from "../hex-math";
 
+function createStadiumParticleGeo() {
+  const count = 180;
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+
+  let seed = 42;
+  const rand = () => {
+    seed = (seed * 16807) % 2147483647;
+    return (seed - 1) / 2147483646;
+  };
+
+  for (let i = 0; i < count; i++) {
+    const angle = rand() * Math.PI * 2;
+    const radius = 12 + rand() * 22;
+    const y = -8 + rand() * 32;
+
+    positions[i * 3] = Math.cos(angle) * radius;
+    positions[i * 3 + 1] = y;
+    positions[i * 3 + 2] = Math.sin(angle) * radius;
+
+    const randColor = rand();
+    if (randColor < 0.33) {
+      colors[i * 3] = 0.22;
+      colors[i * 3 + 1] = 0.82;
+      colors[i * 3 + 2] = 0.98;
+    } else if (randColor < 0.66) {
+      colors[i * 3] = 0.75;
+      colors[i * 3 + 1] = 0.42;
+      colors[i * 3 + 2] = 0.98;
+    } else {
+      colors[i * 3] = 0.98;
+      colors[i * 3 + 1] = 0.35;
+      colors[i * 3 + 2] = 0.52;
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  return geo;
+}
+
+const STADIUM_PARTICLE_GEO = createStadiumParticleGeo();
+
 export function HexStadium3D() {
   const ring1Ref = useRef<THREE.Group>(null);
   const ring2Ref = useRef<THREE.Group>(null);
   const laserGridRef = useRef<THREE.Mesh>(null);
   const particlesRef = useRef<THREE.Points>(null);
 
-  // Spark / starfield particles
-  const particleGeo = useMemo(() => {
-    const count = 180;
-    const positions = new Float32Array(count * 3);
-    const colors = new Float32Array(count * 3);
-
-    for (let i = 0; i < count; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const radius = 12 + Math.random() * 22;
-      const y = -8 + Math.random() * 32;
-
-      positions[i * 3] = Math.cos(angle) * radius;
-      positions[i * 3 + 1] = y;
-      positions[i * 3 + 2] = Math.sin(angle) * radius;
-
-      // Neon cyan, purple, or rose
-      const randColor = Math.random();
-      if (randColor < 0.33) {
-        colors[i * 3] = 0.22;
-        colors[i * 3 + 1] = 0.82;
-        colors[i * 3 + 2] = 0.98;
-      } else if (randColor < 0.66) {
-        colors[i * 3] = 0.75;
-        colors[i * 3 + 1] = 0.42;
-        colors[i * 3 + 2] = 0.98;
-      } else {
-        colors[i * 3] = 0.98;
-        colors[i * 3 + 1] = 0.35;
-        colors[i * 3 + 2] = 0.52;
-      }
-    }
-
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    return geo;
-  }, []);
+  const particleGeo = STADIUM_PARTICLE_GEO;
 
   useFrame((state, delta) => {
     if (ring1Ref.current) {

@@ -244,7 +244,9 @@ export function TowerRushGame({
   const [countdown, setCountdown] = useState(3);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedSecRef = useRef(0);
-  elapsedSecRef.current = elapsedSeconds;
+  useEffect(() => {
+    elapsedSecRef.current = elapsedSeconds;
+  }, [elapsedSeconds]);
 
   const [winnerSeat, setWinnerSeat] = useState<number | null>(null);
   const [placements, setPlacements] = useState<TowerPlayerPlacement[]>([]);
@@ -252,7 +254,11 @@ export function TowerRushGame({
   const [spectatingSeat, setSpectatingSeat] = useState<number>(meSeat);
 
   // Disappearing platforms state map
+  const [disappearingStates, setDisappearingStates] = useState<Record<string, DisappearingPlatformState>>({});
   const disappearingStatesRef = useRef<Record<string, DisappearingPlatformState>>({});
+  useEffect(() => {
+    disappearingStatesRef.current = disappearingStates;
+  }, [disappearingStates]);
 
   // Seed initial runners
   const startPositions = useMemo(() => getTowerStartingPositions(players.length), [players.length]);
@@ -283,7 +289,9 @@ export function TowerRushGame({
   });
 
   const runnersRef = useRef(runners);
-  runnersRef.current = runners;
+  useEffect(() => {
+    runnersRef.current = runners;
+  }, [runners]);
 
   // Inputs & Camera
   const keysDown = useRef(new Set<string>());
@@ -458,7 +466,10 @@ export function TowerRushGame({
     const finishedRunners = allRunners.filter((r) => r.hasFinished);
 
     if (allRunners.length > 0 && finishedRunners.length >= allRunners.length) {
-      setStage("results");
+      const timer = setTimeout(() => {
+        setStage("results");
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [runners, stage]);
 
@@ -645,7 +656,7 @@ export function TowerRushGame({
       <TowerCanvas>
         <TowerEnvironment3D
           elapsedSec={elapsedSeconds}
-          disappearingStates={disappearingStatesRef.current}
+          disappearingStates={disappearingStates}
         />
 
         {/* Climbers Avatars */}

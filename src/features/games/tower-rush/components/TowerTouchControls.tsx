@@ -11,6 +11,7 @@ export function TowerTouchControls({
   const [isMobile, setIsMobile] = useState(false);
   const joystickRef = useRef<HTMLDivElement>(null);
   const [knobPos, setKnobPos] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
   const activeTouchId = useRef<number | null>(null);
   const baseCenter = useRef({ x: 0, y: 0 });
 
@@ -27,6 +28,7 @@ export function TowerTouchControls({
     if (activeTouchId.current !== null) return;
     const touch = e.changedTouches[0];
     activeTouchId.current = touch.identifier;
+    setIsDragging(true);
 
     const rect = joystickRef.current?.getBoundingClientRect();
     if (rect) {
@@ -65,6 +67,7 @@ export function TowerTouchControls({
     for (let i = 0; i < e.changedTouches.length; i++) {
       if (e.changedTouches[i].identifier === activeTouchId.current) {
         activeTouchId.current = null;
+        setIsDragging(false);
         setKnobPos({ x: 0, y: 0 });
         touchInputsRef.current.moveX = 0;
         touchInputsRef.current.moveZ = 0;
@@ -91,7 +94,7 @@ export function TowerTouchControls({
           className="absolute h-14 w-14 rounded-full border-2 border-white/50 bg-gradient-to-tr from-violet-600 to-indigo-500 shadow-lg"
           style={{
             transform: `translate(${knobPos.x}px, ${knobPos.y}px)`,
-            transition: activeTouchId.current === null ? "transform 0.15s ease-out" : "none",
+            transition: isDragging ? "none" : "transform 0.15s ease-out",
           }}
         />
       </div>

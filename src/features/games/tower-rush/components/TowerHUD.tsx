@@ -287,7 +287,7 @@ export function TowerHUD({
 
               <div className="rounded-xl bg-amber-50 p-2.5 text-[11px] text-amber-800 border border-amber-200">
                 💡 <strong>Tip:</strong> Moving platforms match your momentum! Time your jumps past
-                spinning laser beams and don't linger on decaying pink blocks.
+                spinning laser beams and don&apos;t linger on decaying pink blocks.
               </div>
             </div>
 
@@ -295,7 +295,7 @@ export function TowerHUD({
               onClick={() => setShowControlsGuide(false)}
               className="mt-4 w-full rounded-2xl border-2 border-slate-950 bg-violet-600 py-2.5 text-center text-sm font-black text-white shadow-[3px_3px_0_#0f172a] hover:bg-violet-700 active:translate-y-0.5"
             >
-              Got It, Let's Climb!
+              Got It, Let&apos;s Climb!
             </button>
           </div>
         </div>
