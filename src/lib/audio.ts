@@ -1092,6 +1092,22 @@ class SoundManager {
     osc.stop(now + 0.1);
   }
 
+  public playPopSound() {
+    this.playClickSound();
+  }
+
+  public playLossSound() {
+    this.playLoseSound();
+  }
+
+  public playTurnSound() {
+    this.playClickSound();
+  }
+
+  public playCountdownSound(val: number) {
+    this.playCountdownBeep(val === 0);
+  }
+
   // =========================================================
   // STOP BGM
   // =========================================================

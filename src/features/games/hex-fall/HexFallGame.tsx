@@ -173,7 +173,7 @@ export function HexFallGame({
             [tileId]: { ...prev[tileId], state: "fallen" },
           };
         });
-        sounds.playPopSound();
+        sounds.playHitSound();
       }, TILE_DECAY_DURATION * 1000);
     },
     [channel]
@@ -217,7 +217,7 @@ export function HexFallGame({
       addToast(`${runner.displayName} plummeted!`);
 
       if (runner.isLocal) {
-        sounds.playLossSound();
+        sounds.playEliminationSound();
       }
 
       // Broadcast elimination
@@ -352,10 +352,10 @@ export function HexFallGame({
         if (c <= 1) {
           clearInterval(timer);
           setStage("playing");
-          sounds.playCountdownSound(0);
+          sounds.playCountdownBeep(true);
           return 0;
         }
-        sounds.playCountdownSound(c - 1);
+        sounds.playCountdownBeep(false);
         return c - 1;
       });
     }, 1000);
@@ -449,7 +449,7 @@ export function HexFallGame({
             keysDown.current.has("Space") || touchInputs.current.jump;
           if (wantJump && local.isGrounded) {
             vy = JUMP_VELOCITY;
-            sounds.playTurnSound();
+            sounds.playJumpSound();
           }
 
           // Dive / Dash input
@@ -464,7 +464,7 @@ export function HexFallGame({
             currentVx = forwardX * DIVE_BOOST;
             currentVz = forwardZ * DIVE_BOOST;
             vy = Math.max(vy, 3.5);
-            sounds.playPopSound();
+            sounds.playDodgeSound();
           }
 
           // Integrate position
