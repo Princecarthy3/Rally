@@ -359,7 +359,7 @@ export function TowerRushGame({
       });
 
       if (runner.isLocal) {
-        sounds.playScoreSound();
+        sounds.playCheckpointSound();
         addToast(`Reached ${cp.name}!`);
       }
 
@@ -444,10 +444,8 @@ export function TowerRushGame({
       });
 
       // Submit finish to server RPC
-      if (runner.isLocal) {
+      if (runner.isLocal || (isHost && runner.isBot)) {
         void onAct("finish_race", String(finishTime));
-      } else if (isHost && runner.isBot) {
-        void onAct("finish_race", String(finishTime), String(seat));
       }
     },
     [elapsedSeconds, addToast, channel, onAct, isHost]
@@ -611,10 +609,10 @@ export function TowerRushGame({
           if (prev <= 1) {
             clearInterval(timer);
             setStage("racing");
-            sounds.playStartWhistle();
+            sounds.playCountdownBeep(true);
             return 0;
           }
-          sounds.playCountdownBeep();
+          sounds.playCountdownBeep(false);
           return prev - 1;
         });
       }, 1000);
