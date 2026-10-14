@@ -25,6 +25,7 @@ import { TowerCamera } from "./components/TowerCamera";
 import { TowerHUD } from "./components/TowerHUD";
 import { TowerTouchControls } from "./components/TowerTouchControls";
 import { TowerResultsModal } from "./components/TowerResultsModal";
+import { MobileOrientationOverlay } from "./components/MobileOrientationOverlay";
 
 const PLAYER_COLORS = [
   "#a855f7", // Seat 1: Purple
@@ -650,80 +651,94 @@ export function TowerRushGame({
     window.location.href = "/games";
   };
 
+  // Lock page scroll while the climb is on screen
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   return (
-    <div className="relative h-[82vh] min-h-[600px] w-full overflow-hidden rounded-[28px] border-3 border-slate-950 bg-[#09081a] shadow-[8px_8px_0_#0f172a]">
-      {/* 3D WebGL Canvas */}
-      <TowerCanvas>
-        <TowerEnvironment3D
+    <MobileOrientationOverlay>
+      <div className="fixed inset-0 z-[60] isolate h-[100dvh] min-h-screen w-screen overflow-hidden bg-[#09081a] touch-none select-none">
+        {/* 3D WebGL Canvas — fills the entire viewport */}
+        <TowerCanvas>
+          <TowerEnvironment3D
+            elapsedSec={elapsedSeconds}
+            disappearingStates={disappearingStates}
+          />
+
+          {/* Climbers Avatars */}
+          {Object.values(runners).map((runner) => (
+            <ClimberAvatar3D
+              key={runner.seat}
+              runner={runner}
+              isLocal={runner.seat === meSeat && !isSpectator}
+            />
+          ))}
+
+          {/* Dynamic 3rd-person chase camera */}
+          {focusedRunner && (
+            <TowerCamera
+              targetPos={focusedRunner.position}
+              targetVel={focusedRunner.velocity}
+              targetRotationY={focusedRunner.rotationY}
+              animState={focusedRunner.animState}
+              cameraAngleYRef={cameraAngleYRef}
+            />
+          )}
+
+          {/* Frame Physics Loop */}
+          <TowerPhysicsLoop
+            stage={stage}
+            meSeat={meSeat}
+            isSpectator={isSpectator}
+            isHost={isHost}
+            runnersRef={runnersRef}
+            setRunners={setRunners}
+            keysDown={keysDown}
+            touchInputsRef={touchInputsRef}
+            cameraAngleYRef={cameraAngleYRef}
+            disappearingStatesRef={disappearingStatesRef}
+            botBrainsRef={botBrainsRef}
+            onCheckpointUnlocked={handleCheckpointUnlocked}
+            onPlayerFell={handlePlayerFell}
+            onPlayerFinished={handlePlayerFinished}
+            elapsedSecRef={elapsedSecRef}
+          />
+        </TowerCanvas>
+
+        {/* In-Game HUD Overlay */}
+        <TowerHUD
+          stage={stage}
+          countdown={countdown}
           elapsedSec={elapsedSeconds}
-          disappearingStates={disappearingStates}
+          runners={runners}
+          localSeat={meSeat}
+          toasts={toasts}
+          onRestart={handleRematch}
+          isHost={isHost}
         />
 
-        {/* Climbers Avatars */}
-        {Object.values(runners).map((runner) => (
-          <ClimberAvatar3D
-            key={runner.seat}
-            runner={runner}
-            isLocal={runner.seat === meSeat && !isSpectator}
-          />
-        ))}
-
-        {/* 3rd Person Follow Camera */}
-        {focusedRunner && (
-          <TowerCamera
-            targetPos={focusedRunner.position}
-            cameraAngleYRef={cameraAngleYRef}
-          />
+        {/* Mobile Touch Controls */}
+        {stage === "racing" && !isSpectator && (
+          <TowerTouchControls touchInputsRef={touchInputsRef} />
         )}
 
-        {/* Frame Physics Loop */}
-        <TowerPhysicsLoop
-          stage={stage}
-          meSeat={meSeat}
-          isSpectator={isSpectator}
-          isHost={isHost}
-          runnersRef={runnersRef}
-          setRunners={setRunners}
-          keysDown={keysDown}
-          touchInputsRef={touchInputsRef}
-          cameraAngleYRef={cameraAngleYRef}
-          disappearingStatesRef={disappearingStatesRef}
-          botBrainsRef={botBrainsRef}
-          onCheckpointUnlocked={handleCheckpointUnlocked}
-          onPlayerFell={handlePlayerFell}
-          onPlayerFinished={handlePlayerFinished}
-          elapsedSecRef={elapsedSecRef}
-        />
-      </TowerCanvas>
-
-      {/* In-Game HUD Overlay */}
-      <TowerHUD
-        stage={stage}
-        countdown={countdown}
-        elapsedSec={elapsedSeconds}
-        runners={runners}
-        localSeat={meSeat}
-        toasts={toasts}
-        onRestart={handleRematch}
-        isHost={isHost}
-      />
-
-      {/* Mobile Touch Controls */}
-      {stage === "racing" && !isSpectator && (
-        <TowerTouchControls touchInputsRef={touchInputsRef} />
-      )}
-
-      {/* Results & Rewards Modal */}
-      {stage === "results" && (
-        <TowerResultsModal
-          placements={placements}
-          winnerSeat={winnerSeat}
-          localSeat={meSeat}
-          onRematch={handleRematch}
-          onLeave={handleLeave}
-          isHost={isHost}
-        />
-      )}
-    </div>
+        {/* Results & Rewards Modal */}
+        {stage === "results" && (
+          <TowerResultsModal
+            placements={placements}
+            winnerSeat={winnerSeat}
+            localSeat={meSeat}
+            onRematch={handleRematch}
+            onLeave={handleLeave}
+            isHost={isHost}
+          />
+        )}
+      </div>
+    </MobileOrientationOverlay>
   );
 }
