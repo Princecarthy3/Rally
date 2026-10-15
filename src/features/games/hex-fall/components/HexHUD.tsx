@@ -15,6 +15,7 @@ export function HexHUD({
   spectatingSeat,
   onCycleSpectate,
   toasts,
+  raceProgress = 0,
 }: {
   stage: HexMatchStage;
   countdown: number;
@@ -26,6 +27,7 @@ export function HexHUD({
   spectatingSeat: number;
   onCycleSpectate?: (delta: number) => void;
   toasts: string[];
+  raceProgress?: number;
 }) {
   const currentFloorIdx = localRunner ? localRunner.currentFloor : 0;
   const currentTheme = FLOOR_THEMES[currentFloorIdx] || FLOOR_THEMES[0];
@@ -68,6 +70,24 @@ export function HexHUD({
         )}
       </div>
 
+      {/* Race progress bar */}
+      {stage === "playing" && localRunner && !localRunner.isEliminated && (
+        <div className="mt-2 mx-auto w-full max-w-md">
+          <div className="flex items-center gap-2 rounded-2xl border-2 border-slate-950 bg-slate-950/85 px-3 py-2 shadow-[3px_3px_0_#0f172a] backdrop-blur-md">
+            <span className="text-[10px] font-black uppercase tracking-wider text-amber-300">🏁 Race</span>
+            <div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-slate-700">
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-cyan-400 via-amber-400 to-yellow-300 transition-[width] duration-150"
+                style={{ width: `${Math.round(Math.min(1, Math.max(0, raceProgress)) * 100)}%` }}
+              />
+            </div>
+            <span className="min-w-[2.5rem] text-right font-mono text-xs font-black text-white">
+              {Math.round(Math.min(1, Math.max(0, raceProgress)) * 100)}%
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Middle Countdown Overlay */}
       {stage === "countdown" && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
@@ -76,7 +96,7 @@ export function HexHUD({
               {countdown > 0 ? countdown : "RUN!"}
             </span>
             <p className="mt-2 text-xl sm:text-2xl font-black uppercase tracking-widest text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-              Tiles crumble ~2s after you step — keep moving!
+              Race the long path — first to the FINISH wins!
             </p>
           </div>
         </div>

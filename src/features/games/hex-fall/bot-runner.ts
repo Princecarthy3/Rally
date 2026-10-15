@@ -1,4 +1,4 @@
-import { FLOOR_HEIGHTS, TOTAL_FLOORS, findNearestSafeTile } from "./hex-math";
+import { FLOOR_HEIGHTS, TOTAL_FLOORS, FINISH_Z, findNearestSafeTile } from "./hex-math";
 import type { HexRunnerTransform, HexTile } from "./types";
 
 export type BotBrain = {
@@ -54,9 +54,9 @@ export function updateBot(
     }
   }
 
-  // 2. On ground: keep moving to intact tiles, avoid decaying ones
+  // 2. On ground: race toward finish (+Z), prefer intact tiles ahead
   if (nowMs > brain.nextDecisionTime || !brain.targetPos) {
-    brain.nextDecisionTime = nowMs + 220 + Math.random() * 280;
+    brain.nextDecisionTime = nowMs + 180 + Math.random() * 220;
 
     const candidates: Array<{ x: number; z: number; score: number }> = [];
 
@@ -66,24 +66,25 @@ export function updateBot(
       if (tile.state === "fallen") continue;
 
       const dist = Math.hypot(tile.x - px, tile.z - pz);
-      if (dist < 0.35 || dist > 5.0) continue;
+      if (dist < 0.35 || dist > 6.5) continue;
 
-      // Strongly prefer intact; decaying is only a last resort
-      let score = tile.state === "intact" ? 12 - dist : 2 - dist;
-      // Drift toward center so the floor doesn't empty from the middle-out unfairly for humans
-      score += 2 / (1 + Math.hypot(tile.x, tile.z) * 0.12);
-      // Slight randomness so bots don't lock-step
-      score += Math.random() * 1.5;
+      // Intact preferred; strong +Z race bias toward finish
+      let score = tile.state === "intact" ? 14 - dist : 1.5 - dist;
+      score += Math.max(0, tile.z - pz) * 0.55;
+      // Prefer staying near center of path
+      score += 1.5 / (1 + Math.abs(tile.x) * 0.15);
+      score += Math.random() * 1.2;
       candidates.push({ x: tile.x, z: tile.z, score });
     }
 
     if (candidates.length > 0) {
       candidates.sort((a, b) => b.score - a.score);
-      const pickIdx = Math.random() < 0.75 ? 0 : Math.min(2, candidates.length - 1);
+      const pickIdx = Math.random() < 0.8 ? 0 : Math.min(2, candidates.length - 1);
       const picked = candidates[pickIdx];
       brain.targetPos = [picked.x, picked.z];
     } else {
-      brain.targetPos = [0, 0];
+      // Push toward finish even with no nearby tiles
+      brain.targetPos = [0, Math.min(FINISH_Z, pz + 4)];
     }
   }
 
@@ -95,17 +96,18 @@ export function updateBot(
 
     if (dist < 0.35) {
       brain.targetPos = null;
-      return { vx: 0, vz: 0, jump: false, dive: false };
+      // Keep a little forward momentum toward finish
+      return { vx: 0, vz: 6.5, jump: false, dive: false };
     }
 
     const angle = Math.atan2(dz, dx);
-    const speed = 8.2;
+    const speed = 9.0;
     const vx = Math.cos(angle) * speed;
     const vz = Math.sin(angle) * speed;
 
     const shouldJump = dist > 2.2 && brain.jumpCooldown <= 0 && runner.isGrounded;
     if (shouldJump) {
-      brain.jumpCooldown = 0.9 + Math.random() * 0.5;
+      brain.jumpCooldown = 0.85 + Math.random() * 0.45;
     }
 
     return {
@@ -116,5 +118,5 @@ export function updateBot(
     };
   }
 
-  return { vx: 0, vz: 0, jump: false, dive: false };
+  return { vx: 0, vz: 5.5, jump: false, dive: false };
 }

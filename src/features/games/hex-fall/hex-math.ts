@@ -2,10 +2,10 @@ import type { HexTile } from "./types";
 
 export const HEX_RADIUS = 1.28;
 export const HEX_HEIGHT = 0.38;
-/** How many hexes along the run (straight path length) */
-export const PATH_ROWS = 28;
-/** Half-width in hexes → total width = 2 * half + 1 (5-wide path) */
-export const PATH_HALF_WIDTH = 3; // 7 hexes wide — easier to stay on
+/** Hexes along the run — long race path (~2 min with weaving) */
+export const PATH_ROWS = 120;
+/** Half-width in hexes → total width = 2 * half + 1 (7-wide path) */
+export const PATH_HALF_WIDTH = 3;
 export const TOTAL_FLOORS = 4;
 export const FLOOR_HEIGHTS = [18, 12, 6, 0];
 export const ELIMINATION_Y = -5;
@@ -15,9 +15,15 @@ export const TILE_DECAY_DURATION = 1.85;
 const X_SPACING = HEX_RADIUS * Math.sqrt(3);
 const Z_SPACING = HEX_RADIUS * 1.5;
 
-/** World length of the full path (for camera / stadium) */
+/** World length of one floor path */
 export const PATH_LENGTH_Z = PATH_ROWS * Z_SPACING;
 export const PATH_WIDTH_X = (PATH_HALF_WIDTH * 2 + 1) * X_SPACING;
+
+/** Z of the finish line on each floor (last row) */
+export const FINISH_Z = (PATH_ROWS - 1) * Z_SPACING;
+
+/** Total race distance across all floors (for progress %) */
+export const TOTAL_RACE_DISTANCE = PATH_LENGTH_Z * TOTAL_FLOORS;
 
 export const FLOOR_THEMES = [
   {
@@ -88,6 +94,19 @@ export function generateAllFloors(): Record<string, HexTile> {
   return tiles;
 }
 
+/** Race progress 0–1 from floor index + Z along the path */
+export function getRaceProgress(floorIndex: number, z: number): number {
+  const floor = Math.max(0, Math.min(TOTAL_FLOORS - 1, floorIndex));
+  const zClamped = Math.max(0, Math.min(PATH_LENGTH_Z, z));
+  const dist = floor * PATH_LENGTH_Z + zClamped;
+  return Math.min(1, dist / TOTAL_RACE_DISTANCE);
+}
+
+/** True when runner has crossed the finish on the last floor */
+export function hasReachedFinish(floorIndex: number, z: number): boolean {
+  return floorIndex >= TOTAL_FLOORS - 1 && z >= FINISH_Z - 1.5;
+}
+
 /** Slightly oversized hitbox so gaps between hexes don't drop you unfairly */
 export function isPointInsideHex(
   px: number,
@@ -137,7 +156,7 @@ export function getTileUnderPlayer(
   return best;
 }
 
-/** Prefer intact tiles; bias forward along the path (+Z) for bots */
+/** Prefer intact tiles; bias hard toward +Z (finish) for race bots */
 export function findNearestSafeTile(
   px: number,
   pz: number,
@@ -153,8 +172,8 @@ export function findNearestSafeTile(
     if (tile.floor !== floorIndex || tile.state === "fallen") continue;
     if (preferIntact && tile.state !== "intact") continue;
     const dist = Math.hypot(tile.x - px, tile.z - pz);
-    // Prefer closer tiles slightly ahead on the path
-    const forwardBias = Math.max(0, tile.z - pz) * 0.15;
+    // Strong forward bias toward the finish line
+    const forwardBias = Math.max(0, tile.z - pz) * 0.35;
     const score = 20 - dist + forwardBias;
     if (score > bestScore) {
       bestScore = score;
@@ -172,7 +191,6 @@ export function getStartingPositions(playerCount: number): [number, number, numb
   const positions: [number, number, number][] = [];
 
   for (let i = 0; i < n; i++) {
-    // Spread across path width
     const t = n === 1 ? 0 : i / (n - 1);
     const col = -PATH_HALF_WIDTH + t * (PATH_HALF_WIDTH * 2);
     const pos = pathToWorld(col, startRow, 0);

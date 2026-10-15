@@ -9,6 +9,8 @@ import {
   generateAllFloors,
   getStartingPositions,
   getTileUnderPlayer,
+  hasReachedFinish,
+  getRaceProgress,
   TILE_DECAY_DURATION,
   TOTAL_FLOORS,
 } from "./hex-math";
@@ -121,6 +123,8 @@ export function HexFallGame({
   const diveCooldown = useRef(0);
   const coyoteTime = useRef(0); // brief grace period after leaving a tile
   const matchStartMs = useRef(0); // when "playing" began — spawn grace before tiles decay
+  const finishedRef = useRef(false); // someone already crossed the finish line
+  const raceEndedRef = useRef(false);
   const START_GRACE_MS = 2200;
 
   // Bot brains (managed by host or local client)
@@ -241,15 +245,64 @@ export function HexFallGame({
     [elapsedSeconds, addToast, channel, onAct]
   );
 
-  // Check victory condition
+  // First to cross the finish line on the last floor wins the race
+  const declareFinish = useCallback(
+    (seat: number) => {
+      if (finishedRef.current || raceEndedRef.current) return;
+      const runner = runnersRef.current[seat];
+      if (!runner || runner.isEliminated) return;
+
+      finishedRef.current = true;
+      raceEndedRef.current = true;
+
+      addToast(`${runner.displayName} crossed the finish line!`);
+      sounds.playWinSound();
+
+      setWinnerSeat(seat);
+      setStage("results");
+      setPlacements((prev) => [
+        {
+          seat: runner.seat,
+          playerId: runner.playerId,
+          displayName: runner.displayName,
+          color: runner.color,
+          placement: 1,
+          survivalTime: elapsedSeconds,
+          isBot: runner.isBot,
+        },
+        ...prev.filter((p) => p.seat !== seat),
+      ]);
+
+      channel?.send({
+        type: "broadcast",
+        event: "hex_finished",
+        payload: {
+          seat: runner.seat,
+          playerId: runner.playerId,
+          displayName: runner.displayName,
+          color: runner.color,
+          placement: 1,
+          survivalTime: elapsedSeconds,
+          isBot: runner.isBot,
+        },
+      });
+
+      void onAct("declare_winner", String(seat));
+    },
+    [elapsedSeconds, addToast, channel, onAct]
+  );
+
+  // Check victory condition (last alive fallback if nobody finishes)
   useEffect(() => {
-    if (stage !== "playing") return;
+    if (stage !== "playing" || raceEndedRef.current) return;
 
     const alive = Object.values(runners).filter((r) => !r.isEliminated);
     if (alive.length <= 1 && players.length > 1) {
       const winner = alive[0];
       const winSeat = winner ? winner.seat : null;
       const timer = setTimeout(() => {
+        if (raceEndedRef.current) return;
+        raceEndedRef.current = true;
         setWinnerSeat(winSeat);
         setStage("results");
         sounds.playWinSound();
@@ -329,7 +382,31 @@ export function HexFallGame({
     });
 
     // Receive eliminations
+    channel.on("broadcast", { event: "hex_finished" }, (payload: any) => {
+      const data = payload?.payload;
+      if (!data || finishedRef.current) return;
+      finishedRef.current = true;
+      raceEndedRef.current = true;
+      setWinnerSeat(data.seat);
+      setStage("results");
+      setPlacements((prev) => [
+        {
+          seat: data.seat,
+          playerId: data.playerId,
+          displayName: data.displayName,
+          color: data.color,
+          placement: 1,
+          survivalTime: data.survivalTime ?? 0,
+          isBot: data.isBot,
+        },
+        ...prev.filter((p) => p.seat !== data.seat),
+      ]);
+      addToast(`${data.displayName} crossed the finish line!`);
+      sounds.playWinSound();
+    });
+
     channel.on("broadcast", { event: "hex_eliminated" }, (payload: any) => {
+
       const data = payload?.payload as HexPlayerPlacement;
       if (!data) return;
 
@@ -365,6 +442,8 @@ export function HexFallGame({
         if (c <= 1) {
           clearInterval(timer);
           matchStartMs.current = Date.now();
+          finishedRef.current = false;
+          raceEndedRef.current = false;
           setStage("playing");
           sounds.playCountdownBeep(true);
           return 0;
@@ -539,6 +618,11 @@ export function HexFallGame({
             eliminatePlayer(meSeat);
           }
 
+          // Finish line — race win on last floor
+          if (!finishedRef.current && hasReachedFinish(currentFloor, pz)) {
+            declareFinish(meSeat);
+          }
+
           // Animation state
           let animState: HexRunnerTransform["animState"] = "idle";
           if (!isGrounded) {
@@ -626,6 +710,10 @@ export function HexFallGame({
               eliminatePlayer(runner.seat);
             }
 
+            if (!finishedRef.current && hasReachedFinish(currentFloor, bz)) {
+              declareFinish(runner.seat);
+            }
+
             const rotY = Math.hypot(bvx, bvz) > 0.1 ? Math.atan2(bvx, bvz) : runner.rotationY;
             const updatedBot: HexRunnerTransform = {
               ...runner,
@@ -660,7 +748,7 @@ export function HexFallGame({
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [stage, meSeat, isSpectator, isHost, channel, triggerTileDecay, eliminatePlayer, players.length]);
+  }, [stage, meSeat, isSpectator, isHost, channel, triggerTileDecay, eliminatePlayer, declareFinish, players.length]);
 
   const aliveCount = Object.values(runners).filter((r) => !r.isEliminated).length;
   const localRunner = runners[meSeat];
@@ -718,6 +806,11 @@ export function HexFallGame({
           spectatingSeat={spectatingSeat}
           onCycleSpectate={handleCycleSpectate}
           toasts={toasts}
+          raceProgress={
+            localRunner && !localRunner.isEliminated
+              ? getRaceProgress(localRunner.currentFloor, localRunner.position[2])
+              : 0
+          }
         />
 
         {/* Touch Controls (Mobile Only) */}

@@ -3,10 +3,16 @@
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { FLOOR_HEIGHTS, PATH_LENGTH_Z, PATH_WIDTH_X } from "../hex-math";
+import {
+  FLOOR_HEIGHTS,
+  PATH_LENGTH_Z,
+  PATH_WIDTH_X,
+  FINISH_Z,
+  TOTAL_FLOORS,
+} from "../hex-math";
 
 function createStadiumParticleGeo() {
-  const count = 140;
+  const count = 180;
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
 
@@ -49,10 +55,12 @@ const STADIUM_PARTICLE_GEO = createStadiumParticleGeo();
 export function HexStadium3D() {
   const particlesRef = useRef<THREE.Points>(null);
   const laserGridRef = useRef<THREE.Mesh>(null);
+  const finishPulse = useRef<THREE.Mesh>(null);
   const particleGeo = useMemo(() => STADIUM_PARTICLE_GEO, []);
 
   const pathLen = PATH_LENGTH_Z;
   const midZ = pathLen * 0.5;
+  const lastFloorY = FLOOR_HEIGHTS[TOTAL_FLOORS - 1];
 
   useFrame((state) => {
     if (particlesRef.current) {
@@ -64,7 +72,15 @@ export function HexStadium3D() {
         mat.emissiveIntensity = 0.55 + Math.sin(state.clock.elapsedTime * 2.4) * 0.25;
       }
     }
+    if (finishPulse.current) {
+      const mat = finishPulse.current.material as THREE.MeshStandardMaterial;
+      if (mat) {
+        mat.emissiveIntensity = 1.2 + Math.sin(state.clock.elapsedTime * 4) * 0.8;
+      }
+    }
   });
+
+  const pylonCount = Math.max(12, Math.floor(pathLen / 20));
 
   return (
     <group>
@@ -87,9 +103,8 @@ export function HexStadium3D() {
                 opacity={0.35}
               />
             </mesh>
-            {/* Pylon markers along the rail */}
-            {Array.from({ length: 8 }).map((_, i) => {
-              const z = (i / 7) * pathLen;
+            {Array.from({ length: pylonCount }).map((_, i) => {
+              const z = (i / Math.max(1, pylonCount - 1)) * pathLen;
               return (
                 <mesh key={i} position={[x, 4 + (i % 3), z]}>
                   <boxGeometry args={[0.55, 2.2, 0.55]} />
@@ -105,7 +120,7 @@ export function HexStadium3D() {
         );
       })}
 
-      {/* Floor height rings elongated as path outlines */}
+      {/* Floor height rings */}
       {FLOOR_HEIGHTS.map((y, fIndex) => (
         <mesh
           key={fIndex}
@@ -130,7 +145,7 @@ export function HexStadium3D() {
         </mesh>
       ))}
 
-      {/* Abyss laser under the path */}
+      {/* Abyss under the path */}
       <group position={[0, -5.6, midZ]}>
         <mesh ref={laserGridRef} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[PATH_WIDTH_X + 24, pathLen + 20]} />
@@ -148,15 +163,40 @@ export function HexStadium3D() {
         </mesh>
       </group>
 
-      {/* Start / finish markers */}
-      <mesh position={[0, FLOOR_HEIGHTS[0] + 0.05, 0.5]}>
-        <boxGeometry args={[PATH_WIDTH_X * 0.9, 0.08, 0.4]} />
-        <meshStandardMaterial color="#22d3ee" emissive="#67e8f9" emissiveIntensity={1.2} />
+      {/* START line on top floor */}
+      <mesh position={[0, FLOOR_HEIGHTS[0] + 0.05, 1.2]}>
+        <boxGeometry args={[PATH_WIDTH_X * 0.95, 0.1, 0.5]} />
+        <meshStandardMaterial color="#22d3ee" emissive="#67e8f9" emissiveIntensity={1.4} />
       </mesh>
-      <mesh position={[0, FLOOR_HEIGHTS[0] + 0.05, pathLen - 1]}>
-        <boxGeometry args={[PATH_WIDTH_X * 0.9, 0.08, 0.4]} />
-        <meshStandardMaterial color="#fbbf24" emissive="#fde68a" emissiveIntensity={1.2} />
-      </mesh>
+
+      {/* FINISH GATE on last floor — glowing arch + checkered strip */}
+      <group position={[0, lastFloorY, FINISH_Z]}>
+        {/* Checkered finish strip */}
+        <mesh position={[0, 0.06, 0]} ref={finishPulse}>
+          <boxGeometry args={[PATH_WIDTH_X * 1.05, 0.12, 1.2]} />
+          <meshStandardMaterial color="#fbbf24" emissive="#fde68a" emissiveIntensity={1.6} />
+        </mesh>
+        {/* Left pillar */}
+        <mesh position={[-PATH_WIDTH_X * 0.55, 2.2, 0]}>
+          <boxGeometry args={[0.6, 4.4, 0.6]} />
+          <meshStandardMaterial color="#f59e0b" emissive="#fbbf24" emissiveIntensity={1.1} />
+        </mesh>
+        {/* Right pillar */}
+        <mesh position={[PATH_WIDTH_X * 0.55, 2.2, 0]}>
+          <boxGeometry args={[0.6, 4.4, 0.6]} />
+          <meshStandardMaterial color="#f59e0b" emissive="#fbbf24" emissiveIntensity={1.1} />
+        </mesh>
+        {/* Crossbar */}
+        <mesh position={[0, 4.4, 0]}>
+          <boxGeometry args={[PATH_WIDTH_X * 1.15, 0.5, 0.5]} />
+          <meshStandardMaterial color="#fbbf24" emissive="#fde68a" emissiveIntensity={1.4} />
+        </mesh>
+        {/* FINISH banner plane */}
+        <mesh position={[0, 3.6, -0.1]}>
+          <planeGeometry args={[PATH_WIDTH_X * 0.7, 0.9]} />
+          <meshBasicMaterial color="#0f172a" transparent opacity={0.85} side={THREE.DoubleSide} />
+        </mesh>
+      </group>
     </group>
   );
 }
