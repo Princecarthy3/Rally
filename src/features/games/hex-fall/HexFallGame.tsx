@@ -31,8 +31,8 @@ import { HexResultsModal } from "./components/HexResultsModal";
 import { MobileOrientationOverlay } from "./components/MobileOrientationOverlay";
 
 const GRAVITY = -28.0;
-const JUMP_VELOCITY = 11.8;
-const RUN_SPEED = 10.0;
+const JUMP_VELOCITY = 12.2;
+const RUN_SPEED = 11.5;
 const DIVE_BOOST = 13.5;
 
 const PLAYER_COLORS = [
@@ -416,41 +416,51 @@ export function HexFallGame({
         // 1. Process Local Player
         const local = runnersRef.current[meSeat];
         if (local && !local.isEliminated && !isSpectator) {
-          let moveX = 0;
-          let moveZ = 0;
+          // Stick axes: X = right on screen, Y = up on screen (already inverted in touch controls)
+          let stickX = 0;
+          let stickY = 0;
 
-          // Keyboard: W/↑ = forward down the path (+Z)
-          if (keysDown.current.has("KeyW") || keysDown.current.has("ArrowUp")) moveZ += 1;
-          if (keysDown.current.has("KeyS") || keysDown.current.has("ArrowDown")) moveZ -= 1;
-          if (keysDown.current.has("KeyA") || keysDown.current.has("ArrowLeft")) moveX -= 1;
-          if (keysDown.current.has("KeyD") || keysDown.current.has("ArrowRight")) moveX += 1;
+          if (keysDown.current.has("KeyW") || keysDown.current.has("ArrowUp")) stickY += 1;
+          if (keysDown.current.has("KeyS") || keysDown.current.has("ArrowDown")) stickY -= 1;
+          if (keysDown.current.has("KeyA") || keysDown.current.has("ArrowLeft")) stickX -= 1;
+          if (keysDown.current.has("KeyD") || keysDown.current.has("ArrowRight")) stickX += 1;
 
-          // Mobile joystick: moveY already inverted so up = forward (+Z)
           if (touchInputs.current.moveX !== 0 || touchInputs.current.moveY !== 0) {
-            moveX = touchInputs.current.moveX;
-            moveZ = touchInputs.current.moveY;
+            stickX = touchInputs.current.moveX;
+            stickY = touchInputs.current.moveY;
           }
 
-          // Normalize horizontal movement
-          const inputLen = Math.hypot(moveX, moveZ);
+          // Camera / facing–relative movement so stick-up always means "toward top of screen"
+          const inputLen = Math.hypot(stickX, stickY);
           let vx = 0;
           let vz = 0;
           let rotationY = local.rotationY;
 
-          if (inputLen > 0.05) {
-            const normX = moveX / Math.max(1, inputLen);
-            const normZ = moveZ / Math.max(1, inputLen);
-            vx = normX * RUN_SPEED;
-            vz = normZ * RUN_SPEED;
+          if (inputLen > 0.06) {
+            const yaw = local.rotationY;
+            const fwdX = Math.sin(yaw);
+            const fwdZ = Math.cos(yaw);
+            const rightX = Math.cos(yaw);
+            const rightZ = -Math.sin(yaw);
+
+            const mag = Math.min(1, inputLen);
+            // Mild response curve — light taps still move, full stick is full speed
+            const curved = Math.pow(mag, 0.75);
+            const nx = stickX / inputLen;
+            const ny = stickY / inputLen;
+
+            vx = (rightX * nx + fwdX * ny) * RUN_SPEED * curved;
+            vz = (rightZ * nx + fwdZ * ny) * RUN_SPEED * curved;
             rotationY = Math.atan2(vx, vz);
           }
 
           let [px, py, pz] = local.position;
           let [currentVx, vy, currentVz] = local.velocity;
 
-          // Smooth horizontal velocity
-          currentVx += (vx - currentVx) * 12 * delta;
-          currentVz += (vz - currentVz) * 12 * delta;
+          // Snappier accel so the stick doesn't feel "stuck in mud"
+          const blend = Math.min(1, 18 * delta);
+          currentVx += (vx - currentVx) * blend;
+          currentVz += (vz - currentVz) * blend;
 
           // Gravity
           vy += GRAVITY * delta;
