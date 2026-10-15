@@ -1,4 +1,6 @@
 "use client";
+import { IconSwords, IconBolt, IconFist, IconShield } from "@/components/ui-icons";
+
 
 import { Room, RoomPlayer } from "@/features/rooms/types";
 import { sounds } from "@/lib/audio";
@@ -14,6 +16,14 @@ import { HitParticle, HitVFX } from "./components/HitVFX";
 import { MobileOrientationOverlay } from "./components/MobileOrientationOverlay";
 import { RooftopArena3D } from "./components/RooftopArena3D";
 import { CharacterArchetype, CombatMatchResult, FighterTransform, TouchCombatInputs } from "./types";
+
+
+function ModelIcon({ name, size = 20 }: { name: string; size?: number }) {
+  if (name === "bolt") return <IconBolt size={size} />;
+  if (name === "fist") return <IconFist size={size} />;
+  if (name === "shield") return <IconShield size={size} />;
+  return <IconSwords size={size} />;
+}
 
 const START_POSITIONS: [number, number, number][] = [
   [-6, 0.4, -6],
@@ -517,7 +527,7 @@ export function RallyCombatGame({
           <div className="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-sky-950/35 p-3 backdrop-blur-sm sm:p-6">
             <div className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-y-auto rounded-3xl border-4 border-slate-900 bg-gradient-to-br from-white via-sky-50 to-amber-50 p-4 shadow-[0_24px_70px_rgba(15,23,42,.35)] sm:max-h-[calc(100dvh-3rem)] sm:p-8">
               <div className="shrink-0 text-center">
-                <span className="text-4xl sm:text-6xl">⚔️</span>
+                <span className="text-white"><IconSwords size={56} /></span>
                 <h2 className="mt-1 text-2xl font-black uppercase text-slate-950 sm:mt-2 sm:text-4xl">Choose Your Fighter</h2>
                 <p className="mt-1 text-[11px] font-bold text-slate-500 sm:text-xs">Select a fighter, then confirm to enter the 3D Rally Combat arena</p>
               </div>
@@ -541,7 +551,7 @@ export function RallyCombatGame({
                       <span className="mb-2 flex h-16 items-center justify-center overflow-hidden rounded-xl sm:h-24" style={{ background: `radial-gradient(ellipse at 50% 100%, ${cfg.color}75, transparent 68%),linear-gradient(145deg,#dbeafe,#f8fafc)` }}>
                         <svg viewBox="0 0 120 90" className="h-full w-full" aria-hidden="true"><ellipse cx="60" cy="80" rx="28" ry="5" fill="#0f172a" opacity=".18"/><path d="M42 78 46 54 39 42q-4-8 3-13l10 8h16l10-8q7 5 3 13l-7 12 4 24z" fill={cfg.color} stroke="#172033" strokeWidth="3" strokeLinejoin="round"/><path d="M48 42q12 6 24 0l6 15H42z" fill="#f8fafc" stroke="#172033" strokeWidth="2"/><circle cx="60" cy="24" r="13" fill="#c68c68" stroke="#172033" strokeWidth="3"/><path d="M47 23q2-15 15-13 10 1 12 12l-5 2-4-6q-7 6-18 5z" fill="#253047"/><path d="M51 25h7m5 0h7" stroke="#172033" strokeWidth="2" strokeLinecap="round"/><path d="M35 44 24 54m61-10 11 10" stroke="#172033" strokeWidth="9" strokeLinecap="round"/><circle cx="23" cy="55" r="6" fill={cfg.color} stroke="#172033" strokeWidth="2"/><circle cx="97" cy="55" r="6" fill={cfg.color} stroke="#172033" strokeWidth="2"/></svg>
                       </span>
-                      <span className="mr-1 inline-block text-lg align-middle">{cfg.modelIcon}</span>
+                      <span className="mr-1 inline-block text-lg align-middle"><ModelIcon name={cfg.modelIcon} size={18} /></span>
                       <strong className="mt-1 block text-xs font-black text-slate-950 sm:mt-2 sm:text-sm">{cfg.name}</strong>
                       <span className="block text-[9px] font-bold uppercase text-slate-600 sm:text-[10px]">{cfg.title}</span>
                       <p className="mt-1 line-clamp-3 text-[10px] font-medium leading-tight text-slate-700 sm:mt-2 sm:text-[11px]">{cfg.description}</p>
@@ -559,7 +569,7 @@ export function RallyCombatGame({
                 onClick={() => confirmCharacter(selectedArchetype)}
                 className="mx-auto mt-4 w-full shrink-0 rounded-2xl border-2 border-slate-950 bg-gradient-to-r from-rose-500 to-orange-400 px-6 py-3 text-sm font-black uppercase tracking-wider text-white shadow-[0_6px_0_#9f1239,0_12px_24px_rgba(225,29,72,.28)] transition hover:-translate-y-0.5 hover:brightness-105 active:translate-y-1 active:shadow-[0_2px_0_#9f1239] sm:mt-6 sm:w-auto sm:px-10 sm:py-4"
               >
-                ENTER ARENA ⚔️
+                <>ENTER ARENA <IconSwords size={16} className="inline" /></>
               </button>
             </div>
           </div>

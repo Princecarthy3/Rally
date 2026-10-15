@@ -1,4 +1,7 @@
 "use client";
+import { GameIcon } from "@/features/games/game-icon";
+import { IconTrophy, IconLightbulb } from "@/components/ui-icons";
+
 
 import { useState } from "react";
 import {
@@ -213,7 +216,7 @@ export function TowerHUD({
 
                   <span className="font-mono text-[11px] font-black shrink-0">
                     {runner.hasFinished
-                      ? `🏆 ${(runner.finishTime || 0).toFixed(1)}s`
+                      ? `${(runner.finishTime || 0).toFixed(1)}s`
                       : `${runner.position[1].toFixed(0)}m`}
                   </span>
                 </div>
@@ -245,7 +248,7 @@ export function TowerHUD({
           <div className="w-full max-w-sm rounded-3xl border-3 border-slate-950 bg-white p-5 shadow-[6px_6px_0_#0f172a]">
             <div className="flex items-center justify-between border-b-2 border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <span className="text-xl">🗼</span>
+                <GameIcon gameKey="tower_rush" size={22} />
                 <h3 className="text-lg font-black text-slate-900">How to Play</h3>
               </div>
               <button
@@ -286,7 +289,7 @@ export function TowerHUD({
               </div>
 
               <div className="rounded-xl bg-amber-50 p-2.5 text-[11px] text-amber-800 border border-amber-200">
-                💡 <strong>Tip:</strong> Moving platforms match your momentum! Time your jumps past
+                <IconLightbulb size={14} className="inline" /> <strong>Tip:</strong> Moving platforms match your momentum! Time your jumps past
                 spinning laser beams and don&apos;t linger on decaying pink blocks.
               </div>
             </div>

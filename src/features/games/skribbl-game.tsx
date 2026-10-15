@@ -1,4 +1,6 @@
 "use client";
+import { IconClock, IconCheck, IconTarget, IconPencil } from "@/components/ui-icons";
+
 
 import { Eraser, Paintbrush, PaintBucket, RotateCcw, Send, Sparkles } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
@@ -930,13 +932,13 @@ export function SkribblGame({
           </h3>
         </div>
         <div className="text-right">
-          <p className={`text-xl font-black ${secondsLeft <= 10 ? "text-red-400" : "text-cyan-300"}`}>⏱ {secondsLeft}s</p>
+          <p className={`text-xl font-black ${secondsLeft <= 10 ? "text-red-400" : "text-cyan-300"}`}><span className="inline-flex items-center gap-1"><IconClock size={16} />{secondsLeft}s</span></p>
           <span className="text-[10px] font-bold opacity-60">DRAWER</span>
           <p className="text-xs font-black text-amber-300">
             Player {drawerSeat} {isDrawer ? "(YOU)" : ""}
           </p>
           {!isDrawer && alreadyGotIt && (
-            <p className="mt-1 text-[10px] font-black text-emerald-400">You got it! ✓</p>
+            <p className="mt-1 text-[10px] font-black text-emerald-400">You got it! <IconCheck size={12} className="inline" /></p>
           )}
         </div>
       </div>
@@ -1071,7 +1073,7 @@ export function SkribblGame({
                     <>{name}: {g.text}</>
                   )}
                 </span>
-                {g.correct && <span className="shrink-0 font-black">🎯</span>}
+                {g.correct && <span className="shrink-0 text-emerald-400"><IconTarget size={14} /></span>}
               </div>
             );
           })}
@@ -1098,7 +1100,7 @@ export function SkribblGame({
               <div key={p.seat} className="flex items-center justify-between text-xs font-bold">
                 <span>
                   {p.profile?.display_name || `Player ${p.seat}`}
-                  {p.seat === drawerSeat ? " ✏️" : ""}
+                  {p.seat === drawerSeat ? <IconPencil size={12} className="inline ml-1" /> : null}
                   {p.player_id === userId ? " (you)" : ""}
                 </span>
                 <span className="font-black text-[#7357ff]">{scores[String(p.seat)] ?? 0}</span>

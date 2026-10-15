@@ -1,4 +1,6 @@
 "use client";
+import { IconPhoneRotate } from "@/components/ui-icons";
+
 
 import { type ReactNode, useSyncExternalStore } from "react";
 
@@ -23,7 +25,7 @@ export function MobileOrientationOverlay({ children }: { children: ReactNode }) 
   if (isPortrait) {
     return (
       <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-950 p-6 text-center text-white select-none">
-        <span className="mb-4 text-6xl">📱🔄</span>
+        <span className="mb-4 text-slate-900"><IconPhoneRotate size={56} /></span>
         <h2 className="text-2xl font-black uppercase text-rose-500">Rotate Device</h2>
         <p className="mt-2 max-w-xs text-sm font-medium text-slate-300">
           Rotate your phone to landscape for full-screen Rally Combat.

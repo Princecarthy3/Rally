@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  IconSkip, IconReverse, IconPlusTwo, IconRainbow, IconCards, IconParty,
+  IconMegaphone, IconAlert, IconPoint, IconPass, IconScale,
+} from "@/components/ui-icons";
+
 import React, { useEffect, useState, useCallback } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -136,12 +141,18 @@ export function UnoGame({ room, players, meSeat, isMyTurn, onAct }: UnoGameProps
 
   const renderCardSymbol = (val: string) => {
     switch (val) {
-      case "skip": return "🚫";
-      case "reverse": return "🔄";
-      case "draw2": return "+2";
-      case "wild": return "🌈";
-      case "wild_draw4": return "+4";
-      default: return val;
+      case "skip":
+        return <IconSkip size={22} />;
+      case "reverse":
+        return <IconReverse size={22} />;
+      case "draw2":
+        return <IconPlusTwo size={22} />;
+      case "wild":
+        return <IconRainbow size={22} />;
+      case "wild_draw4":
+        return <span className="font-black">+4</span>;
+      default:
+        return val;
     }
   };
 
@@ -150,7 +161,7 @@ export function UnoGame({ room, players, meSeat, isMyTurn, onAct }: UnoGameProps
       {/* Top Header Bar */}
       <div className="w-full max-w-3xl flex flex-wrap items-center justify-between bg-slate-900 text-white px-4 sm:px-6 py-3 rounded-2xl border-2 border-slate-800 shadow-md gap-3">
         <div className="flex items-center gap-3">
-          <span className="text-3xl">🃏</span>
+          <span className="text-amber-400"><IconCards size={32} /></span>
           <div>
             <h3 className="font-black text-sm uppercase tracking-wider text-amber-400">Rally Cards</h3>
             <p className="text-xs text-slate-300 flex items-center gap-1.5 mt-0.5">
@@ -179,7 +190,7 @@ export function UnoGame({ room, players, meSeat, isMyTurn, onAct }: UnoGameProps
                   : "bg-gradient-to-r from-red-600 to-amber-500 text-white hover:scale-105 animate-bounce cursor-pointer shadow-red-500/50"
               }`}
             >
-              {unoCalled[meSeat] ? "Rally Called! 🎉" : "CALL RALLY! 📣"}
+              {unoCalled[meSeat] ? <>Rally Called! <IconParty size={14} className="inline" /></> : <>CALL RALLY! <IconMegaphone size={14} className="inline" /></>}
             </button>
           )}
         </div>
@@ -273,7 +284,7 @@ export function UnoGame({ room, players, meSeat, isMyTurn, onAct }: UnoGameProps
                     onClick={() => handleCatchUno(p.seat)}
                     className="mt-2 w-full bg-red-600 hover:bg-red-700 text-white text-[10px] font-black py-1 px-2 rounded-xl animate-bounce shadow-md uppercase tracking-wider"
                   >
-                    CATCH RALLY! 🚨
+                    <>CATCH RALLY! <IconAlert size={14} className="inline" /></>
                   </button>
                 )}
               </div>
@@ -293,14 +304,14 @@ export function UnoGame({ room, players, meSeat, isMyTurn, onAct }: UnoGameProps
             {isMyTurn && !isPendingChallengeForMe && (
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-emerald-400 animate-pulse">
-                  👉 Your turn!
+                  <>Your turn! <IconPoint size={14} className="inline" /></>
                 </span>
                 {drawnCardId && (
                   <button
                     onClick={handlePassTurn}
                     className="arcade-button bg-slate-800 text-amber-300 text-xs py-1 px-3 border border-slate-700"
                   >
-                    PASS TURN ⏭️
+                    <>PASS TURN <IconPass size={14} className="inline" /></>
                   </button>
                 )}
               </div>
@@ -382,7 +393,7 @@ export function UnoGame({ room, players, meSeat, isMyTurn, onAct }: UnoGameProps
                 onClick={handleChallengeDraw4}
                 className="py-3 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-lg"
               >
-                CHALLENGE ⚖️
+                <>CHALLENGE <IconScale size={14} className="inline" /></>
               </button>
             </div>
           </div>

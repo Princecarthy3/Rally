@@ -1,4 +1,6 @@
 "use client";
+import { IconFire } from "@/components/ui-icons";
+
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
@@ -47,7 +49,7 @@ export function BasketballGame({
   // Derive flash from server state (no setState-in-effect)
   const resultFlash =
     state.lastResult === "make"
-      ? "SWISH! 🔥"
+      ? "SWISH!"
       : state.lastResult === "miss"
         ? "Miss"
         : null;

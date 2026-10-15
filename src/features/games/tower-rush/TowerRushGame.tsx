@@ -438,7 +438,7 @@ export function TowerRushGame({
       };
 
       setPlacements((prev) => [...prev, newPlacement]);
-      addToast(`🏆 ${runner.displayName} reached the summit! (${finishTime.toFixed(1)}s)`);
+      addToast(`${runner.displayName} reached the summit! (${finishTime.toFixed(1)}s)`);
 
       if (placement === 1) {
         setWinnerSeat(seat);
@@ -560,7 +560,7 @@ export function TowerRushGame({
       if (data.placement === 1) {
         setWinnerSeat(data.seat);
       }
-      addToast(`🏆 ${data.displayName} conquered the tower!`);
+      addToast(`${data.displayName} conquered the tower!`);
     });
   }, [channel, meSeat, addToast]);
 

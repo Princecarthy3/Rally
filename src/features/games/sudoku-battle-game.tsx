@@ -1,4 +1,6 @@
 "use client";
+import { IconTrophy, IconClock, IconX, IconCheck } from "@/components/ui-icons";
+
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Undo2 } from "lucide-react";
@@ -240,7 +242,7 @@ export function SudokuBattleGame({ room, players, userId, onAct, busy, isSpectat
                   </p>
                 </div>
               </div>
-              {i === 0 && row.finished && <span className="text-xl">🏆</span>}
+              {i === 0 && row.finished && <span className="text-amber-500"><IconTrophy size={22} /></span>}
             </li>
           ))}
         </ol>
@@ -276,9 +278,9 @@ export function SudokuBattleGame({ room, players, userId, onAct, busy, isSpectat
           </div>
           <div className="flex gap-2 text-xs font-black">
             <span className="rounded-full border-2 border-slate-950 bg-violet-100 px-3 py-1 tabular-nums">
-              ⏱ {formatMs(finished ? elapsed : remaining)}
+              <span className="inline-flex items-center gap-1"><IconClock size={14} />{formatMs(finished ? elapsed : remaining)}</span>
             </span>
-            <span className="rounded-full border-2 border-slate-950 bg-rose-100 px-3 py-1">✗ {mistakes}</span>
+            <span className="inline-flex items-center gap-1 rounded-full border-2 border-slate-950 bg-rose-100 px-3 py-1"><IconX size={12} />{mistakes}</span>
           </div>
         </div>
 
@@ -387,7 +389,7 @@ export function SudokuBattleGame({ room, players, userId, onAct, busy, isSpectat
                   {p.player_id === userId ? " (you)" : ""}
                 </p>
                 {done ? (
-                  <span className="text-xs font-black text-emerald-600">✓ Done</span>
+                  <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-600"><IconCheck size={12} /> Done</span>
                 ) : (
                   <span className="text-xs font-bold text-slate-500">{pct}%</span>
                 )}

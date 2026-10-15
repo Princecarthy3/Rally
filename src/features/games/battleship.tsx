@@ -1,5 +1,7 @@
 "use client";
 
+import { IconShip, IconFire, IconExplosion, IconCheck } from "@/components/ui-icons";
+
 import { Anchor, Crosshair, RotateCw, Shuffle, Waves } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
@@ -236,7 +238,7 @@ export function Battleship({
                     selected === ship.id ? "bg-[#7357ff] text-white" : placed ? "bg-emerald-100" : "bg-white"
                   }`}
                 >
-                  {ship.name} ({ship.size}){placed ? " ✓" : ""}
+                  {ship.name} ({ship.size}){placed ? <IconCheck size={14} className="inline ml-1" /> : null}
                 </button>
               );
             })}
@@ -302,10 +304,10 @@ export function Battleship({
       )}
 
       <div className="flex flex-wrap justify-center gap-4 text-[11px] font-bold text-slate-600">
-        <span>🚢 Ship</span>
-        <span>💥 Hit</span>
+        <span className="inline-flex items-center gap-1"><IconShip size={14} /> Ship</span>
+        <span className="inline-flex items-center gap-1"><IconExplosion size={14} /> Hit</span>
         <span>· Miss</span>
-        <span>🔥 Sunk</span>
+        <span className="inline-flex items-center gap-1"><IconFire size={14} /> Sunk</span>
       </div>
     </div>
   );
@@ -352,26 +354,26 @@ function OceanGrid({
             if (mode === "enemy") {
               if (s?.sunk) {
                 bg = "bg-orange-500";
-                content = "🔥";
+                content = "sunk";
               } else if (s?.hit) {
                 bg = "bg-red-500";
-                content = "💥";
+                content = "hit";
               } else if (s) {
                 bg = "bg-sky-100";
-                content = "·";
+                content = "miss";
               } else {
                 bg = "bg-[#2563eb]/80 hover:bg-[#3b82f6]";
               }
             } else {
               if (s?.hit) {
                 bg = "bg-red-500";
-                content = "💥";
+                content = "hit";
               } else if (s) {
                 bg = "bg-sky-100/90";
-                content = "·";
+                content = "miss";
               } else if (hasShip) {
                 bg = "bg-slate-800";
-                content = "🚢";
+                content = "ship";
               }
             }
             return (
@@ -384,7 +386,7 @@ function OceanGrid({
                   isPulse ? "scale-90 ring-2 ring-amber-200" : ""
                 } disabled:cursor-default`}
               >
-                {content}
+                {content === "sunk" ? <IconFire size={14} className="mx-auto text-white" /> : content === "hit" ? <IconExplosion size={14} className="mx-auto text-white" /> : content === "ship" ? <IconShip size={14} className="mx-auto text-sky-200" /> : content === "miss" ? <span className="text-sky-700">·</span> : null}
               </button>
             );
           })}

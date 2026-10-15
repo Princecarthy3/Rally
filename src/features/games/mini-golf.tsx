@@ -1,4 +1,6 @@
 "use client";
+import { IconFlag } from "@/components/ui-icons";
+
 
 import { Flag } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
@@ -252,7 +254,7 @@ export function MiniGolf({
                 top: `${ball.y + Math.sin(aim.angle) * aim.visual}%`,
               }}
             >
-              <span className="flex items-center gap-1.5">⛳ Power {Math.round(aim.power)}</span>
+              <span className="flex items-center gap-1.5"><IconFlag size={14} className="inline" /> Power {Math.round(aim.power)}</span>
               <span className="mt-1 block h-1.5 w-16 overflow-hidden rounded-full bg-slate-200"><span className="block h-full rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500 transition-[width]" style={{ width: `${aim.power}%` }} /></span>
             </div>
           </>

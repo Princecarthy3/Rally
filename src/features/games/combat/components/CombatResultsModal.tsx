@@ -1,4 +1,6 @@
 "use client";
+import { IconTrophy, IconSwords } from "@/components/ui-icons";
+
 
 import { RoomPlayer } from "@/features/rooms/types";
 import { RotateCcw } from "lucide-react";
@@ -28,7 +30,7 @@ export function CombatResultsModal({
     <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-300">
       <div className="w-full max-w-xl rounded-3xl border-4 border-slate-950 bg-white p-6 sm:p-8 shadow-2xl text-center space-y-6">
         <div>
-          <span className="text-6xl sm:text-7xl">{isWinner ? "🏆" : "⚔️"}</span>
+          <span className="text-6xl sm:text-7xl">{isWinner ? <IconTrophy size={64} /> : <IconSwords size={64} />}</span>
           <p className="eyebrow mt-4">Rally Combat Complete</p>
           <h1 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-slate-950 mt-1">
             {isWinner ? "VICTORY!" : winner ? `${winner.displayName} WINS!` : "MATCH ENDED"}

@@ -1,4 +1,6 @@
 "use client";
+import { IconPoint } from "@/components/ui-icons";
+
 
 import type { RoomPlayer } from "@/features/rooms/types";
 import { useMemo } from "react";
@@ -101,7 +103,7 @@ export function DotsBoxes({
             isMyTurn ? "bg-[#fef9c3]" : "bg-white"
           }`}
         >
-          {isMyTurn ? "👉 Your turn to draw a line" : `Player ${state.turn || 1}, draw a line`}
+          {isMyTurn ? <span className="inline-flex items-center gap-1"><IconPoint size={14} /> Your turn to draw a line</span> : `Player ${state.turn || 1}, draw a line`}
         </span>
         <span className="rounded-full border-2 border-slate-950 bg-[#f4dc69] px-2.5 py-1 text-[10px] font-black sm:text-xs">
           {gridSize * gridSize} Boxes ({gridSize}×{gridSize})

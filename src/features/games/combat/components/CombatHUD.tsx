@@ -1,9 +1,18 @@
 "use client";
+import { IconSwords, IconBolt, IconFist, IconShield } from "@/components/ui-icons";
 
 import { useSyncExternalStore } from "react";
 import type { RoomPlayer } from "@/features/rooms/types";
 import { CHARACTERS } from "../character-config";
 import type { FighterTransform } from "../types";
+
+
+function ModelIcon({ name, size = 20 }: { name: string; size?: number }) {
+  if (name === "bolt") return <IconBolt size={size} />;
+  if (name === "fist") return <IconFist size={size} />;
+  if (name === "shield") return <IconShield size={size} />;
+  return <IconSwords size={size} />;
+}
 
 const colors = ["#ff9eaa", "#77dce7", "#f4dc69", "#8de2bd"];
 
@@ -124,7 +133,7 @@ export function CombatHUD({
       {!isSpectating && showDesktopLegend && (
         <div className="pointer-events-none mx-2 mb-2 flex items-center justify-between gap-3 rounded-2xl border-2 border-slate-950 bg-slate-950/85 p-3 text-white shadow-2xl backdrop-blur-md">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">{meConfig.modelIcon}</span>
+            <span className="text-2xl"><ModelIcon name={meConfig.modelIcon} size={24} /></span>
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Fighter</p>
               <h4 className="text-sm font-black text-rose-400">

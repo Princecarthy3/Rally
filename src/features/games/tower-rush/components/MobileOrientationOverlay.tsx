@@ -1,4 +1,7 @@
 "use client";
+import { GameIcon } from "@/features/games/game-icon";
+import {  } from "@/components/ui-icons";
+
 
 import { useCallback, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Smartphone } from "lucide-react";
@@ -119,7 +122,7 @@ export function MobileOrientationOverlay({ children }: { children: ReactNode }) 
           </div>
         </div>
         <span className="rounded-full bg-violet-500/20 px-3.5 py-1 text-xs font-black uppercase tracking-widest text-violet-300">
-          🗼 Landscape mode
+          
         </span>
         <h2 className="mt-4 text-2xl font-black tracking-tight">Rotate your phone</h2>
         <p className="mt-2 max-w-xs text-sm font-semibold text-slate-400">

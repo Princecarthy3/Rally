@@ -1,4 +1,5 @@
 "use client";
+import { GameIcon } from "@/features/games/game-icon";
 
 import { Flag, Gauge, HelpCircle, Map, Trophy } from "lucide-react";
 import { useState } from "react";
@@ -132,7 +133,7 @@ export function RacingHUD({
       {showHelp && (
         <div className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md">
           <div className="w-full max-w-sm rounded-3xl border-2 border-white/20 bg-slate-900 p-6 text-white shadow-2xl">
-            <h3 className="text-lg font-black tracking-tight text-amber-400">🏎️ Rally Controls</h3>
+            <h3 className="text-lg font-black tracking-tight text-amber-400"></h3>
             <div className="mt-4 space-y-2.5 text-xs font-bold text-slate-300">
               <div className="flex justify-between rounded-xl bg-slate-800/60 p-2.5">
                 <span>Accelerate / Reverse</span>

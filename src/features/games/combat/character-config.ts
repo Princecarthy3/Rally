@@ -18,7 +18,7 @@ export const CHARACTERS: Record<CharacterArchetype, CharacterStats> = {
     specialCooldown: 8.0,
     specialDamage: 28,
     color: "#ff3366",
-    modelIcon: "⚔️",
+    modelIcon: "swords",
     description: "Balanced health, speed, and damage. A versatile fighter suited for any battle situation.",
   },
   speed: {
@@ -38,7 +38,7 @@ export const CHARACTERS: Record<CharacterArchetype, CharacterStats> = {
     specialCooldown: 6.0,
     specialDamage: 22,
     color: "#00d2ff",
-    modelIcon: "⚡",
+    modelIcon: "bolt",
     description: "Rapid movement and high-frequency attacks. Lower health but fast dodge recovery.",
   },
   power: {
@@ -58,7 +58,7 @@ export const CHARACTERS: Record<CharacterArchetype, CharacterStats> = {
     specialCooldown: 10.0,
     specialDamage: 35,
     color: "#ffaa00",
-    modelIcon: "🥊",
+    modelIcon: "fist",
     description: "Devastating raw power and high knockback. Slower movement, but hits like a truck.",
   },
   defender: {
@@ -78,7 +78,7 @@ export const CHARACTERS: Record<CharacterArchetype, CharacterStats> = {
     specialCooldown: 9.0,
     specialDamage: 25,
     color: "#00e676",
-    modelIcon: "🛡️",
+    modelIcon: "shield",
     description: "Maximum health and impenetrable blocking ability. Absorbs massive incoming damage.",
   },
 };

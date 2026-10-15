@@ -1,4 +1,8 @@
 "use client";
+import {
+  IconTrophy, IconSkull, IconHandshake, IconBolt, IconArrowRight, IconArrowUp, IconArrowDown,
+  IconTarget, IconDice, IconQuestion, IconBasketball, IconRock, IconPaper, IconScissors,
+} from "@/components/ui-icons";
 
 import { LoaderCircle, Lock, RotateCcw, Send } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -501,7 +505,7 @@ function Basketball({ state, mySeat, busy, shoot }: { state: Room["public_state"
         <div className="absolute left-1/2 top-12 h-24 w-3 -translate-x-1/2 bg-slate-700" />
         <div className="absolute left-1/2 top-20 h-3 w-28 -translate-x-1/2 border-2 border-red-700 bg-white" />
         <div className="absolute left-1/2 top-24 h-12 w-20 -translate-x-1/2 rounded-b-full border-x-4 border-b-4 border-red-600" />
-        <span className={`absolute bottom-7 left-1/2 -translate-x-1/2 text-6xl transition ${busy ? "-translate-y-36 scale-75 rotate-180" : ""}`}>🏀</span>
+        <span className={`absolute bottom-7 left-1/2 -translate-x-1/2 text-6xl transition ${busy ? "-translate-y-36 scale-75 rotate-180" : ""}`}><IconBasketball size={56} /></span>
         <div className="absolute inset-x-0 bottom-0 h-3 bg-[#80502e]" />
       </div>
       <p className="mt-5 text-sm font-bold">Shot {Math.min(5, (state.shots?.[String(mySeat)] || 0) + 1)} of 5</p>
@@ -536,9 +540,9 @@ function RPS({
   }>;
 
   const icons: Record<string, string> = {
-    rock: "✊",
-    paper: "📄",
-    scissors: "✂️",
+    rock: "rock",
+    paper: "paper",
+    scissors: "scissors",
   };
 
   return (
@@ -563,9 +567,9 @@ function RPS({
       {!revealed && (
         <div className="grid grid-cols-3 gap-3">
           {[
-            ["rock", "✊", "ROCK"],
-            ["paper", "📄", "PAPER"],
-            ["scissors", "✂️", "SCISSORS"],
+            ["rock", "rock", "ROCK"],
+            ["paper", "paper", "PAPER"],
+            ["scissors", "scissors", "SCISSORS"],
           ].map(([value, icon, label]) => (
             <button
               key={value}
@@ -577,7 +581,7 @@ function RPS({
                   : "bg-[#f0edff] disabled:opacity-40"
               }`}
             >
-              <span className="block text-5xl sm:text-7xl group-hover:scale-110">{icon}</span>
+              <span className="block text-5xl sm:text-7xl group-hover:scale-110">{icon === "rock" ? <IconRock size={56} /> : icon === "paper" ? <IconPaper size={56} /> : <IconScissors size={56} />}</span>
               <strong className="mt-3 block text-xs">{label}</strong>
             </button>
           ))}
@@ -597,13 +601,13 @@ function RPS({
           <h4 className="text-sm font-black uppercase text-slate-700">Round {curRound} Revealed!</h4>
           <div className="flex justify-center items-center gap-6">
             <div className="rounded-2xl border-2 border-slate-950 bg-white p-4 shadow-[3px_3px_0_#171821] text-center min-w-28">
-              <span className="text-4xl">{icons[choices["1"] || ""] || "❓"}</span>
+              <span className="text-4xl">{(() => { const c = icons[choices["1"] || ""] || ""; return c === "rock" ? <IconRock size={40} /> : c === "paper" ? <IconPaper size={40} /> : c === "scissors" ? <IconScissors size={40} /> : <IconQuestion size={40} />; })()}</span>
               <span className="block text-xs font-black mt-2">Player 1</span>
               <span className="text-[10px] font-bold uppercase text-slate-500">{choices["1"]}</span>
             </div>
             <span className="text-2xl font-black">VS</span>
             <div className="rounded-2xl border-2 border-slate-950 bg-white p-4 shadow-[3px_3px_0_#171821] text-center min-w-28">
-              <span className="text-4xl">{icons[choices["2"] || ""] || "❓"}</span>
+              <span className="text-4xl">{(() => { const c = icons[choices["2"] || ""] || ""; return c === "rock" ? <IconRock size={40} /> : c === "paper" ? <IconPaper size={40} /> : c === "scissors" ? <IconScissors size={40} /> : <IconQuestion size={40} />; })()}</span>
               <span className="block text-xs font-black mt-2">Player 2</span>
               <span className="text-[10px] font-bold uppercase text-slate-500">{choices["2"]}</span>
             </div>
@@ -615,7 +619,7 @@ function RPS({
               onClick={() => act("next_round")}
               className="arcade-button bg-purple-600 text-white px-8 py-3 text-sm font-black shadow-[4px_4px_0_#171821] hover:bg-purple-700"
             >
-              NEXT ROUND {curRound >= 3 ? "(SUDDEN DEATH ⚡)" : `(${curRound + 1}/3)`} ➡️
+              NEXT ROUND {curRound >= 3 ? <>(SUDDEN DEATH <IconBolt size={14} className="inline" />)</> : `(${curRound + 1}/3)`} <IconArrowRight size={14} className="inline" />
             </button>
           )}
         </div>
@@ -665,7 +669,7 @@ function NumberGuess({ state, guess, setGuess, submit, busy }: { state: Room["pu
         {trail.map((g: any, i: number) => (
           <div key={`${g.seat}-${g.value}-${i}`} className="flex justify-between rounded-xl border-2 border-slate-950 bg-white px-4 py-2 text-sm">
             <strong>Player {g.seat}: {g.value}</strong>
-            <span>{g.hint === "Too low" ? "⬆️" : g.hint === "Too high" ? "⬇️" : "🎯"} {g.hint}</span>
+            <span>{g.hint === "Too low" ? <IconArrowUp size={14} className="inline" /> : g.hint === "Too high" ? <IconArrowDown size={14} className="inline" /> : <IconTarget size={14} className="inline" />} {g.hint}</span>
           </div>
         ))}
       </div>
@@ -768,7 +772,7 @@ function DiceDash({ state, players, mySeat, roll, busy }: { state: Room["public_
       </div>
       <div className="mt-7 text-center">
         <button onClick={roll} disabled={state.turn !== mySeat || busy} className="arcade-button bg-[#f4dc69] px-8 py-4 shadow-[4px_4px_0_#171821]">
-          <span className="text-2xl">🎲</span>
+          <span className="text-slate-900"><IconDice size={28} /></span>
           {state.turn === mySeat ? "ROLL THE DICE" : "WAITING…"}
         </button>
       </div>
@@ -932,7 +936,7 @@ function Result({
   return (
     <section className="paper-card mx-auto max-w-2xl overflow-hidden text-center">
       <div className="checker border-b-2 border-slate-950 px-5 py-12">
-        <span className="text-7xl">{isWin ? "🏆" : draw ? "🤝" : "💀"}</span>
+        <span className="text-7xl">{isWin ? <IconTrophy size={64} /> : draw ? <IconHandshake size={64} /> : <IconSkull size={64} />}</span>
         <p className="eyebrow mt-5">Game over</p>
         <h1 className="mt-2 text-5xl font-black tracking-[-.06em]">{outcome}</h1>
         <p className="mt-3 text-slate-600">{summary}</p>

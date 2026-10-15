@@ -1,4 +1,6 @@
 "use client";
+import { IconStar } from "@/components/ui-icons";
+
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
@@ -375,7 +377,7 @@ export function LudoGame({ state, players, mySeat, busy, act }: Props) {
                   className="absolute inset-0 grid place-items-center text-[clamp(8px,2.2vw,14px)] leading-none"
                   style={{ color: isStart ? "#fff" : PLAYERS[Math.floor(index / 13) % 4].token }}
                 >
-                  ★
+                  <IconStar size={12} />
                 </span>
               )}
               {showArrow && !isSafe && (
@@ -501,7 +503,7 @@ export function LudoGame({ state, players, mySeat, busy, act }: Props) {
       </div>
 
       <p className="mt-4 text-center text-xs font-bold text-slate-500">
-        Toss the die on your turn. Roll a <strong>6</strong> to leave home. ★ Safe squares. Arrows show the path into home.
+        Toss the die on your turn. Roll a <strong>6</strong> to leave home. <IconStar size={12} className="inline" /> Safe squares. Arrows show the path into home.
       </p>
     </div>
   );

@@ -1,4 +1,6 @@
 "use client";
+import { IconClock, IconFinish, IconBolt } from "@/components/ui-icons";
+
 
 import { Users, Eye, ArrowLeft, ArrowRight } from "lucide-react";
 import { FLOOR_THEMES, FLOOR_HEIGHTS } from "../hex-math";
@@ -54,7 +56,7 @@ export function HexHUD({
           </div>
 
           <div className="rounded-2xl border-2 border-slate-950 bg-slate-950 px-3.5 py-2 font-mono text-sm font-black text-white shadow-[3px_3px_0_#0f172a]">
-            ⏱ {formatTime(elapsedSeconds)}
+            <span className="inline-flex items-center gap-1"><IconClock size={14} />{formatTime(elapsedSeconds)}</span>
           </div>
         </div>
 
@@ -74,7 +76,7 @@ export function HexHUD({
       {stage === "playing" && localRunner && !localRunner.isEliminated && (
         <div className="mt-2 mx-auto w-full max-w-md">
           <div className="flex items-center gap-2 rounded-2xl border-2 border-slate-950 bg-slate-950/85 px-3 py-2 shadow-[3px_3px_0_#0f172a] backdrop-blur-md">
-            <span className="text-[10px] font-black uppercase tracking-wider text-amber-300">🏁 Race</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-amber-300"><><IconFinish size={12} className="inline" /> Race</></span>
             <div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-slate-700">
               <div
                 className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-cyan-400 via-amber-400 to-yellow-300 transition-[width] duration-150"
@@ -116,7 +118,7 @@ export function HexHUD({
           ))}
           {/* Laser Floor Icon */}
           <div className="flex items-center justify-between border-t border-red-500/50 pt-1 text-center">
-            <span className="text-[10px] text-red-400">⚡</span>
+            <span className="text-red-400"><IconBolt size={12} /></span>
             <span className="text-[8px] font-black uppercase text-red-400">Abyss</span>
           </div>
 
@@ -151,7 +153,7 @@ export function HexHUD({
             key={idx}
             className="flex items-center gap-2 rounded-xl border-2 border-slate-950 bg-red-500/90 px-3 py-1 text-xs font-black text-white shadow-[2px_2px_0_#0f172a] backdrop-blur-md animate-fade-in"
           >
-            <span>⚡</span>
+            <span className="text-amber-300"><IconBolt size={14} /></span>
             <span>{toast}</span>
           </div>
         ))}

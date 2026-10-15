@@ -117,7 +117,7 @@ export function ClimberAvatar3D({
           </span>
           {runner.hasFinished && (
             <span className="rounded bg-amber-400 px-1 py-0.2 text-[9px] font-black text-amber-950">
-              🏆 #{runner.placement || 1}
+              #{runner.placement || 1}
             </span>
           )}
         </div>
