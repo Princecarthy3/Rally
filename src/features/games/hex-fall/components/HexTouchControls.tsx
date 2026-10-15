@@ -97,7 +97,7 @@ export function HexTouchControls({
 
       // Immediate input — do not wait for rAF
       const mag = dist < 4 ? 0 : clamped / MAX_R;
-      const mx = dist < 4 ? 0 : Math.cos(angle) * mag;
+      const mx = dist < 4 ? 0 : -Math.cos(angle) * mag; // stick left = screen left
       const my = dist < 4 ? 0 : -Math.sin(angle) * mag; // screen-up → +moveY → +Z forward
 
       setStickPos({ x: sx, y: sy });
