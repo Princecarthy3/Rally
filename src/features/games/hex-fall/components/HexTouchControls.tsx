@@ -89,10 +89,10 @@ export function HexTouchControls({
       const stickX = dx * scale;
       const stickY = dy * scale;
       setStickPos({ x: stickX, y: stickY });
-      // Screen up = forward (−Z / negative moveY in game uses moveY as Z)
+      // Screen up (negative stickY) → positive moveY so game treats it as forward
       push({
         moveX: stickX / maxRadius,
-        moveY: stickY / maxRadius,
+        moveY: -stickY / maxRadius,
       });
       break;
     }

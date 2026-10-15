@@ -419,13 +419,13 @@ export function HexFallGame({
           let moveX = 0;
           let moveZ = 0;
 
-          // Keyboard input
-          if (keysDown.current.has("KeyW") || keysDown.current.has("ArrowUp")) moveZ -= 1;
-          if (keysDown.current.has("KeyS") || keysDown.current.has("ArrowDown")) moveZ += 1;
+          // Keyboard: W/↑ = forward down the path (+Z)
+          if (keysDown.current.has("KeyW") || keysDown.current.has("ArrowUp")) moveZ += 1;
+          if (keysDown.current.has("KeyS") || keysDown.current.has("ArrowDown")) moveZ -= 1;
           if (keysDown.current.has("KeyA") || keysDown.current.has("ArrowLeft")) moveX -= 1;
           if (keysDown.current.has("KeyD") || keysDown.current.has("ArrowRight")) moveX += 1;
 
-          // Mobile touch input
+          // Mobile joystick: moveY already inverted so up = forward (+Z)
           if (touchInputs.current.moveX !== 0 || touchInputs.current.moveY !== 0) {
             moveX = touchInputs.current.moveX;
             moveZ = touchInputs.current.moveY;
