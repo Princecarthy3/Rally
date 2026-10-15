@@ -1,109 +1,183 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { HexTouchInputs } from "../types";
 
+function isTouchDevice() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(pointer: coarse)").matches ||
+    "ontouchstart" in window ||
+    navigator.maxTouchPoints > 0
+  );
+}
+
+function subscribeTouch(onChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const mq = window.matchMedia("(pointer: coarse)");
+  mq.addEventListener?.("change", onChange);
+  window.addEventListener("resize", onChange);
+  return () => {
+    mq.removeEventListener?.("change", onChange);
+    window.removeEventListener("resize", onChange);
+  };
+}
+
+/**
+ * Always visible on phones/tablets — including landscape
+ * (previous `sm:hidden` hid controls once width ≥ 640px).
+ */
 export function HexTouchControls({
   onInputsChange,
 }: {
   onInputsChange: (inputs: HexTouchInputs) => void;
 }) {
-  const [joystickActive, setJoystickActive] = useState(false);
+  const visible = useSyncExternalStore(subscribeTouch, isTouchDevice, () => false);
   const [stickPos, setStickPos] = useState({ x: 0, y: 0 });
+  const [jumpPressed, setJumpPressed] = useState(false);
+  const [divePressed, setDivePressed] = useState(false);
   const touchOrigin = useRef<{ x: number; y: number } | null>(null);
   const touchId = useRef<number | null>(null);
   const currentInputs = useRef<HexTouchInputs>({ moveX: 0, moveY: 0, jump: false, dive: false });
 
-  const updateInputs = (patch: Partial<HexTouchInputs>) => {
-    currentInputs.current = { ...currentInputs.current, ...patch };
-    onInputsChange(currentInputs.current);
-  };
+  const push = useCallback(
+    (patch: Partial<HexTouchInputs>) => {
+      currentInputs.current = { ...currentInputs.current, ...patch };
+      onInputsChange(currentInputs.current);
+    },
+    [onInputsChange]
+  );
+
+  // Release all inputs if the tab loses focus mid-touch
+  useEffect(() => {
+    const release = () => {
+      touchId.current = null;
+      touchOrigin.current = null;
+      setStickPos({ x: 0, y: 0 });
+      setJumpPressed(false);
+      setDivePressed(false);
+      push({ moveX: 0, moveY: 0, jump: false, dive: false });
+    };
+    window.addEventListener("blur", release);
+    return () => window.removeEventListener("blur", release);
+  }, [push]);
+
+  if (!visible) return null;
 
   const handleStickStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (touchId.current !== null) return;
     const touch = e.changedTouches[0];
     touchId.current = touch.identifier;
     touchOrigin.current = { x: touch.clientX, y: touch.clientY };
-    setJoystickActive(true);
     setStickPos({ x: 0, y: 0 });
   };
 
   const handleStickMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (touchId.current === null || !touchOrigin.current) return;
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
-      if (touch.identifier === touchId.current) {
-        const dx = touch.clientX - touchOrigin.current.x;
-        const dy = touch.clientY - touchOrigin.current.y;
-        const dist = Math.hypot(dx, dy);
-        const maxRadius = 45;
-
-        const clampedDist = Math.min(dist, maxRadius);
-        const angle = Math.atan2(dy, dx);
-
-        const stickX = Math.cos(angle) * clampedDist;
-        const stickY = Math.sin(angle) * clampedDist;
-
-        setStickPos({ x: stickX, y: stickY });
-        updateInputs({
-          moveX: stickX / maxRadius,
-          moveY: stickY / maxRadius,
-        });
-        break;
-      }
+      if (touch.identifier !== touchId.current) continue;
+      const dx = touch.clientX - touchOrigin.current.x;
+      const dy = touch.clientY - touchOrigin.current.y;
+      const maxRadius = 52;
+      const dist = Math.hypot(dx, dy) || 1;
+      const scale = Math.min(1, maxRadius / dist);
+      const stickX = dx * scale;
+      const stickY = dy * scale;
+      setStickPos({ x: stickX, y: stickY });
+      // Screen up = forward (−Z / negative moveY in game uses moveY as Z)
+      push({
+        moveX: stickX / maxRadius,
+        moveY: stickY / maxRadius,
+      });
+      break;
     }
   };
 
   const handleStickEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
     for (let i = 0; i < e.changedTouches.length; i++) {
-      if (e.changedTouches[i].identifier === touchId.current) {
-        touchId.current = null;
-        touchOrigin.current = null;
-        setJoystickActive(false);
-        setStickPos({ x: 0, y: 0 });
-        updateInputs({ moveX: 0, moveY: 0 });
-        break;
-      }
+      if (e.changedTouches[i].identifier !== touchId.current) continue;
+      touchId.current = null;
+      touchOrigin.current = null;
+      setStickPos({ x: 0, y: 0 });
+      push({ moveX: 0, moveY: 0 });
+      break;
     }
   };
 
+  const pressJump = (down: boolean) => {
+    setJumpPressed(down);
+    push({ jump: down });
+  };
+  const pressDive = (down: boolean) => {
+    setDivePressed(down);
+    push({ dive: down });
+  };
+
   return (
-    <div className="pointer-events-none absolute inset-0 z-30 select-none sm:hidden">
-      {/* Joystick Zone (Left) */}
+    <div className="pointer-events-none fixed inset-0 z-[70] select-none">
+      {/* Virtual joystick — bottom left */}
       <div
-        className="pointer-events-auto absolute bottom-4 left-4 h-36 w-36 touch-none rounded-full border-2 border-white/20 bg-black/25 backdrop-blur-sm"
+        className="pointer-events-auto absolute bottom-6 left-5 h-40 w-40 touch-none rounded-full border-2 border-white/30 bg-black/40 shadow-[0_8px_32px_rgba(0,0,0,.45)] backdrop-blur-md"
         onTouchStart={handleStickStart}
         onTouchMove={handleStickMove}
         onTouchEnd={handleStickEnd}
         onTouchCancel={handleStickEnd}
+        style={{ WebkitUserSelect: "none", userSelect: "none" }}
       >
-        {/* Joystick Thumb Knob */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-16 w-16 rounded-full border border-white/20 bg-white/5" />
+        </div>
         <div
-          className="absolute left-1/2 top-1/2 h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-slate-950 bg-yellow-400 shadow-[2px_2px_0_#0f172a] transition-transform duration-75"
-          style={{
-            transform: `translate(calc(-50% + ${stickPos.x}px), calc(-50% + ${stickPos.y}px))`,
-          }}
+          className="absolute left-1/2 top-1/2 h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/50 bg-sky-400/90 shadow-lg"
+          style={{ transform: `translate(calc(-50% + ${stickPos.x}px), calc(-50% + ${stickPos.y}px))` }}
         />
+        <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-black uppercase tracking-wider text-white/70">
+          Move
+        </span>
       </div>
 
-      {/* Action Buttons Zone (Right) */}
-      <div className="pointer-events-auto absolute bottom-4 right-4 flex flex-col items-center gap-3">
-        {/* Dive / Dash Button */}
+      {/* Action buttons — bottom right */}
+      <div className="pointer-events-auto absolute bottom-6 right-5 flex flex-col items-center gap-3">
         <button
-          onTouchStart={() => updateInputs({ dive: true })}
-          onTouchEnd={() => updateInputs({ dive: false })}
-          className="h-13 w-13 rounded-full border-2 border-slate-950 bg-[#38bdf8] text-xs font-black text-slate-950 shadow-[3px_3px_0_#0f172a] active:translate-y-0.5 active:shadow-none"
+          type="button"
+          className={`flex h-16 w-16 touch-none items-center justify-center rounded-full border-2 border-slate-950 text-xs font-black uppercase shadow-[3px_3px_0_#0f172a] active:translate-y-0.5 ${
+            divePressed ? "bg-amber-300 text-slate-950" : "bg-amber-400/95 text-slate-950"
+          }`}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            pressDive(true);
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            pressDive(false);
+          }}
+          onTouchCancel={() => pressDive(false)}
         >
-          DIVE
+          Dive
         </button>
-
-        {/* Big Jump Button */}
         <button
-          onTouchStart={() => updateInputs({ jump: true })}
-          onTouchEnd={() => updateInputs({ jump: false })}
-          className="h-18 w-18 rounded-full border-2 border-slate-950 bg-[#f43f5e] text-sm font-black text-white shadow-[4px_4px_0_#0f172a] active:translate-y-0.5 active:shadow-none"
+          type="button"
+          className={`flex h-20 w-20 touch-none items-center justify-center rounded-full border-2 border-slate-950 text-sm font-black uppercase shadow-[4px_4px_0_#0f172a] active:translate-y-0.5 ${
+            jumpPressed ? "bg-emerald-300 text-slate-950" : "bg-emerald-400 text-slate-950"
+          }`}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            pressJump(true);
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            pressJump(false);
+          }}
+          onTouchCancel={() => pressJump(false)}
         >
-          JUMP
+          Jump
         </button>
       </div>
     </div>

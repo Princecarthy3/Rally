@@ -3,10 +3,10 @@
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { FLOOR_HEIGHTS } from "../hex-math";
+import { FLOOR_HEIGHTS, PATH_LENGTH_Z, PATH_WIDTH_X } from "../hex-math";
 
 function createStadiumParticleGeo() {
-  const count = 180;
+  const count = 140;
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
 
@@ -16,14 +16,11 @@ function createStadiumParticleGeo() {
     return (seed - 1) / 2147483646;
   };
 
+  const pathLen = PATH_LENGTH_Z;
   for (let i = 0; i < count; i++) {
-    const angle = rand() * Math.PI * 2;
-    const radius = 12 + rand() * 22;
-    const y = -8 + rand() * 32;
-
-    positions[i * 3] = Math.cos(angle) * radius;
-    positions[i * 3 + 1] = y;
-    positions[i * 3 + 2] = Math.sin(angle) * radius;
+    positions[i * 3] = (rand() - 0.5) * (PATH_WIDTH_X + 18);
+    positions[i * 3 + 1] = -6 + rand() * 30;
+    positions[i * 3 + 2] = rand() * (pathLen + 12) - 4;
 
     const randColor = rand();
     if (randColor < 0.33) {
@@ -50,126 +47,116 @@ function createStadiumParticleGeo() {
 const STADIUM_PARTICLE_GEO = createStadiumParticleGeo();
 
 export function HexStadium3D() {
-  const ring1Ref = useRef<THREE.Group>(null);
-  const ring2Ref = useRef<THREE.Group>(null);
-  const laserGridRef = useRef<THREE.Mesh>(null);
   const particlesRef = useRef<THREE.Points>(null);
+  const laserGridRef = useRef<THREE.Mesh>(null);
+  const particleGeo = useMemo(() => STADIUM_PARTICLE_GEO, []);
 
-  const particleGeo = STADIUM_PARTICLE_GEO;
+  const pathLen = PATH_LENGTH_Z;
+  const midZ = pathLen * 0.5;
 
-  useFrame((state, delta) => {
-    if (ring1Ref.current) {
-      ring1Ref.current.rotation.y += delta * 0.08;
-    }
-    if (ring2Ref.current) {
-      ring2Ref.current.rotation.y -= delta * 0.05;
-    }
+  useFrame((state) => {
     if (particlesRef.current) {
-      particlesRef.current.rotation.y += delta * 0.02;
+      particlesRef.current.rotation.y = state.clock.elapsedTime * 0.02;
     }
     if (laserGridRef.current) {
       const mat = laserGridRef.current.material as THREE.MeshStandardMaterial;
       if (mat) {
-        const pulse = 0.6 + Math.sin(state.clock.elapsedTime * 3) * 0.3;
-        mat.emissiveIntensity = pulse;
+        mat.emissiveIntensity = 0.55 + Math.sin(state.clock.elapsedTime * 2.4) * 0.25;
       }
     }
   });
 
   return (
     <group>
-      {/* Background Floating Stars & Neon Sparks */}
       <points ref={particlesRef} geometry={particleGeo}>
-        <pointsMaterial size={0.35} vertexColors transparent opacity={0.75} sizeAttenuation />
+        <pointsMaterial size={0.32} vertexColors transparent opacity={0.7} sizeAttenuation />
       </points>
 
-      {/* Outer Stadium Floating Rings */}
-      <group ref={ring1Ref} position={[0, 15, 0]}>
-        <mesh rotation={[-Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[16, 0.22, 16, 64]} />
-          <meshStandardMaterial color="#0891b2" emissive="#06b6d4" emissiveIntensity={0.8} />
-        </mesh>
-        {/* Neon Pylon Nodes */}
-        {[0, 1, 2, 3, 4, 5].map((idx) => {
-          const angle = (idx / 6) * Math.PI * 2;
-          return (
-            <mesh key={idx} position={[Math.cos(angle) * 16, 0, Math.sin(angle) * 16]}>
-              <boxGeometry args={[0.6, 2.5, 0.6]} />
-              <meshStandardMaterial color="#22d3ee" emissive="#38bdf8" emissiveIntensity={1.2} />
-            </mesh>
-          );
-        })}
-      </group>
-
-      <group ref={ring2Ref} position={[0, 5, 0]}>
-        <mesh rotation={[-Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[18.5, 0.25, 16, 64]} />
-          <meshStandardMaterial color="#7c3aed" emissive="#a855f7" emissiveIntensity={0.7} />
-        </mesh>
-        {[0, 1, 2, 3, 4, 5, 6, 7].map((idx) => {
-          const angle = (idx / 8) * Math.PI * 2;
-          return (
-            <mesh key={idx} position={[Math.cos(angle) * 18.5, 0, Math.sin(angle) * 18.5]}>
-              <boxGeometry args={[0.7, 3.2, 0.7]} />
-              <meshStandardMaterial color="#c084fc" emissive="#d8b4fe" emissiveIntensity={1.1} />
-            </mesh>
-          );
-        })}
-      </group>
-
-      {/* Floor Support Structural Columns in corners */}
-      {[0, 1, 2, 3].map((idx) => {
-        const angle = (idx / 4) * Math.PI * 2 + Math.PI / 4;
-        const colRadius = 14.5;
-        const colX = Math.cos(angle) * colRadius;
-        const colZ = Math.sin(angle) * colRadius;
+      {/* Side neon rails along the long path */}
+      {[-1, 1].map((side) => {
+        const x = side * (PATH_WIDTH_X * 0.5 + 3.5);
         return (
-          <group key={idx} position={[colX, 9, colZ]}>
-            <mesh>
-              <cylinderGeometry args={[0.35, 0.45, 26, 16]} />
-              <meshStandardMaterial color="#1e1b4b" roughness={0.4} metalness={0.8} />
+          <group key={side}>
+            <mesh position={[x, 10, midZ]}>
+              <boxGeometry args={[0.35, 22, pathLen + 4]} />
+              <meshStandardMaterial
+                color={side < 0 ? "#0e7490" : "#6d28d9"}
+                emissive={side < 0 ? "#22d3ee" : "#a855f7"}
+                emissiveIntensity={0.45}
+                transparent
+                opacity={0.35}
+              />
             </mesh>
-            <mesh position={[0, 0, 0]}>
-              <cylinderGeometry args={[0.38, 0.48, 25.8, 16]} />
-              <meshBasicMaterial color="#38bdf8" wireframe transparent opacity={0.3} />
-            </mesh>
+            {/* Pylon markers along the rail */}
+            {Array.from({ length: 8 }).map((_, i) => {
+              const z = (i / 7) * pathLen;
+              return (
+                <mesh key={i} position={[x, 4 + (i % 3), z]}>
+                  <boxGeometry args={[0.55, 2.2, 0.55]} />
+                  <meshStandardMaterial
+                    color="#38bdf8"
+                    emissive="#67e8f9"
+                    emissiveIntensity={1.1}
+                  />
+                </mesh>
+              );
+            })}
           </group>
         );
       })}
 
-      {/* Floor Depth Level Markers */}
+      {/* Floor height rings elongated as path outlines */}
       {FLOOR_HEIGHTS.map((y, fIndex) => (
-        <group key={fIndex} position={[0, y - 0.25, 0]}>
-          <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[13.2, 13.5, 48]} />
-            <meshBasicMaterial
-              color={fIndex === 0 ? "#06b6d4" : fIndex === 1 ? "#a855f7" : fIndex === 2 ? "#f59e0b" : "#f43f5e"}
-              transparent
-              opacity={0.4}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-        </group>
+        <mesh
+          key={fIndex}
+          position={[0, y - 0.2, midZ]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <ringGeometry
+            args={[
+              Math.max(PATH_WIDTH_X * 0.55, 4),
+              Math.max(PATH_WIDTH_X * 0.55, 4) + 0.35,
+              48,
+            ]}
+          />
+          <meshBasicMaterial
+            color={
+              fIndex === 0 ? "#06b6d4" : fIndex === 1 ? "#a855f7" : fIndex === 2 ? "#f59e0b" : "#f43f5e"
+            }
+            transparent
+            opacity={0.25}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
       ))}
 
-      {/* Bottom Elimination Abyss Laser Grid */}
-      <group position={[0, -5.6, 0]}>
+      {/* Abyss laser under the path */}
+      <group position={[0, -5.6, midZ]}>
         <mesh ref={laserGridRef} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[70, 70]} />
+          <planeGeometry args={[PATH_WIDTH_X + 24, pathLen + 20]} />
           <meshStandardMaterial
             color="#4c0519"
             emissive="#f43f5e"
-            emissiveIntensity={0.8}
-            roughness={0.2}
-            metalness={0.9}
+            emissiveIntensity={0.75}
+            roughness={0.25}
+            metalness={0.85}
           />
         </mesh>
-        {/* Holographic Wireframe Grid Overlay */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 0]}>
-          <planeGeometry args={[70, 70, 35, 35]} />
-          <meshBasicMaterial color="#fb7185" wireframe transparent opacity={0.45} />
+          <planeGeometry args={[PATH_WIDTH_X + 24, pathLen + 20, 12, 40]} />
+          <meshBasicMaterial color="#fb7185" wireframe transparent opacity={0.4} />
         </mesh>
       </group>
+
+      {/* Start / finish markers */}
+      <mesh position={[0, FLOOR_HEIGHTS[0] + 0.05, 0.5]}>
+        <boxGeometry args={[PATH_WIDTH_X * 0.9, 0.08, 0.4]} />
+        <meshStandardMaterial color="#22d3ee" emissive="#67e8f9" emissiveIntensity={1.2} />
+      </mesh>
+      <mesh position={[0, FLOOR_HEIGHTS[0] + 0.05, pathLen - 1]}>
+        <boxGeometry args={[PATH_WIDTH_X * 0.9, 0.08, 0.4]} />
+        <meshStandardMaterial color="#fbbf24" emissive="#fde68a" emissiveIntensity={1.2} />
+      </mesh>
     </group>
   );
 }

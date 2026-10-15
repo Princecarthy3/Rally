@@ -7,10 +7,9 @@ import * as THREE from "three";
 import type { HexRunnerTransform } from "../types";
 
 /**
- * Dynamic chase camera for Hex Fall:
- * - sits behind the runner based on facing
- * - lifts higher as you drop floors so the arena stays readable
- * - pulls back during falls for spatial awareness
+ * Chase camera for the long hex runway:
+ * - sits behind the runner along the path
+ * - elevates on falls so you still see the strip ahead
  */
 export function HexCamera({
   runners,
@@ -20,25 +19,21 @@ export function HexCamera({
   spectateSeat: number;
 }) {
   const { camera } = useThree();
-  const currentPos = useRef(new THREE.Vector3(0, 24, 28));
-  const currentTarget = useRef(new THREE.Vector3(0, 18, 0));
+  const currentPos = useRef(new THREE.Vector3(0, 22, -8));
+  const currentTarget = useRef(new THREE.Vector3(0, 18, 8));
   const smoothedYaw = useRef(0);
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     let target = runners[spectateSeat];
 
     if (!target || target.isEliminated) {
-      const aliveRunners = Object.values(runners).filter((r) => !r.isEliminated);
-      if (aliveRunners.length > 0) {
-        target = aliveRunners[0];
-      }
+      const alive = Object.values(runners).filter((r) => !r.isEliminated);
+      if (alive.length > 0) target = alive[0];
     }
 
     if (!target) {
-      const t = state.clock.elapsedTime * 0.15;
-      const desiredPos = new THREE.Vector3(Math.cos(t) * 22, 16, Math.sin(t) * 22);
-      currentPos.current.lerp(desiredPos, Math.min(1, delta * 3));
-      currentTarget.current.lerp(new THREE.Vector3(0, 6, 0), Math.min(1, delta * 3));
+      currentPos.current.lerp(new THREE.Vector3(0, 20, 10), Math.min(1, delta * 2));
+      currentTarget.current.lerp(new THREE.Vector3(0, 8, 25), Math.min(1, delta * 2));
       camera.position.copy(currentPos.current);
       camera.lookAt(currentTarget.current);
       return;
@@ -49,40 +44,39 @@ export function HexCamera({
     const falling = !target.isGrounded && vy < -1;
     const speed = Math.hypot(vx, vz);
 
-    // Smooth yaw toward facing / movement
+    // Prefer facing; when moving, blend toward velocity direction
     let desiredYaw = target.rotationY;
-    if (speed > 0.8) {
+    if (speed > 0.6) {
       desiredYaw = Math.atan2(vx, vz);
     }
     let diff = desiredYaw - smoothedYaw.current;
     while (diff > Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
-    smoothedYaw.current += diff * Math.min(1, delta * 4);
+    smoothedYaw.current += diff * Math.min(1, delta * 4.5);
 
     const yaw = smoothedYaw.current;
-    // Camera sits *behind* the runner
-    const backDist = falling ? 12.5 : 9.2 + Math.min(2.5, speed * 0.2);
-    const height = falling ? 8.5 : 5.8 + target.currentFloor * 0.35;
+    const backDist = falling ? 13 : 9.5 + Math.min(2, speed * 0.18);
+    const height = falling ? 9 : 6.2 + target.currentFloor * 0.25;
 
     const camX = px - Math.sin(yaw) * backDist;
     const camZ = pz - Math.cos(yaw) * backDist;
-    const camY = Math.max(-1.5, py + height);
+    const camY = Math.max(-1, py + height);
 
-    const lookY = py + 1.1 + (falling ? -0.4 : 0.3);
-    // Look slightly ahead in facing direction
-    const lookX = px + Math.sin(yaw) * 2.2;
-    const lookZ = pz + Math.cos(yaw) * 2.2;
+    // Look ahead down the path
+    const lookX = px + Math.sin(yaw) * 3.5;
+    const lookY = py + 1.15 + (falling ? -0.3 : 0.2);
+    const lookZ = pz + Math.cos(yaw) * 3.5;
 
-    const followRate = falling ? 5 : 7.5;
-    currentPos.current.lerp(new THREE.Vector3(camX, camY, camZ), Math.min(1, delta * followRate));
-    currentTarget.current.lerp(new THREE.Vector3(lookX, lookY, lookZ), Math.min(1, delta * 9));
+    const rate = falling ? 5 : 8;
+    currentPos.current.lerp(new THREE.Vector3(camX, camY, camZ), Math.min(1, delta * rate));
+    currentTarget.current.lerp(new THREE.Vector3(lookX, lookY, lookZ), Math.min(1, delta * 10));
 
     camera.position.copy(currentPos.current);
     camera.lookAt(currentTarget.current);
 
     if (camera instanceof THREE.PerspectiveCamera) {
-      const targetFov = falling ? 62 : 52 + Math.min(8, speed * 0.6);
-      camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, Math.min(1, delta * 4));
+      const fov = falling ? 64 : 54 + Math.min(7, speed * 0.5);
+      camera.fov = THREE.MathUtils.lerp(camera.fov, fov, Math.min(1, delta * 4));
       camera.updateProjectionMatrix();
     }
   });

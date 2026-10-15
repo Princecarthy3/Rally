@@ -99,7 +99,7 @@ export function HexFallGame({
         isLocal: p.seat === meSeat && !isSpectator,
         isBot: isBotId(p.player_id),
         position: pos,
-        rotationY: Math.atan2(-pos[2], -pos[0]) + Math.PI / 2, // Face center
+        rotationY: 0, // Face down the long path (+Z)
         velocity: [0, 0, 0],
         isGrounded: true,
         animState: "idle",

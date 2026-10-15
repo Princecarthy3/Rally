@@ -1,13 +1,23 @@
 import type { HexTile } from "./types";
 
-export const HEX_RADIUS = 1.32;
-export const HEX_HEIGHT = 0.35;
-export const GRID_RADIUS = 4; // 61 tiles per floor
+export const HEX_RADIUS = 1.28;
+export const HEX_HEIGHT = 0.38;
+/** How many hexes along the run (straight path length) */
+export const PATH_ROWS = 32;
+/** Half-width in hexes → total width = 2 * half + 1 (5-wide path) */
+export const PATH_HALF_WIDTH = 2;
 export const TOTAL_FLOORS = 4;
 export const FLOOR_HEIGHTS = [18, 12, 6, 0];
 export const ELIMINATION_Y = -5;
-/** Seconds from first step to tile vanishing — long enough to react and jump away */
+/** Seconds from first step to tile vanishing */
 export const TILE_DECAY_DURATION = 1.85;
+
+const X_SPACING = HEX_RADIUS * Math.sqrt(3);
+const Z_SPACING = HEX_RADIUS * 1.5;
+
+/** World length of the full path (for camera / stadium) */
+export const PATH_LENGTH_Z = PATH_ROWS * Z_SPACING;
+export const PATH_WIDTH_X = (PATH_HALF_WIDTH * 2 + 1) * X_SPACING;
 
 export const FLOOR_THEMES = [
   {
@@ -44,9 +54,11 @@ export const FLOOR_THEMES = [
   },
 ];
 
-export function hexToWorld(q: number, r: number, floorIndex: number) {
-  const x = HEX_RADIUS * Math.sqrt(3) * (q + r / 2);
-  const z = HEX_RADIUS * 1.5 * r;
+/** Long straight hex runway: rows along +Z, columns across X */
+export function pathToWorld(col: number, row: number, floorIndex: number) {
+  const offset = (row % 2) * (X_SPACING * 0.5);
+  const x = col * X_SPACING + offset;
+  const z = row * Z_SPACING;
   const y = FLOOR_HEIGHTS[floorIndex] ?? 0;
   return { x, y, z };
 }
@@ -55,17 +67,15 @@ export function generateAllFloors(): Record<string, HexTile> {
   const tiles: Record<string, HexTile> = {};
 
   for (let floor = 0; floor < TOTAL_FLOORS; floor++) {
-    for (let q = -GRID_RADIUS; q <= GRID_RADIUS; q++) {
-      const r1 = Math.max(-GRID_RADIUS, -q - GRID_RADIUS);
-      const r2 = Math.min(GRID_RADIUS, -q + GRID_RADIUS);
-      for (let r = r1; r <= r2; r++) {
-        const id = `f${floor}_q${q}_r${r}`;
-        const pos = hexToWorld(q, r, floor);
+    for (let row = 0; row < PATH_ROWS; row++) {
+      for (let col = -PATH_HALF_WIDTH; col <= PATH_HALF_WIDTH; col++) {
+        const id = `f${floor}_c${col}_r${row}`;
+        const pos = pathToWorld(col, row, floor);
         tiles[id] = {
           id,
           floor,
-          q,
-          r,
+          q: col,
+          r: row,
           x: pos.x,
           y: pos.y,
           z: pos.z,
@@ -90,9 +100,8 @@ export function isPointInsideHex(
   const dz = Math.abs(pz - hz);
   const sqrt3 = 1.73205;
 
-  // Forgiving outer bounds
-  if (dx > (sqrt3 / 2) * radius * 1.08 || dz > radius * 1.08) return false;
-  return dz * 0.5 + dx * (sqrt3 / 2) <= radius * 1.05;
+  if (dx > (sqrt3 / 2) * radius * 1.1 || dz > radius * 1.1) return false;
+  return dz * 0.5 + dx * (sqrt3 / 2) <= radius * 1.08;
 }
 
 export function getTileUnderPlayer(
@@ -105,7 +114,6 @@ export function getTileUnderPlayer(
   const floorY = FLOOR_HEIGHTS[floorIndex];
   if (floorY === undefined) return null;
 
-  // Landing tolerance — generous so jumps still connect
   if (py < floorY - 0.55 || py > floorY + 1.45) {
     return null;
   }
@@ -129,7 +137,7 @@ export function getTileUnderPlayer(
   return best;
 }
 
-/** Find nearest intact (or still-standing) tile on a floor for bots / air steering */
+/** Prefer intact tiles; bias forward along the path (+Z) for bots */
 export function findNearestSafeTile(
   px: number,
   pz: number,
@@ -145,9 +153,9 @@ export function findNearestSafeTile(
     if (tile.floor !== floorIndex || tile.state === "fallen") continue;
     if (preferIntact && tile.state !== "intact") continue;
     const dist = Math.hypot(tile.x - px, tile.z - pz);
-    // Prefer closer intact tiles, slight bias toward center
-    const centerBias = 1 / (1 + Math.hypot(tile.x, tile.z) * 0.08);
-    const score = 20 - dist + centerBias * 3;
+    // Prefer closer tiles slightly ahead on the path
+    const forwardBias = Math.max(0, tile.z - pz) * 0.15;
+    const score = 20 - dist + forwardBias;
     if (score > bestScore) {
       bestScore = score;
       best = tile;
@@ -156,18 +164,19 @@ export function findNearestSafeTile(
   return best;
 }
 
+/** Spawn near the start of the path (low Z), facing down the runway */
 export function getStartingPositions(playerCount: number): [number, number, number][] {
   const n = Math.max(2, playerCount);
-  // Keep spawns well inside the hex grid so nobody starts mid-air
-  const radius = 4.2;
   const topY = FLOOR_HEIGHTS[0] + 0.5;
+  const startRow = 1;
   const positions: [number, number, number][] = [];
 
   for (let i = 0; i < n; i++) {
-    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
-    const x = Math.cos(angle) * radius;
-    const z = Math.sin(angle) * radius;
-    positions.push([Number(x.toFixed(2)), topY, Number(z.toFixed(2))]);
+    // Spread across path width
+    const t = n === 1 ? 0 : i / (n - 1);
+    const col = -PATH_HALF_WIDTH + t * (PATH_HALF_WIDTH * 2);
+    const pos = pathToWorld(col, startRow, 0);
+    positions.push([Number(pos.x.toFixed(2)), topY, Number(pos.z.toFixed(2))]);
   }
 
   return positions;
