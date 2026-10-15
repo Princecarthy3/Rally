@@ -3,9 +3,9 @@ import type { HexTile } from "./types";
 export const HEX_RADIUS = 1.28;
 export const HEX_HEIGHT = 0.38;
 /** How many hexes along the run (straight path length) */
-export const PATH_ROWS = 32;
+export const PATH_ROWS = 28;
 /** Half-width in hexes → total width = 2 * half + 1 (5-wide path) */
-export const PATH_HALF_WIDTH = 2;
+export const PATH_HALF_WIDTH = 3; // 7 hexes wide — easier to stay on
 export const TOTAL_FLOORS = 4;
 export const FLOOR_HEIGHTS = [18, 12, 6, 0];
 export const ELIMINATION_Y = -5;

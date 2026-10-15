@@ -32,7 +32,7 @@ import { MobileOrientationOverlay } from "./components/MobileOrientationOverlay"
 
 const GRAVITY = -28.0;
 const JUMP_VELOCITY = 12.2;
-const RUN_SPEED = 11.5;
+const RUN_SPEED = 12.5;
 const DIVE_BOOST = 13.5;
 
 const PLAYER_COLORS = [
@@ -120,6 +120,8 @@ export function HexFallGame({
   const touchInputs = useRef<HexTouchInputs>({ moveX: 0, moveY: 0, jump: false, dive: false });
   const diveCooldown = useRef(0);
   const coyoteTime = useRef(0); // brief grace period after leaving a tile
+  const matchStartMs = useRef(0); // when "playing" began — spawn grace before tiles decay
+  const START_GRACE_MS = 2200;
 
   // Bot brains (managed by host or local client)
   const botBrains = useRef<Record<number, BotBrain>>({});
@@ -362,6 +364,7 @@ export function HexFallGame({
       setCountdown((c) => {
         if (c <= 1) {
           clearInterval(timer);
+          matchStartMs.current = Date.now();
           setStage("playing");
           sounds.playCountdownBeep(true);
           return 0;
@@ -416,7 +419,7 @@ export function HexFallGame({
         // 1. Process Local Player
         const local = runnersRef.current[meSeat];
         if (local && !local.isEliminated && !isSpectator) {
-          // Stick axes: X = right on screen, Y = up on screen (already inverted in touch controls)
+          // World-space on the straight path: up = +Z (forward), right = +X
           let stickX = 0;
           let stickY = 0;
 
@@ -425,40 +428,35 @@ export function HexFallGame({
           if (keysDown.current.has("KeyA") || keysDown.current.has("ArrowLeft")) stickX -= 1;
           if (keysDown.current.has("KeyD") || keysDown.current.has("ArrowRight")) stickX += 1;
 
-          if (touchInputs.current.moveX !== 0 || touchInputs.current.moveY !== 0) {
+          if (
+            Math.abs(touchInputs.current.moveX) > 0.01 ||
+            Math.abs(touchInputs.current.moveY) > 0.01
+          ) {
             stickX = touchInputs.current.moveX;
             stickY = touchInputs.current.moveY;
           }
 
-          // Camera / facing–relative movement so stick-up always means "toward top of screen"
           const inputLen = Math.hypot(stickX, stickY);
           let vx = 0;
           let vz = 0;
           let rotationY = local.rotationY;
 
-          if (inputLen > 0.06) {
-            const yaw = local.rotationY;
-            const fwdX = Math.sin(yaw);
-            const fwdZ = Math.cos(yaw);
-            const rightX = Math.cos(yaw);
-            const rightZ = -Math.sin(yaw);
-
+          if (inputLen > 0.04) {
             const mag = Math.min(1, inputLen);
-            // Mild response curve — light taps still move, full stick is full speed
-            const curved = Math.pow(mag, 0.75);
             const nx = stickX / inputLen;
             const ny = stickY / inputLen;
-
-            vx = (rightX * nx + fwdX * ny) * RUN_SPEED * curved;
-            vz = (rightZ * nx + fwdZ * ny) * RUN_SPEED * curved;
-            rotationY = Math.atan2(vx, vz);
+            vx = nx * RUN_SPEED * mag;
+            vz = ny * RUN_SPEED * mag;
+            if (mag > 0.15) {
+              rotationY = Math.atan2(vx, vz);
+            }
           }
 
           let [px, py, pz] = local.position;
           let [currentVx, vy, currentVz] = local.velocity;
 
-          // Snappier accel so the stick doesn't feel "stuck in mud"
-          const blend = Math.min(1, 18 * delta);
+          // Fast accel/decel — responsive stick
+          const blend = Math.min(1, 22 * delta);
           currentVx += (vx - currentVx) * blend;
           currentVz += (vz - currentVz) * blend;
 
@@ -520,8 +518,11 @@ export function HexFallGame({
               vy = 0;
               isGrounded = true;
 
-              // Step triggers tile decay!
-              if (currentTile.state === "intact") {
+              // Step triggers tile decay (after short spawn grace so you can start running)
+              if (
+                currentTile.state === "intact" &&
+                Date.now() - matchStartMs.current > START_GRACE_MS
+              ) {
                 triggerTileDecay(currentTile.id);
               }
             }
@@ -607,7 +608,10 @@ export function HexFallGame({
                 by = floorY + 0.5;
                 bvy = 0;
                 isGrounded = true;
-                if (tile.state === "intact") {
+                if (
+                  tile.state === "intact" &&
+                  Date.now() - matchStartMs.current > START_GRACE_MS
+                ) {
                   triggerTileDecay(tile.id);
                 }
               }
