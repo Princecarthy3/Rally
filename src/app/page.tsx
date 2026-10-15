@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
+import { GameIcon, titleToGameKey } from "@/features/games/game-icon";
 
 const games = [
   {
@@ -313,15 +314,13 @@ export default function HomePage() {
                       className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="grid h-full w-full place-items-center bg-white/55 text-7xl">
-                      {game.icon}
+                    <div className="grid h-full w-full place-items-center bg-white/55 text-slate-900">
+                      <GameIcon gameKey={titleToGameKey[game.title] || "uno"} size={56} />
                     </div>
                   )}
-                  {game.icon && (
-                    <div className="absolute top-3 stroke-slate-900 left-3 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950/65 text-lg text-white backdrop-blur-md">
-                      {game.icon}
-                    </div>
-                  )}
+                  <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950/70 text-white backdrop-blur-md">
+                    <GameIcon gameKey={titleToGameKey[game.title] || "uno"} size={20} />
+                  </div>
                 </div>
 
                 <h3 className="mt-4 text-xl font-extrabold tracking-tight text-slate-950">

@@ -4,6 +4,7 @@ import { LoaderCircle, Lock, RotateCcw, Send } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { Room, RoomPlayer } from "@/features/rooms/types";
 import { gameByKey } from "./registry";
+import { GameIcon } from "./game-icon";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { NumberGuessGame } from "./number-guess-game";
 import { DotsBoxes } from "./dots-boxes";
@@ -397,7 +398,7 @@ export function GameBoard({
           style={{ backgroundColor: game.color }}
         >
           <div className="flex items-center gap-3">
-            <span className="text-3xl">{game.icon}</span>
+            <span className="text-slate-950"><GameIcon gameKey={game.key} size={36} /></span>
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest opacity-60">
                 {game.name}

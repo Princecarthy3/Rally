@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { GameIcon, titleToGameKey } from "@/features/games/game-icon";
 
 export const metadata: Metadata = {
   title: "Games | Free Online Multiplayer Games",
@@ -298,8 +299,8 @@ export default function GamesPage() {
                     alt={game.title}
                     className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                   />
-                  <div className="absolute top-3 stroke-slate-900 left-3 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950/65 text-lg text-white backdrop-blur-md">
-                    {game.icon}
+                  <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950/70 text-white backdrop-blur-md">
+                    <GameIcon gameKey={titleToGameKey[game.title] || "uno"} size={20} />
                   </div>
                   <span className="absolute top-3 right-3 rounded-full border border-white/20 bg-slate-950/70 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white backdrop-blur-md">
                     {game.category}

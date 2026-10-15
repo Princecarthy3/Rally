@@ -4,6 +4,7 @@ import { ArrowRight, Copy, LoaderCircle, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { games, type GameDefinition } from "@/features/games/registry";
+import { GameIcon } from "@/features/games/game-icon";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Mode = "create" | "join" | null;
@@ -205,10 +206,10 @@ export function RoomLauncher({
                     {game.image ? (
                       <img src={game.image} alt={game.shortName} className="h-full w-full object-cover" />
                     ) : (
-                      <span className="grid h-full w-full place-items-center text-2xl">{game.icon}</span>
+                      <span className="grid h-full w-full place-items-center text-slate-900"><GameIcon gameKey={game.key} size={28} /></span>
                     )}
                     <div className="absolute top-1 left-1 flex h-6 w-6 items-center justify-center rounded-md bg-slate-950/70 text-xs text-white backdrop-blur-md">
-                      {game.icon}
+                      <GameIcon gameKey={game.key} size={22} className="opacity-90" />
                     </div>
                   </div>
                   <strong className="mt-2 block truncate text-xs font-black leading-tight">{game.shortName}</strong>

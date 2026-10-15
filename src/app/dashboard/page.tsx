@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/components/auth-provider";
 import { games, type GameDefinition } from "@/features/games/registry";
+import { GameIcon } from "@/features/games/game-icon";
 import { RoomLauncher } from "@/features/rooms/room-launcher";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -141,11 +142,11 @@ export default function DashboardPage() {
                       />
                     ) : (
                       <div className="grid h-full w-full place-items-center bg-white/75 text-5xl">
-                        {game.icon}
+                        <GameIcon gameKey={game.key} size={28} />
                       </div>
                     )}
                     <div className="absolute top-2 left-2 flex h-8 w-8 items-center justify-center rounded-xl bg-slate-950/70 text-sm text-white backdrop-blur-md">
-                      {game.icon}
+                      <GameIcon gameKey={game.key} size={28} />
                     </div>
                     <span className="absolute top-2 right-2 rounded-full border-2 border-slate-950 bg-white px-2 py-0.5 text-[9px] font-black uppercase">
                       {game.tag}
@@ -182,7 +183,7 @@ export default function DashboardPage() {
                     return (
                       <div key={result.id} className="flex items-center gap-4 py-3">
                         <span className="grid h-11 w-11 place-items-center rounded-xl border-2 border-slate-950 text-2xl" style={{ backgroundColor: game?.color }}>
-                          {game?.icon || "🎮"}
+                          <GameIcon gameKey={game?.key || "uno"} size={28} />
                         </span>
                         <div className="min-w-0 flex-1">
                           <strong className="block truncate text-sm">{game?.shortName || result.game_type}</strong>

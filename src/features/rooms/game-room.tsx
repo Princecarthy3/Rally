@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ProtectedPage } from "@/components/protected-page";
 import { useAuth } from "@/components/auth-provider";
 import { gameByKey } from "@/features/games/registry";
+import { GameIcon } from "@/features/games/game-icon";
 import { GameBoard } from "@/features/games/game-board";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useRoom } from "./use-room";
@@ -445,7 +446,7 @@ function Lobby({
       <section className="paper-card overflow-hidden">
         {/* Compact Header for mobile */}
         <header className="relative border-b-2 border-slate-950 p-4 sm:p-7" style={{ backgroundColor: game.color }}>
-          <div className="absolute right-3 top-1 text-6xl sm:text-8xl opacity-15">{game.icon}</div>
+          <div className="absolute right-3 top-1 opacity-15 text-slate-950"><GameIcon gameKey={game.key} size={96} /></div>
           <p className="eyebrow !text-slate-950/50">Private game room</p>
           <h1 className="relative mt-1 text-2xl font-black tracking-[-.05em] sm:text-5xl">{game.name}</h1>
           <p className="relative mt-1 max-w-lg text-xs font-medium opacity-70 sm:mt-2 sm:text-sm">{game.description}</p>
