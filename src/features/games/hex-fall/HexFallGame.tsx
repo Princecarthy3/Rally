@@ -28,11 +28,12 @@ import { HexCamera } from "./components/HexCamera";
 import { HexHUD } from "./components/HexHUD";
 import { HexTouchControls } from "./components/HexTouchControls";
 import { HexResultsModal } from "./components/HexResultsModal";
+import { MobileOrientationOverlay } from "./components/MobileOrientationOverlay";
 
-const GRAVITY = -26.0;
-const JUMP_VELOCITY = 11.2;
-const RUN_SPEED = 9.2;
-const DIVE_BOOST = 12.0;
+const GRAVITY = -28.0;
+const JUMP_VELOCITY = 11.8;
+const RUN_SPEED = 10.0;
+const DIVE_BOOST = 13.5;
 
 const PLAYER_COLORS = [
   "#ff9eaa", // Seat 1: Coral Rose
@@ -118,6 +119,7 @@ export function HexFallGame({
   const keysDown = useRef(new Set<string>());
   const touchInputs = useRef<HexTouchInputs>({ moveX: 0, moveY: 0, jump: false, dive: false });
   const diveCooldown = useRef(0);
+  const coyoteTime = useRef(0); // brief grace period after leaving a tile
 
   // Bot brains (managed by host or local client)
   const botBrains = useRef<Record<number, BotBrain>>({});
@@ -230,8 +232,11 @@ export function HexFallGame({
         event: "hex_eliminated",
         payload: newPlacement,
       });
+
+      // Persist elimination on the server (do NOT call this for the winner)
+      void onAct("eliminate_player", String(seat));
     },
-    [elapsedSeconds, addToast, channel]
+    [elapsedSeconds, addToast, channel, onAct]
   );
 
   // Check victory condition
@@ -262,9 +267,8 @@ export function HexFallGame({
           ]);
         }
 
-        if (isHost && winSeat !== null) {
-          void onAct("eliminate_player", String(winSeat));
-        }
+        // Losers are already reported via eliminatePlayer → onAct.
+        // Do not mark the last survivor as eliminated.
       }, 0);
       return () => clearTimeout(timer);
     }
@@ -451,26 +455,39 @@ export function HexFallGame({
           // Gravity
           vy += GRAVITY * delta;
 
-          // Jump input
+          // Coyote time: short grace after walking off a tile
+          if (local.isGrounded) {
+            coyoteTime.current = 0.14;
+          } else {
+            coyoteTime.current = Math.max(0, coyoteTime.current - delta);
+          }
+
+          // Jump input (grounded or coyote)
           const wantJump =
             keysDown.current.has("Space") || touchInputs.current.jump;
-          if (wantJump && local.isGrounded) {
+          if (wantJump && (local.isGrounded || coyoteTime.current > 0) && vy <= 1.5) {
             vy = JUMP_VELOCITY;
+            coyoteTime.current = 0;
             sounds.playJumpSound();
           }
 
-          // Dive / Dash input
+          // Dive / Dash — air or ground for quick escapes
           const wantDive =
-            (keysDown.current.has("ShiftLeft") || touchInputs.current.dive) &&
-            diveCooldown.current <= 0 &&
-            !local.isGrounded;
+            (keysDown.current.has("ShiftLeft") ||
+              keysDown.current.has("ShiftRight") ||
+              touchInputs.current.dive) &&
+            diveCooldown.current <= 0;
           if (wantDive) {
-            diveCooldown.current = 1.2;
+            diveCooldown.current = local.isGrounded ? 0.85 : 1.05;
             const forwardX = Math.sin(rotationY);
             const forwardZ = Math.cos(rotationY);
             currentVx = forwardX * DIVE_BOOST;
             currentVz = forwardZ * DIVE_BOOST;
-            vy = Math.max(vy, 3.5);
+            if (!local.isGrounded) {
+              vy = Math.max(vy, 2.8);
+            } else {
+              vy = Math.max(vy, 4.2); // short hop-dash on ground
+            }
             sounds.playDodgeSound();
           }
 
@@ -646,56 +663,67 @@ export function HexFallGame({
     await onAct("rematch");
   };
 
+  // Lock page scroll while the match is fullscreen
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   return (
-    <div className="relative h-[82vh] min-h-[580px] w-full overflow-hidden rounded-[28px] border-3 border-slate-950 bg-[#080718] shadow-[8px_8px_0_#0f172a]">
-      {/* 3D WebGL Canvas */}
-      <HexCanvas>
-        <HexStadium3D />
-        <HexFloorLayers3D tiles={tiles} />
-        {Object.values(runners).map((runner) => (
-          <RunnerAvatar3D
-            key={runner.seat}
-            runner={runner}
-            isLocal={runner.seat === meSeat && !isSpectator}
+    <MobileOrientationOverlay>
+      <div className="fixed inset-0 z-[60] isolate h-[100dvh] min-h-screen w-screen overflow-hidden bg-[#080718] touch-none select-none">
+        {/* 3D WebGL Canvas */}
+        <HexCanvas>
+          <HexStadium3D />
+          <HexFloorLayers3D tiles={tiles} />
+          {Object.values(runners).map((runner) => (
+            <RunnerAvatar3D
+              key={runner.seat}
+              runner={runner}
+              isLocal={runner.seat === meSeat && !isSpectator}
+            />
+          ))}
+          <HexCamera
+            runners={runners}
+            spectateSeat={localRunner && !localRunner.isEliminated ? meSeat : spectatingSeat}
           />
-        ))}
-        <HexCamera
+        </HexCanvas>
+
+        {/* 2D Overlay HUD */}
+        <HexHUD
+          stage={stage}
+          countdown={countdown}
+          elapsedSeconds={elapsedSeconds}
+          aliveCount={aliveCount}
+          totalCount={players.length}
+          localRunner={localRunner}
           runners={runners}
-          spectateSeat={localRunner && !localRunner.isEliminated ? meSeat : spectatingSeat}
+          spectatingSeat={spectatingSeat}
+          onCycleSpectate={handleCycleSpectate}
+          toasts={toasts}
         />
-      </HexCanvas>
 
-      {/* 2D Overlay HUD */}
-      <HexHUD
-        stage={stage}
-        countdown={countdown}
-        elapsedSeconds={elapsedSeconds}
-        aliveCount={aliveCount}
-        totalCount={players.length}
-        localRunner={localRunner}
-        runners={runners}
-        spectatingSeat={spectatingSeat}
-        onCycleSpectate={handleCycleSpectate}
-        toasts={toasts}
-      />
-
-      {/* Touch Controls (Mobile Only) */}
-      <HexTouchControls
-        onInputsChange={(inputs) => {
-          touchInputs.current = inputs;
-        }}
-      />
-
-      {/* Results / Podium Modal */}
-      {stage === "results" && (
-        <HexResultsModal
-          placements={placements}
-          winnerSeat={winnerSeat}
-          isHost={isHost}
-          onRematch={handleRematch}
-          busy={busy}
+        {/* Touch Controls (Mobile Only) */}
+        <HexTouchControls
+          onInputsChange={(inputs) => {
+            touchInputs.current = inputs;
+          }}
         />
-      )}
-    </div>
+
+        {/* Results / Podium Modal */}
+        {stage === "results" && (
+          <HexResultsModal
+            placements={placements}
+            winnerSeat={winnerSeat}
+            isHost={isHost}
+            onRematch={handleRematch}
+            busy={busy}
+          />
+        )}
+      </div>
+    </MobileOrientationOverlay>
   );
 }

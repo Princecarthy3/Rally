@@ -76,7 +76,7 @@ export function HexHUD({
               {countdown > 0 ? countdown : "RUN!"}
             </span>
             <p className="mt-2 text-xl sm:text-2xl font-black uppercase tracking-widest text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-              Stay on the tiles!
+              Tiles crumble ~2s after you step — keep moving!
             </p>
           </div>
         </div>

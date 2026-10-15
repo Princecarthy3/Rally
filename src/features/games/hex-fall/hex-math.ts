@@ -6,7 +6,8 @@ export const GRID_RADIUS = 4; // 61 tiles per floor
 export const TOTAL_FLOORS = 4;
 export const FLOOR_HEIGHTS = [18, 12, 6, 0];
 export const ELIMINATION_Y = -5;
-export const TILE_DECAY_DURATION = 0.48; // seconds from step to vanish
+/** Seconds from first step to tile vanishing — long enough to react and jump away */
+export const TILE_DECAY_DURATION = 1.85;
 
 export const FLOOR_THEMES = [
   {
@@ -77,13 +78,21 @@ export function generateAllFloors(): Record<string, HexTile> {
   return tiles;
 }
 
-export function isPointInsideHex(px: number, pz: number, hx: number, hz: number, radius: number = HEX_RADIUS): boolean {
+/** Slightly oversized hitbox so gaps between hexes don't drop you unfairly */
+export function isPointInsideHex(
+  px: number,
+  pz: number,
+  hx: number,
+  hz: number,
+  radius: number = HEX_RADIUS
+): boolean {
   const dx = Math.abs(px - hx);
   const dz = Math.abs(pz - hz);
   const sqrt3 = 1.73205;
 
-  if (dx > (sqrt3 / 2) * radius || dz > radius) return false;
-  return dz * 0.5 + dx * (sqrt3 / 2) <= radius * 0.96;
+  // Forgiving outer bounds
+  if (dx > (sqrt3 / 2) * radius * 1.08 || dz > radius * 1.08) return false;
+  return dz * 0.5 + dx * (sqrt3 / 2) <= radius * 1.05;
 }
 
 export function getTileUnderPlayer(
@@ -96,26 +105,61 @@ export function getTileUnderPlayer(
   const floorY = FLOOR_HEIGHTS[floorIndex];
   if (floorY === undefined) return null;
 
-  // Player must be close to floor surface (within landing tolerance)
-  if (py < floorY - 0.4 || py > floorY + 1.2) {
+  // Landing tolerance — generous so jumps still connect
+  if (py < floorY - 0.55 || py > floorY + 1.45) {
     return null;
   }
+
+  let best: HexTile | null = null;
+  let bestDist = Infinity;
 
   for (const id in tiles) {
     const tile = tiles[id];
     if (tile.floor === floorIndex && tile.state !== "fallen") {
       if (isPointInsideHex(px, pz, tile.x, tile.z, HEX_RADIUS)) {
-        return tile;
+        const d = Math.hypot(px - tile.x, pz - tile.z);
+        if (d < bestDist) {
+          bestDist = d;
+          best = tile;
+        }
       }
     }
   }
 
-  return null;
+  return best;
+}
+
+/** Find nearest intact (or still-standing) tile on a floor for bots / air steering */
+export function findNearestSafeTile(
+  px: number,
+  pz: number,
+  floorIndex: number,
+  tiles: Record<string, HexTile>,
+  preferIntact = true
+): HexTile | null {
+  let best: HexTile | null = null;
+  let bestScore = -Infinity;
+
+  for (const id in tiles) {
+    const tile = tiles[id];
+    if (tile.floor !== floorIndex || tile.state === "fallen") continue;
+    if (preferIntact && tile.state !== "intact") continue;
+    const dist = Math.hypot(tile.x - px, tile.z - pz);
+    // Prefer closer intact tiles, slight bias toward center
+    const centerBias = 1 / (1 + Math.hypot(tile.x, tile.z) * 0.08);
+    const score = 20 - dist + centerBias * 3;
+    if (score > bestScore) {
+      bestScore = score;
+      best = tile;
+    }
+  }
+  return best;
 }
 
 export function getStartingPositions(playerCount: number): [number, number, number][] {
   const n = Math.max(2, playerCount);
-  const radius = 5.6; // Spaced evenly around top floor
+  // Keep spawns well inside the hex grid so nobody starts mid-air
+  const radius = 4.2;
   const topY = FLOOR_HEIGHTS[0] + 0.5;
   const positions: [number, number, number][] = [];
 
