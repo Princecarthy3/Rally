@@ -7,7 +7,7 @@ import { CHECKPOINTS, getTerrainHeight, TRACK_WAYPOINTS } from "../../track-data
 
 const STAGE_SIZE = 600;
 const TERRAIN_SEGMENTS = 96;
-const ROAD_HALF_WIDTH = 7.2;
+const ROAD_HALF_WIDTH = 7.6;
 
 function pseudoRandom(seed: number): number {
   const x = Math.sin(seed * 12.9898) * 43758.5453;
@@ -164,6 +164,29 @@ export const RallyStage3D = memo(function RallyStage3D({ activeCheckpoint = 0 }:
     return { x: Math.cos(angle) * radius, z: Math.sin(angle) * radius, scale: 0.45 + pseudoRandom(index + 9000) * 1.25 };
   }), []);
 
+  /** Edge barriers along the course (like Trigger Rally scenery markers) */
+  const barriers = useMemo(() => {
+    const points = getTrackSamples();
+    const list: Array<{ x: number; z: number; yaw: number; side: number }> = [];
+    for (let i = 0; i < points.length; i += 3) {
+      const previous = points[(i - 1 + points.length) % points.length];
+      const current = points[i];
+      const next = points[(i + 1) % points.length];
+      const dir = new THREE.Vector2(next.x - previous.x, next.z - previous.z).normalize();
+      const perp = new THREE.Vector2(-dir.y, dir.x);
+      const yaw = Math.atan2(dir.x, dir.y);
+      for (const side of [-1, 1]) {
+        list.push({
+          x: current.x + perp.x * (ROAD_HALF_WIDTH + 1.35) * side,
+          z: current.z + perp.y * (ROAD_HALF_WIDTH + 1.35) * side,
+          yaw,
+          side,
+        });
+      }
+    }
+    return list;
+  }, []);
+
   return <group>
     <color attach="background" args={["#07131d"]} />
     <fog attach="fog" args={["#173143", 82, 230]} />
@@ -172,11 +195,11 @@ export const RallyStage3D = memo(function RallyStage3D({ activeCheckpoint = 0 }:
     <directionalLight position={[-55, 80, -70]} intensity={3.6} color="#ffd3a3" castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-110} shadow-camera-right={110} shadow-camera-top={110} shadow-camera-bottom={-110} />
     <pointLight position={[0, 24, 0]} intensity={18} distance={150} color="#44d9ff" />
     <mesh geometry={terrainGeometry} rotation={[-Math.PI / 2, 0, 0]} receiveShadow><meshStandardMaterial vertexColors roughness={0.98} /></mesh>
-    {/* A wide, high-contrast Grand Prix surface keeps the racing line clear. */}
-    <mesh geometry={shoulderGeometry} receiveShadow><meshStandardMaterial color="#80664a" roughness={1} /></mesh>
-    <mesh geometry={roadGeometry} receiveShadow><meshStandardMaterial color="#18232b" roughness={0.82} metalness={0.12} /></mesh>
-    <mesh geometry={centerLineGeometry}><meshStandardMaterial color="#f6f1d1" emissive="#5c4d20" emissiveIntensity={0.3} roughness={0.65} /></mesh>
-    <mesh geometry={edgeStripeGeometry}><meshStandardMaterial color="#f6d36b" emissive="#2a1d08" emissiveIntensity={0.35} roughness={0.7} /></mesh>
+    {/* Packed dirt racing line + gravel shoulders (Trigger Rally style course) */}
+    <mesh geometry={shoulderGeometry} receiveShadow><meshStandardMaterial color="#8a7355" roughness={1} /></mesh>
+    <mesh geometry={roadGeometry} receiveShadow><meshStandardMaterial color="#5c4a38" roughness={0.95} metalness={0.02} /></mesh>
+    <mesh geometry={centerLineGeometry}><meshStandardMaterial color="#e8dcc0" emissive="#3d3420" emissiveIntensity={0.2} roughness={0.85} /></mesh>
+    <mesh geometry={edgeStripeGeometry}><meshStandardMaterial color="#c4a35a" emissive="#2a2110" emissiveIntensity={0.25} roughness={0.8} /></mesh>
     {gridMarkers.map((marker, index) => {
       const x = marker.x + Math.cos(marker.yaw) * marker.side;
       const z = marker.z - Math.sin(marker.yaw) * marker.side;
@@ -192,7 +215,19 @@ export const RallyStage3D = memo(function RallyStage3D({ activeCheckpoint = 0 }:
       <mesh position={[0, 4.8, 0]} castShadow><coneGeometry args={[1.45, 2.8, 7]} /><meshStandardMaterial color="#3b8547" flatShading /></mesh>
     </group>)}
     {rocks.map((rock, index) => <mesh key={index} position={[rock.x, getTerrainHeight(rock.x, rock.z) + rock.scale * 0.45, rock.z]} scale={rock.scale} castShadow receiveShadow><dodecahedronGeometry args={[0.95, 1]} /><meshStandardMaterial color="#7c786c" roughness={1} flatShading /></mesh>)}
-    <Sparkles count={150} scale={[520, 30, 520]} size={2.5} speed={0.16} color="#fff0bf" />
+    {barriers.map((b, index) => (
+      <group key={`b-${index}`} position={[b.x, getTerrainHeight(b.x, b.z), b.z]} rotation={[0, b.yaw, 0]}>
+        <mesh position={[0, 0.55, 0]} castShadow>
+          <boxGeometry args={[0.35, 1.1, 0.35]} />
+          <meshStandardMaterial color={index % 4 === 0 ? "#c2410c" : "#e2e8f0"} roughness={0.7} />
+        </mesh>
+        <mesh position={[0, 1.15, 0]} castShadow>
+          <boxGeometry args={[0.55, 0.18, 0.55]} />
+          <meshStandardMaterial color="#0f172a" />
+        </mesh>
+      </group>
+    ))}
+    <Sparkles count={120} scale={[520, 30, 520]} size={2.2} speed={0.14} color="#e8d5a3" />
 
     {CHECKPOINTS.map((checkpoint, index) => {
       const previous = CHECKPOINTS[(index - 1 + CHECKPOINTS.length) % CHECKPOINTS.length].position;

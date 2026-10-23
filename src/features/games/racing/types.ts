@@ -8,6 +8,9 @@ export interface CarTransform {
   rotation: [number, number, number]; // [pitch, yaw, roll]
   speed: number; // km/h
   isDrifting: boolean;
+  /** 0–1 engine load for HUD */
+  rpmNorm?: number;
+  gear?: number;
   currentCheckpoint: number;
   currentLap: number;
   progressDistance: number;

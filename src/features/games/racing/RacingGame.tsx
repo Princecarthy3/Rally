@@ -222,6 +222,8 @@ export function RacingGame({
           rotation: updated.rotation,
           speed: updated.speed,
           isDrifting: updated.isDrifting,
+          rpmNorm: physicsRef.current.rpmNorm,
+          gear: physicsRef.current.gear,
           currentCheckpoint: physicsRef.current.currentCheckpoint,
           currentLap: physicsRef.current.currentLap,
           progressDistance: physicsRef.current.progressDistance,
@@ -351,6 +353,8 @@ export function RacingGame({
           lap={myTransform.currentLap}
           totalLaps={3}
           speed={myTransform.speed}
+          gear={myTransform.gear}
+          rpmNorm={myTransform.rpmNorm}
           standings={standings}
         />
 

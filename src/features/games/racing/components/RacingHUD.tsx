@@ -15,6 +15,8 @@ export function RacingHUD({
   lap = 1,
   totalLaps = 3,
   speed = 0,
+  gear = 1,
+  rpmNorm = 0,
   standings = [],
 }: {
   position?: number;
@@ -25,6 +27,8 @@ export function RacingHUD({
   lap?: number;
   totalLaps?: number;
   speed?: number;
+  gear?: number;
+  rpmNorm?: number;
   standings?: LiveStanding[];
   onExit?: () => void;
 }) {
@@ -53,7 +57,7 @@ export function RacingHUD({
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.28em] text-cyan-300">Rally circuit</p>
-            <p className="text-xs font-bold text-white/70">Pine Ridge · Stage 01</p>
+            <p className="text-xs font-bold text-white/70">Pine Ridge · Dirt Stage</p>
           </div>
         </div>
         {/* Live order / leaderboard — always visible */}
@@ -118,10 +122,17 @@ export function RacingHUD({
         </div>
       </div>
 
-      {/* Speed — bottom center, above touch controls */}
+      {/* Speed + gear / RPM — Trigger Rally style cluster */}
       <div className="pointer-events-none flex flex-col items-center pb-16 sm:pb-4">
-        <div className="mb-2 h-1 w-36 overflow-hidden rounded-full bg-white/20 sm:w-48">
-          <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-cyan-300 to-amber-300 shadow-[0_0_16px_rgba(103,232,249,.8)]" />
+        <div className="mb-1.5 flex w-40 items-center gap-2 sm:w-52">
+          <span className="w-6 text-center font-mono text-[10px] font-black text-cyan-300">G{gear}</span>
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/15">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-amber-300 to-red-400 shadow-[0_0_12px_rgba(251,191,36,.7)] transition-[width] duration-75"
+              style={{ width: `${Math.round(Math.min(1, Math.max(0, rpmNorm)) * 100)}%` }}
+            />
+          </div>
+          <span className="w-7 text-right font-mono text-[9px] font-bold text-slate-400">RPM</span>
         </div>
         <div className="flex items-center gap-1.5 rounded-xl border border-cyan-200/20 bg-[#07131d]/80 px-3 py-1 font-black text-white shadow-[0_12px_35px_rgba(0,0,0,.35)] backdrop-blur-xl sm:rounded-2xl sm:px-4 sm:py-1.5">
           <Gauge className="h-3.5 w-3.5 text-amber-400 sm:h-4 sm:w-4" />
@@ -147,7 +158,7 @@ export function RacingHUD({
                 <span>Handbrake</span>
                 <span className="font-mono text-amber-300">SPACE</span>
               </div>
-              <p className="pt-1 text-[11px] text-slate-400">On mobile, use the on-screen buttons.</p>
+              <p className="pt-1 text-[11px] text-slate-400">Handbrake + steer to drift. Stay on the dirt line for grip — grass is slow. On mobile, use the on-screen buttons.</p>
             </div>
             <button
               type="button"
