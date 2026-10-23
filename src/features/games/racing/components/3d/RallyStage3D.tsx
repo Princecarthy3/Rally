@@ -1,13 +1,19 @@
 "use client";
 
-import { Sky, Sparkles, Text } from "@react-three/drei";
+/**
+ * Visual stage styled after Trigger Rally's outdoor dirt courses:
+ * arid hills, packed-dirt track, green checkpoint rings, sparse scrub & rock.
+ * Assets are procedural (Trigger Rally content may not be redistributed).
+ */
+
+import { Sky, Text } from "@react-three/drei";
 import { memo, useMemo } from "react";
 import * as THREE from "three";
 import { CHECKPOINTS, getTerrainHeight, TRACK_WAYPOINTS } from "../../track-data";
 
-const STAGE_SIZE = 600;
-const TERRAIN_SEGMENTS = 96;
-const ROAD_HALF_WIDTH = 7.6;
+const STAGE_SIZE = 640;
+const TERRAIN_SEGMENTS = 110;
+const ROAD_HALF_WIDTH = 7.0;
 
 function pseudoRandom(seed: number): number {
   const x = Math.sin(seed * 12.9898) * 43758.5453;
@@ -19,13 +25,46 @@ function createTerrainGeometry() {
   const positions = geometry.attributes.position;
   const colors: number[] = [];
   const color = new THREE.Color();
+
+  // Approximate distance to track for cutting a lighter dirt path into the heightmap
+  const samples = TRACK_WAYPOINTS.map(([x, , z]) => ({ x, z }));
+
   for (let index = 0; index < positions.count; index += 1) {
     const x = positions.getX(index);
     const z = -positions.getY(index);
-    // A PlaneGeometry is rotated onto XZ below; its local Z becomes world height.
-    positions.setZ(index, getTerrainHeight(x, z) - 0.12);
-    const shade = 0.82 + pseudoRandom(index + 90) * 0.18;
-    color.setRGB(0.19 * shade, 0.42 * shade, 0.15 * shade);
+    let minDist = Infinity;
+    for (let i = 0; i < samples.length; i++) {
+      const a = samples[i];
+      const b = samples[(i + 1) % samples.length];
+      const abx = b.x - a.x;
+      const abz = b.z - a.z;
+      const len2 = abx * abx + abz * abz || 1;
+      let t = ((x - a.x) * abx + (z - a.z) * abz) / len2;
+      t = Math.max(0, Math.min(1, t));
+      const px = a.x + abx * t;
+      const pz = a.z + abz * t;
+      const d = Math.hypot(x - px, z - pz);
+      if (d < minDist) minDist = d;
+    }
+
+    // Cut course slightly into terrain (Trigger Rally draws circles along checkpoints)
+    let h = getTerrainHeight(x, z);
+    if (minDist < ROAD_HALF_WIDTH + 2.5) {
+      const cut = Math.max(0, 1 - minDist / (ROAD_HALF_WIDTH + 2.5));
+      h -= cut * 0.55;
+    }
+    positions.setZ(index, h);
+
+    // Arid tan / olive dirt palette (not lush green)
+    const shade = 0.78 + pseudoRandom(index + 17) * 0.22;
+    if (minDist < ROAD_HALF_WIDTH) {
+      color.setRGB(0.42 * shade, 0.34 * shade, 0.24 * shade);
+    } else if (minDist < ROAD_HALF_WIDTH + 6) {
+      color.setRGB(0.48 * shade, 0.4 * shade, 0.28 * shade);
+    } else {
+      // Dry grass / scrub
+      color.setRGB(0.45 * shade, 0.48 * shade, 0.28 * shade);
+    }
     colors.push(color.r, color.g, color.b);
   }
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
@@ -40,7 +79,7 @@ function getTrackSamples() {
     "centripetal",
     0.35
   );
-  return curve.getPoints(300).slice(0, -1).map(point => ({ x: point.x, z: point.z }));
+  return curve.getPoints(320).slice(0, -1).map((point) => ({ x: point.x, z: point.z }));
 }
 
 function createRoadGeometry(halfWidth: number) {
@@ -56,7 +95,7 @@ function createRoadGeometry(halfWidth: number) {
     for (const side of [-1, 1]) {
       const x = current.x + perpendicular.x * halfWidth * side;
       const z = current.z + perpendicular.y * halfWidth * side;
-      vertices.push(x, getTerrainHeight(x, z) + 0.025, z);
+      vertices.push(x, getTerrainHeight(x, z) - 0.15, z);
     }
   }
   for (let index = 0; index < points.length; index += 1) {
@@ -65,7 +104,6 @@ function createRoadGeometry(halfWidth: number) {
     const right = left + 1;
     const nextLeft = next * 2;
     const nextRight = nextLeft + 1;
-    // Winding must face upward; otherwise Three.js culls the road from the chase camera.
     indices.push(left, right, nextLeft, right, nextRight, nextLeft);
   }
   const geometry = new THREE.BufferGeometry();
@@ -75,177 +113,227 @@ function createRoadGeometry(halfWidth: number) {
   return geometry;
 }
 
-function createEdgeStripeGeometry(innerWidth: number, outerWidth: number) {
-  const points = getTrackSamples();
-  const vertices: number[] = [];
-  const indices: number[] = [];
-  for (let index = 0; index < points.length; index += 1) {
-    const previous = points[(index - 1 + points.length) % points.length];
-    const current = points[index];
-    const next = points[(index + 1) % points.length];
-    const direction = new THREE.Vector2(next.x - previous.x, next.z - previous.z).normalize();
-    const perpendicular = new THREE.Vector2(-direction.y, direction.x);
-    for (const side of [-1, 1]) for (const width of [innerWidth, outerWidth]) {
-      const x = current.x + perpendicular.x * width * side;
-      const z = current.z + perpendicular.y * width * side;
-      vertices.push(x, getTerrainHeight(x, z) + 0.065, z);
-    }
-  }
-  for (let index = 0; index < points.length; index += 1) {
-    const next = (index + 1) % points.length;
-    for (let side = 0; side < 2; side += 1) {
-      const current = index * 4 + side * 2;
-      const following = next * 4 + side * 2;
-      if (side === 0) indices.push(current, following, current + 1, current + 1, following, following + 1);
-      else indices.push(current, current + 1, following, current + 1, following + 1, following);
-    }
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  return geometry;
+/** Trigger Rally–style triple green ring checkpoint */
+function CheckpointRing({
+  position,
+  yaw,
+  active,
+  isFinish,
+  label,
+}: {
+  position: [number, number, number];
+  yaw: number;
+  active: boolean;
+  isFinish: boolean;
+  label: string;
+}) {
+  const color = isFinish ? "#1a5c1a" : active ? "#2f9e2f" : "#103010";
+  const intensity = active ? 1.4 : 0.55;
+  return (
+    <group position={position} rotation={[0, yaw, 0]}>
+      {[0, (Math.PI * 2) / 3, (Math.PI * 4) / 3].map((zRot, i) => (
+        <mesh key={i} rotation={[1.1, 0, zRot]} position={[0, 2.4, 0]}>
+          <torusGeometry args={[5.4, 0.22, 10, 36]} />
+          <meshBasicMaterial color={color} transparent opacity={0.92} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[4.2, 5.6, 40]} />
+        <meshBasicMaterial color={color} transparent opacity={0.25} side={THREE.DoubleSide} />
+      </mesh>
+      <pointLight position={[0, 4, 0]} color={color} intensity={intensity * 4} distance={28} />
+      <Text
+        position={[0, 6.2, 0]}
+        fontSize={0.7}
+        anchorX="center"
+        anchorY="middle"
+        color="#e8f5e0"
+        outlineWidth={0.04}
+        outlineColor="#0a1a0a"
+      >
+        {label}
+      </Text>
+    </group>
+  );
 }
 
-function createCenterLineGeometry() {
-  const points = getTrackSamples();
-  const vertices: number[] = [];
-  const indices: number[] = [];
-  const dashLength = 7;
-  for (let index = 0; index < points.length; index += 1) {
-    if (Math.floor(index / 5) % 2 === 1) continue;
-    const previous = points[(index - 1 + points.length) % points.length];
-    const current = points[index];
-    const next = points[(index + 1) % points.length];
-    const direction = new THREE.Vector2(next.x - previous.x, next.z - previous.z).normalize();
-    const perpendicular = new THREE.Vector2(-direction.y, direction.x).multiplyScalar(0.12);
-    const forward = direction.clone().multiplyScalar(dashLength * 0.42);
-    const start = new THREE.Vector2(current.x, current.z).sub(forward);
-    const end = new THREE.Vector2(current.x, current.z).add(forward);
-    vertices.push(start.x - perpendicular.x, getTerrainHeight(start.x - perpendicular.x, start.y - perpendicular.y) + 0.09, start.y - perpendicular.y);
-    vertices.push(start.x + perpendicular.x, getTerrainHeight(start.x + perpendicular.x, start.y + perpendicular.y) + 0.09, start.y + perpendicular.y);
-    vertices.push(end.x - perpendicular.x, getTerrainHeight(end.x - perpendicular.x, end.y - perpendicular.y) + 0.09, end.y - perpendicular.y);
-    vertices.push(end.x + perpendicular.x, getTerrainHeight(end.x + perpendicular.x, end.y + perpendicular.y) + 0.09, end.y + perpendicular.y);
-    const base = vertices.length / 3 - 4;
-    indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
-  geometry.setIndex(indices);
-  return geometry;
-}
-
-export const RallyStage3D = memo(function RallyStage3D({ activeCheckpoint = 0 }: { activeCheckpoint?: number }) {
+export const RallyStage3D = memo(function RallyStage3D({
+  activeCheckpoint = 0,
+}: {
+  activeCheckpoint?: number;
+}) {
   const terrainGeometry = useMemo(createTerrainGeometry, []);
-  const shoulderGeometry = useMemo(() => createRoadGeometry(ROAD_HALF_WIDTH + 1.15), []);
   const roadGeometry = useMemo(() => createRoadGeometry(ROAD_HALF_WIDTH), []);
-  const edgeStripeGeometry = useMemo(() => createEdgeStripeGeometry(ROAD_HALF_WIDTH - 0.22, ROAD_HALF_WIDTH), []);
-  const centerLineGeometry = useMemo(createCenterLineGeometry, []);
-  const gridMarkers = useMemo(() => {
-    const points = getTrackSamples();
-    return Array.from({ length: 10 }, (_, index) => {
-      const point = points[index * 2];
-      const next = points[(index * 2 + 1) % points.length];
-      return { x: point.x, z: point.z, yaw: Math.atan2(next.x - point.x, next.z - point.z), side: index % 2 === 0 ? -2.9 : 2.9 };
-    });
-  }, []);
-  const forestTrees = useMemo(() => {
-    const trees: Array<{ x: number; z: number; scale: number; rotation: number }> = [];
-    let seed = 1;
-    for (let x = -285; x <= 285; x += 13) for (let z = -285; z <= 285; z += 13) {
-      const nearest = Math.min(...TRACK_WAYPOINTS.map(([trackX, , trackZ]) => Math.hypot(x - trackX, z - trackZ)));
-      if (nearest > 16 && pseudoRandom(seed++) > 0.42) trees.push({ x: x + (pseudoRandom(seed++) - 0.5) * 5, z: z + (pseudoRandom(seed++) - 0.5) * 5, scale: 0.72 + pseudoRandom(seed++) * 0.72, rotation: pseudoRandom(seed++) * Math.PI * 2 });
-    }
-    return trees;
-  }, []);
-  const rocks = useMemo(() => Array.from({ length: 72 }, (_, index) => {
-    const angle = pseudoRandom(index + 5000) * Math.PI * 2;
-    const radius = 24 + pseudoRandom(index + 7000) * 118;
-    return { x: Math.cos(angle) * radius, z: Math.sin(angle) * radius, scale: 0.45 + pseudoRandom(index + 9000) * 1.25 };
-  }), []);
+  const shoulderGeometry = useMemo(() => createRoadGeometry(ROAD_HALF_WIDTH + 1.8), []);
 
-  /** Edge barriers along the course (like Trigger Rally scenery markers) */
-  const barriers = useMemo(() => {
+  const scrub = useMemo(() => {
+    const items: Array<{ x: number; z: number; s: number; r: number }> = [];
+    let seed = 3;
+    for (let x = -280; x <= 280; x += 14) {
+      for (let z = -280; z <= 280; z += 14) {
+        const nearest = Math.min(
+          ...TRACK_WAYPOINTS.map(([tx, , tz]) => Math.hypot(x - tx, z - tz))
+        );
+        if (nearest > 14 && pseudoRandom(seed++) > 0.55) {
+          items.push({
+            x: x + (pseudoRandom(seed++) - 0.5) * 6,
+            z: z + (pseudoRandom(seed++) - 0.5) * 6,
+            s: 0.4 + pseudoRandom(seed++) * 0.9,
+            r: pseudoRandom(seed++) * Math.PI * 2,
+          });
+        }
+      }
+    }
+    return items;
+  }, []);
+
+  const rocks = useMemo(
+    () =>
+      Array.from({ length: 90 }, (_, index) => {
+        const angle = pseudoRandom(index + 5000) * Math.PI * 2;
+        const radius = 28 + pseudoRandom(index + 7000) * 130;
+        return {
+          x: Math.cos(angle) * radius,
+          z: Math.sin(angle) * radius,
+          scale: 0.4 + pseudoRandom(index + 9000) * 1.4,
+        };
+      }),
+    []
+  );
+
+  // Marker posts along course edges (chevron-like)
+  const markers = useMemo(() => {
     const points = getTrackSamples();
-    const list: Array<{ x: number; z: number; yaw: number; side: number }> = [];
-    for (let i = 0; i < points.length; i += 3) {
-      const previous = points[(i - 1 + points.length) % points.length];
-      const current = points[i];
+    const list: Array<{ x: number; z: number; yaw: number }> = [];
+    for (let i = 0; i < points.length; i += 5) {
+      const prev = points[(i - 1 + points.length) % points.length];
+      const cur = points[i];
       const next = points[(i + 1) % points.length];
-      const dir = new THREE.Vector2(next.x - previous.x, next.z - previous.z).normalize();
+      const dir = new THREE.Vector2(next.x - prev.x, next.z - prev.z).normalize();
       const perp = new THREE.Vector2(-dir.y, dir.x);
       const yaw = Math.atan2(dir.x, dir.y);
       for (const side of [-1, 1]) {
         list.push({
-          x: current.x + perp.x * (ROAD_HALF_WIDTH + 1.35) * side,
-          z: current.z + perp.y * (ROAD_HALF_WIDTH + 1.35) * side,
+          x: cur.x + perp.x * (ROAD_HALF_WIDTH + 1.6) * side,
+          z: cur.z + perp.y * (ROAD_HALF_WIDTH + 1.6) * side,
           yaw,
-          side,
         });
       }
     }
     return list;
   }, []);
 
-  return <group>
-    <color attach="background" args={["#07131d"]} />
-    <fog attach="fog" args={["#173143", 82, 230]} />
-    <Sky distance={450000} sunPosition={[-80, 34, -120]} inclination={0.32} azimuth={0.2} rayleigh={2.2} turbidity={8} />
-    <hemisphereLight args={["#9ce7ff", "#102018", 2.3]} />
-    <directionalLight position={[-55, 80, -70]} intensity={3.6} color="#ffd3a3" castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-camera-left={-110} shadow-camera-right={110} shadow-camera-top={110} shadow-camera-bottom={-110} />
-    <pointLight position={[0, 24, 0]} intensity={18} distance={150} color="#44d9ff" />
-    <mesh geometry={terrainGeometry} rotation={[-Math.PI / 2, 0, 0]} receiveShadow><meshStandardMaterial vertexColors roughness={0.98} /></mesh>
-    {/* Packed dirt racing line + gravel shoulders (Trigger Rally style course) */}
-    <mesh geometry={shoulderGeometry} receiveShadow><meshStandardMaterial color="#8a7355" roughness={1} /></mesh>
-    <mesh geometry={roadGeometry} receiveShadow><meshStandardMaterial color="#5c4a38" roughness={0.95} metalness={0.02} /></mesh>
-    <mesh geometry={centerLineGeometry}><meshStandardMaterial color="#e8dcc0" emissive="#3d3420" emissiveIntensity={0.2} roughness={0.85} /></mesh>
-    <mesh geometry={edgeStripeGeometry}><meshStandardMaterial color="#c4a35a" emissive="#2a2110" emissiveIntensity={0.25} roughness={0.8} /></mesh>
-    {gridMarkers.map((marker, index) => {
-      const x = marker.x + Math.cos(marker.yaw) * marker.side;
-      const z = marker.z - Math.sin(marker.yaw) * marker.side;
-      return <mesh key={index} position={[x, getTerrainHeight(x, z) + 0.09, z]} rotation={[0, marker.yaw, 0]}>
-      <boxGeometry args={[1.35, 0.035, 3.4]} />
-      <meshStandardMaterial color="#f8fafc" roughness={0.7} />
-      </mesh>;
-    })}
+  return (
+    <group>
+      {/* Clear arid sky like Trigger Rally outdoor maps */}
+      <color attach="background" args={["#87b7d9"]} />
+      <fog attach="fog" args={["#c5d6e0", 90, 280]} />
+      <Sky
+        distance={450000}
+        sunPosition={[-60, 40, -90]}
+        inclination={0.48}
+        azimuth={0.22}
+        rayleigh={0.65}
+        turbidity={4.5}
+        mieCoefficient={0.006}
+        mieDirectionalG={0.8}
+      />
+      {/* Warm sun 0xffe0bb from Trigger Rally SunLight */}
+      <hemisphereLight args={["#cfe8ff", "#6b5a3e", 0.85]} />
+      <directionalLight
+        position={[-60, 70, 100]}
+        intensity={1.35}
+        color="#ffe0bb"
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+        shadow-camera-left={-40}
+        shadow-camera-right={40}
+        shadow-camera-top={40}
+        shadow-camera-bottom={-40}
+        shadow-camera-near={-20}
+        shadow-camera-far={80}
+      />
+      <ambientLight intensity={0.35} color="#d8c8a8" />
 
-    {forestTrees.map((tree, index) => <group key={index} position={[tree.x, getTerrainHeight(tree.x, tree.z), tree.z]} scale={tree.scale} rotation={[0, tree.rotation, 0]}>
-      <mesh position={[0, 1.3, 0]} castShadow><cylinderGeometry args={[0.22, 0.38, 2.6, 7]} /><meshStandardMaterial color="#5a351e" roughness={1} /></mesh>
-      <mesh position={[0, 3.25, 0]} castShadow><coneGeometry args={[2.1, 3.8, 7]} /><meshStandardMaterial color={index % 3 === 0 ? "#1e5a34" : "#276b39"} flatShading /></mesh>
-      <mesh position={[0, 4.8, 0]} castShadow><coneGeometry args={[1.45, 2.8, 7]} /><meshStandardMaterial color="#3b8547" flatShading /></mesh>
-    </group>)}
-    {rocks.map((rock, index) => <mesh key={index} position={[rock.x, getTerrainHeight(rock.x, rock.z) + rock.scale * 0.45, rock.z]} scale={rock.scale} castShadow receiveShadow><dodecahedronGeometry args={[0.95, 1]} /><meshStandardMaterial color="#7c786c" roughness={1} flatShading /></mesh>)}
-    {barriers.map((b, index) => (
-      <group key={`b-${index}`} position={[b.x, getTerrainHeight(b.x, b.z), b.z]} rotation={[0, b.yaw, 0]}>
-        <mesh position={[0, 0.55, 0]} castShadow>
-          <boxGeometry args={[0.35, 1.1, 0.35]} />
-          <meshStandardMaterial color={index % 4 === 0 ? "#c2410c" : "#e2e8f0"} roughness={0.7} />
-        </mesh>
-        <mesh position={[0, 1.15, 0]} castShadow>
-          <boxGeometry args={[0.55, 0.18, 0.55]} />
-          <meshStandardMaterial color="#0f172a" />
-        </mesh>
-      </group>
-    ))}
-    <Sparkles count={120} scale={[520, 30, 520]} size={2.2} speed={0.14} color="#e8d5a3" />
+      {/* Terrain */}
+      <mesh geometry={terrainGeometry} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <meshStandardMaterial vertexColors roughness={0.98} metalness={0} />
+      </mesh>
 
-    {CHECKPOINTS.map((checkpoint, index) => {
-      const previous = CHECKPOINTS[(index - 1 + CHECKPOINTS.length) % CHECKPOINTS.length].position;
-      const next = CHECKPOINTS[(index + 1) % CHECKPOINTS.length].position;
-      const yaw = Math.atan2(next[0] - previous[0], next[2] - previous[2]);
-      const isCurrent = checkpoint.index === (activeCheckpoint % CHECKPOINTS.length) + 1;
-      const isFinish = checkpoint.index === CHECKPOINTS.length;
-      const accent = isFinish ? "#ff4d4d" : isCurrent ? "#ffd43b" : "#20c9ff";
-      return <group key={checkpoint.index} position={[checkpoint.position[0], getTerrainHeight(checkpoint.position[0], checkpoint.position[2]), checkpoint.position[2]]} rotation={[0, yaw, 0]}>
-        <pointLight position={[0, 5, 2]} color={accent} intensity={isCurrent ? 8 : 3.5} distance={34} />
-        <mesh position={[-8.2, 3.8, 0]} castShadow><boxGeometry args={[0.85, 7.6, 0.85]} /><meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.8} /></mesh>
-        <mesh position={[8.2, 3.8, 0]} castShadow><boxGeometry args={[0.85, 7.6, 0.85]} /><meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={0.8} /></mesh>
-        <mesh position={[0, 7.25, 0]} castShadow><boxGeometry args={[17.2, 1.35, 0.65]} /><meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={isCurrent ? 1.2 : 0.5} /></mesh>
-        <mesh position={[0, 3.5, 0]}><torusGeometry args={[6.1, 0.28, 12, 40]} /><meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={isCurrent ? 2.4 : 0.85} /></mesh>
-        <Text position={[0, 7.25, 0.36]} fontSize={0.78} anchorX="center" anchorY="middle" color="#ffffff" outlineWidth={0.045} outlineColor="#07111f">
-          {isFinish ? "FINISH" : `CHECKPOINT ${checkpoint.index}`}
-        </Text>
-      </group>;
-    })}
-  </group>;
+      {/* Packed dirt course */}
+      <mesh geometry={shoulderGeometry} receiveShadow>
+        <meshStandardMaterial color="#6e5a42" roughness={1} />
+      </mesh>
+      <mesh geometry={roadGeometry} receiveShadow>
+        <meshStandardMaterial color="#5a4632" roughness={0.97} />
+      </mesh>
+
+      {/* Sparse dry scrub instead of pine forest */}
+      {scrub.map((s, index) => (
+        <group
+          key={`scrub-${index}`}
+          position={[s.x, getTerrainHeight(s.x, s.z), s.z]}
+          scale={s.s}
+          rotation={[0, s.r, 0]}
+        >
+          <mesh position={[0, 0.35, 0]} castShadow>
+            <sphereGeometry args={[0.55, 6, 5]} />
+            <meshStandardMaterial color="#6a7a3a" roughness={1} flatShading />
+          </mesh>
+          <mesh position={[0.25, 0.45, 0.15]} castShadow>
+            <sphereGeometry args={[0.35, 5, 4]} />
+            <meshStandardMaterial color="#5a6a32" roughness={1} flatShading />
+          </mesh>
+        </group>
+      ))}
+
+      {rocks.map((rock, index) => (
+        <mesh
+          key={`rock-${index}`}
+          position={[rock.x, getTerrainHeight(rock.x, rock.z) + rock.scale * 0.4, rock.z]}
+          scale={rock.scale}
+          castShadow
+          receiveShadow
+        >
+          <dodecahedronGeometry args={[0.9, 0]} />
+          <meshStandardMaterial color="#8a8070" roughness={1} flatShading />
+        </mesh>
+      ))}
+
+      {/* Course edge posts */}
+      {markers.map((m, index) => (
+        <group
+          key={`mk-${index}`}
+          position={[m.x, getTerrainHeight(m.x, m.z), m.z]}
+          rotation={[0, m.yaw, 0]}
+        >
+          <mesh position={[0, 0.7, 0]} castShadow>
+            <boxGeometry args={[0.22, 1.4, 0.22]} />
+            <meshStandardMaterial color={index % 2 === 0 ? "#c2410c" : "#f1f5f9"} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Trigger Rally–style green checkpoint rings */}
+      {CHECKPOINTS.map((checkpoint, index) => {
+        const previous = CHECKPOINTS[(index - 1 + CHECKPOINTS.length) % CHECKPOINTS.length].position;
+        const next = CHECKPOINTS[(index + 1) % CHECKPOINTS.length].position;
+        const yaw = Math.atan2(next[0] - previous[0], next[2] - previous[2]);
+        const isCurrent = checkpoint.index === (activeCheckpoint % CHECKPOINTS.length) + 1;
+        const isFinish = checkpoint.index === CHECKPOINTS.length;
+        const y = getTerrainHeight(checkpoint.position[0], checkpoint.position[2]);
+        return (
+          <CheckpointRing
+            key={checkpoint.index}
+            position={[checkpoint.position[0], y, checkpoint.position[2]]}
+            yaw={yaw}
+            active={isCurrent}
+            isFinish={isFinish}
+            label={isFinish ? "FINISH" : `CP ${checkpoint.index}`}
+          />
+        );
+      })}
+    </group>
+  );
 });

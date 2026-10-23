@@ -56,8 +56,8 @@ export function RacingHUD({
             <Map className="size-5" />
           </div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-cyan-300">Rally circuit</p>
-            <p className="text-xs font-bold text-white/70">Pine Ridge · Dirt Stage</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-cyan-300">Trigger stage</p>
+            <p className="text-xs font-bold text-white/70">Arbusu Valley · Stage 01</p>
           </div>
         </div>
         {/* Live order / leaderboard — always visible */}
